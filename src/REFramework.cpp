@@ -1063,7 +1063,7 @@ void REFramework::on_frame_d3d12() {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rts[1]{};
 
-        barrier.Transition.pResource = m_d3d12.get_bb(D3D12::BBV::IMGUI).Get();
+        barrier.Transition.pResource = m_d3d12.get_rt(D3D12::RTV::IMGUI).Get();
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
