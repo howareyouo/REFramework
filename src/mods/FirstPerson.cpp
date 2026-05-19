@@ -9,7 +9,7 @@
 #include "sdk/MurmurHash.hpp"
 #include "sdk/Application.hpp"
 
-#include "VR.hpp"
+#include "VRStub.hpp"
 #include "FirstPerson.hpp"
 
 #if defined(RE2) || defined(RE3)

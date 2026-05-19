@@ -15,10 +15,9 @@
 #include "mods/MethodDatabase.hpp"
 #include "mods/Scene.hpp"
 #include "mods/ScriptRunner.hpp"
-#include "mods/VR.hpp"
+#include "mods/VRStub.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/FaultyFileDetector.hpp"
-#include "mods/vr/games/RE8VR.hpp"
 #include "mods/TemporalUpscaler.hpp"
 
 #include "Mods.hpp"

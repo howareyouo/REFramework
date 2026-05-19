@@ -9,12 +9,6 @@ For newer builds, check out the [Nightly Developer Builds](https://github.com/pr
 ### Non-VR
 * Extract only the `dinput8.dll` from the zip file into your game folder.
 
-### VR
-* Install SteamVR (unless you're using OpenXR on a supported headset)
-* Extract the whole zip file into your corresponding game folder.
-
-[VR Troubleshooting/FAQ](https://github.com/praydog/REFramework/wiki/VR-Troubleshooting)
-
 ### Proton/Linux
 Add the launch option `WINEDLLOVERRIDES="dinput8.dll=n,b" %command%` to your game through Steam's properties after extraction.
 
@@ -24,9 +18,6 @@ Supports both DirectX 11 and DirectX 12.
 
 ## Included Mods
 * Lua Scripting API & Plugin System (All games, check out the [Wiki](https://cursey.github.io/reframework-book/))
-* VR
-  * Generic 6DOF VR support for all games
-  * Motion controls for RE2/RE3/RE7/RE8
 * First Person (RE2, RE3)
 * Manual Flashlight (RE2, RE3, RE8)
 * Free Camera (All games)

@@ -14,7 +14,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 # string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(ASMJIT_STATIC ON CACHE BOOL "" FORCE)
-set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE) # OpenXR
+set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE)
 set(BUILD_TOOLS OFF CACHE BOOL "" FORCE) # DirectXTK
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE) # Freetype
@@ -92,10 +92,6 @@ build-framework-dependencies = "REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P E
 [fetch-content.asmjit]
 git = "https://github.com/asmjit/asmjit.git"
 tag = "2a706fd2ba355808cada31ac1eed8ce28caa6b37"
-
-[fetch-content.openxr]
-git = "https://github.com/KhronosGroup/OpenXR-SDK"
-tag = "458984d7f59d1ae6dc1b597d94b02e4f7132eaba"
 
 [target.pdperfmod]
 type = "shared"
@@ -186,18 +182,6 @@ include-directories = ["dependencies/imnodes"]
 condition = "build-framework"
 link-libraries = ["imgui"]
 
-[target.openvr]
-type = "interface"
-include-directories = ["dependencies/openvr/headers"]
-link-libraries = [
-    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/openvr/lib/win64/openvr_api.lib",
-]
-cmake-after = """
-file(COPY dependencies/openvr/lib/win64/openvr_api.lib DESTINATION ${CMAKE_BINARY_DIR}/lib)
-file(COPY dependencies/openvr/bin/win64/openvr_api.dll DESTINATION ${CMAKE_BINARY_DIR}/bin)
-"""
-condition = "build-framework"
-
 [target.lua]
 type = "static"
 sources = ["dependencies/lua/src/*.c"]
@@ -255,8 +239,7 @@ condition = "build-framework"
 type = "shared"
 sources = ["src/**.cpp", "src/**.c"]
 headers = ["src/**.hpp", "src/**.h"]
-include-directories = ["shared/", "src/", "include/", "${OPENXR_SOURCE_DIR}/src"]
-link-directories = ["dependencies/openvr/lib/win64/"]
+include-directories = ["shared/", "src/", "include/"]
 compile-options = ["/GS-", "/bigobj", "/EHa"]
 compile-features = ["cxx_std_23"]
 compile-definitions = ["${CMKR_TARGET}", "REFRAMEWORK_EXPORTS", "REFRAMEWORK_GAME_NAME=\"${CMKR_TARGET}\"", "CIMGUI_VARGS0"]
@@ -276,8 +259,6 @@ link-libraries = [
     "d3d11",
     "glm_static",
     "shlwapi",
-    "openvr",
-    "openxr_loader",
     "delayimp",
     "DirectXTK",
     "DirectXTK12",
@@ -295,7 +276,7 @@ add_custom_command(
 
 [template.game.properties]
 OUTPUT_NAME = "dinput8"
-LINK_FLAGS = "/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+LINK_FLAGS = "/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 LIBRARY_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"

@@ -7,9 +7,9 @@
 #include <../directxtk12-src/Inc/Effects.h>
 #include <../directxtk12-src/Inc/GeometricPrimitive.h>
 
-#include "vr/d3d12/CommandContext.hpp"
-#include "vr/d3d12/TextureContext.hpp"
-#include "vr/d3d12/ComPtr.hpp"
+#include "utility/d3d12/CommandContext.hpp"
+#include "utility/d3d12/TextureContext.hpp"
+#include "utility/d3d12/ComPtr.hpp"
 
 #include "Mod.hpp"
 

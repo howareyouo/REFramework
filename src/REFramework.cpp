@@ -34,7 +34,7 @@ extern "C" {
 #include "mods/FaultyFileDetector.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/PluginLoader.hpp"
-#include "mods/VR.hpp"
+#include "mods/VRStub.hpp"
 #include "sdk/REGlobals.hpp"
 #include "sdk/Application.hpp"
 #include "sdk/SDK.hpp"
@@ -466,8 +466,7 @@ REFramework::REFramework(HMODULE reframework_module)
 #endif
 
 #if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-    utility::load_module_from_current_directory(L"openvr_api.dll");
-    utility::load_module_from_current_directory(L"openxr_loader.dll");
+    // VR DLLs removed - VR support disabled
     LoadLibraryA("dxgi.dll");
     LoadLibraryA("d3d11.dll");
 
@@ -1746,13 +1745,11 @@ void REFramework::draw_about() {
             License{ "minhook", license::minhook },
             License{ "spdlog", license::spdlog },
             License{ "robotocjksc", license::roboto_cjk },
-            License{ "openvr", license::openvr },
             License{ "lua", license::lua },
             License{ "sol", license::sol },
             License{ "json", license::json },
             License{ "asmjit", license::asmjit },
             License{ "bddisasm", utility::narrow(license::bddisasm) },
-            License{ "openxr", license::openxr },
             License{ "imguizmo", license::imguizmo },
             License{ "DirectXTK", license::directxtk },
             License{ "DirectXTK12", license::directxtk },

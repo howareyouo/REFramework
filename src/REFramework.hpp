@@ -10,7 +10,7 @@
 #include <utility/Patch.hpp>
 
 #include <../../directxtk12-src/Inc/GraphicsMemory.h>
-#include "mods/vr/d3d12/CommandContext.hpp"
+#include "utility/d3d12/CommandContext.hpp"
 
 class Mods;
 class REGlobals;

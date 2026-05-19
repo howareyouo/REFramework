@@ -9,7 +9,7 @@
 #include <../../directxtk12-src/Inc/SpriteFont.h>
 #include <../../directxtk12-src/Inc/DescriptorHeap.h>
 
-#include "../vr/d3d12/TextureContext.hpp"
+#include "utility/d3d12/TextureContext.hpp"
 
 class GameObjectsDisplay : public Tool {
 public:

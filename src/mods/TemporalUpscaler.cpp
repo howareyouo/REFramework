@@ -40,8 +40,7 @@
 #endif
 
 #include "TemporalUpscaler.hpp"
-
-#include "VR.hpp"
+#include "VRStub.hpp"
 
 std::shared_ptr<TemporalUpscaler>& TemporalUpscaler::get() {
     static std::shared_ptr instance = std::make_shared<TemporalUpscaler>();

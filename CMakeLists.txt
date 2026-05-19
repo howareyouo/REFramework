@@ -62,7 +62,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 # string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(ASMJIT_STATIC ON CACHE BOOL "" FORCE)
-set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE) # OpenXR
+set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE)
 set(BUILD_TOOLS OFF CACHE BOOL "" FORCE) # DirectXTK
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE) # Freetype
@@ -108,15 +108,6 @@ FetchContent_Declare(asmjit
 		2a706fd2ba355808cada31ac1eed8ce28caa6b37
 )
 FetchContent_MakeAvailable(asmjit)
-
-message(STATUS "Fetching openxr (458984d7f59d1ae6dc1b597d94b02e4f7132eaba)...")
-FetchContent_Declare(openxr
-	GIT_REPOSITORY
-		"https://github.com/KhronosGroup/OpenXR-SDK"
-	GIT_TAG
-		458984d7f59d1ae6dc1b597d94b02e4f7132eaba
-)
-FetchContent_MakeAvailable(openxr)
 
 message(STATUS "Fetching directxtk (f5026eb34e7053b1aff325d38db107703f394974)...")
 FetchContent_Declare(directxtk
@@ -347,23 +338,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 endif()
-# Target: openvr
-if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
-	add_library(openvr INTERFACE)
 
-	target_include_directories(openvr INTERFACE
-		"dependencies/openvr/headers"
-	)
-
-	target_link_libraries(openvr INTERFACE
-		"${CMAKE_CURRENT_SOURCE_DIR}/dependencies/openvr/lib/win64/openvr_api.lib"
-	)
-
-	set(CMKR_TARGET openvr)
-	file(COPY dependencies/openvr/lib/win64/openvr_api.lib DESTINATION ${CMAKE_BINARY_DIR}/lib)
-	file(COPY dependencies/openvr/bin/win64/openvr_api.dll DESTINATION ${CMAKE_BINARY_DIR}/bin)
-
-endif()
 # Target: lua
 if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	set(lua_SOURCES
@@ -2496,8 +2471,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -2513,31 +2487,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -2584,12 +2543,9 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
 	)
 
-	target_link_directories(RE2 PUBLIC
-		"dependencies/openvr/lib/win64/"
-	)
+
 
 	target_link_libraries(RE2 PUBLIC
 		${CMKR_TARGET}SDK
@@ -2606,8 +2562,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -2618,7 +2572,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -2707,8 +2661,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -2724,31 +2677,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -2795,11 +2733,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE2_TDB66 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE2_TDB66 PUBLIC
@@ -2817,8 +2750,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -2829,7 +2760,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -4883,8 +4814,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -4900,31 +4830,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -4971,11 +4886,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE3 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE3 PUBLIC
@@ -4993,8 +4903,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -5005,7 +4913,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -5094,8 +5002,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -5111,31 +5018,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -5182,11 +5074,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE3_TDB67 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE3_TDB67 PUBLIC
@@ -5204,8 +5091,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -5216,7 +5101,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -5305,8 +5190,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -5322,31 +5206,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -5393,11 +5262,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE4 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE4 PUBLIC
@@ -5415,8 +5279,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -5427,7 +5289,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -8465,8 +8327,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -8482,31 +8343,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -8553,11 +8399,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE7 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE7 PUBLIC
@@ -8575,8 +8416,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -8587,7 +8426,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -8676,8 +8515,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -8693,31 +8531,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -8764,11 +8587,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE7_TDB49 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE7_TDB49 PUBLIC
@@ -8786,8 +8604,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -8798,7 +8614,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -9871,8 +9687,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -9888,31 +9703,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -9959,11 +9759,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE8 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE8 PUBLIC
@@ -9981,8 +9776,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -9993,7 +9786,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -11064,8 +10857,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -11081,31 +10873,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -11152,11 +10929,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(DMC5 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(DMC5 PUBLIC
@@ -11174,8 +10946,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -11186,7 +10956,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -12259,8 +12029,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -12276,31 +12045,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -12347,11 +12101,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(MHRISE PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(MHRISE PUBLIC
@@ -12369,8 +12118,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -12381,7 +12128,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -13454,8 +13201,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -13471,31 +13217,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -13542,11 +13273,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(SF6 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(SF6 PUBLIC
@@ -13564,8 +13290,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -13576,7 +13300,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -14649,8 +14373,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -14666,31 +14389,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -14737,11 +14445,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(DD2 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(DD2 PUBLIC
@@ -14759,8 +14462,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -14771,7 +14472,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -15844,8 +15545,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -15861,31 +15561,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -15932,11 +15617,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(MHWILDS PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(MHWILDS PUBLIC
@@ -15954,8 +15634,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -15966,7 +15644,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -17039,8 +16717,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -17056,31 +16733,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -17127,11 +16789,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(MHSTORIES3 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(MHSTORIES3 PUBLIC
@@ -17149,8 +16806,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -17161,7 +16816,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -18234,8 +17889,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -18251,31 +17905,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -18322,11 +17961,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(RE9 PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(RE9 PUBLIC
@@ -18344,8 +17978,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -18356,7 +17988,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
@@ -19429,8 +19061,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
 		"src/mods/TemporalUpscaler.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
+
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -19446,31 +19077,16 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/CameraDuplicator.cpp"
-		"src/mods/vr/CameraDuplicator.hpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/DirectXTK.cpp"
-		"src/mods/vr/d3d12/DirectXTK.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
+		"src/utility/d3d12/ComPtr.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/DirectXTK.cpp"
+		"src/utility/d3d12/DirectXTK.hpp"
+		"src/utility/d3d12/ResourceCopier.cpp"
+		"src/utility/d3d12/ResourceCopier.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
+
 		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
@@ -19517,11 +19133,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(PRAGMATA PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(PRAGMATA PUBLIC
@@ -19539,8 +19150,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -19551,7 +19160,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO

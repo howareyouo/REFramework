@@ -4,8 +4,8 @@
 #include <utility/FunctionHook.hpp>
 #include <sdk/intrusive_ptr.hpp>
 
-#include "vr/d3d12/CommandContext.hpp"
-#include "vr/d3d12/TextureContext.hpp"
+#include "utility/d3d12/CommandContext.hpp"
+#include "utility/d3d12/TextureContext.hpp"
 #include "Mod.hpp"
 
 namespace sdk {

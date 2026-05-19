@@ -3,8 +3,6 @@
 #include <utility/Thread.hpp>
 #include <utility/Module.hpp>
 
-#include <openvr.h>
-
 #include "REFramework.hpp"
 
 #include "WindowFilter.hpp"
