@@ -157,6 +157,7 @@ public:
     void set_font_size(int size) { 
         if (m_font_size != size) {
             m_font_size = size;
+            m_fonts_need_init = true;
         }
     }
 
