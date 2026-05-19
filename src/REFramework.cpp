@@ -1667,9 +1667,6 @@ void REFramework::draw_ui() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Allows mouse and keyboard inputs to register to the game while the UI is focused.");
 
-    // Mods:
-    draw_about();
-
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_draw_ui();
     } else if (!m_game_data_initialized) {
@@ -1696,106 +1693,6 @@ void REFramework::draw_ui() {
     if (m_last_draw_ui && !m_draw_ui) {
         m_windows_message_hook->window_toggle_cursor(m_cursor_state);
     }
-}
-
-void REFramework::draw_about() {
-    if (!ImGui::CollapsingHeader("About")) {
-        return;
-    }
-
-    ImGui::TreePush("About");
-
-    ImGui::Text("Author: praydog");
-    ImGui::Text("Inspired by the Kanan project.");
-    ImGui::Text("https://github.com/praydog/REFramework");
-    ImGui::Text("http://praydog.com");
-    ImGui::Text("Branch: %s", REF_BRANCH);
-    ImGui::Text("Commits: %i", REF_TOTAL_COMMITS);
-    ImGui::Text("Commit hash: %s", std::format("{:.8}", REF_COMMIT_HASH).c_str());
-    ImGui::Text("Tag: %s", REF_TAG);
-#ifdef REF_COMMITS_PAST_TAG
-    ImGui::Text("Commits past tag: %i", REF_COMMITS_PAST_TAG);
-#endif
-    ImGui::Text("Build date: %s", REF_BUILD_DATE);
-    ImGui::Text("Build time: %s", REF_BUILD_TIME);
-
-    if (ImGui::TreeNode("Licenses")) {
-        struct License {
-            std::string name;
-            std::string text;
-        };
-
-        static std::array<License, 16> licenses{
-            License{ "glm", license::glm },
-            License{ "imgui", license::imgui },
-            License{ "cimgui", license::cimgui },
-            License{ "minhook", license::minhook },
-            License{ "spdlog", license::spdlog },
-            License{ "robotocjksc", license::roboto_cjk },
-            License{ "lua", license::lua },
-            License{ "sol", license::sol },
-            License{ "json", license::json },
-            License{ "asmjit", license::asmjit },
-            License{ "bddisasm", utility::narrow(license::bddisasm) },
-            License{ "imguizmo", license::imguizmo },
-            License{ "DirectXTK", license::directxtk },
-            License{ "DirectXTK12", license::directxtk },
-        };
-
-        for (const auto& license : licenses) {
-            if (ImGui::CollapsingHeader(license.name.c_str())) {
-                ImGui::TextWrapped(license.text.c_str());
-            }
-        }
-
-        ImGui::TreePop();
-    }
-
-    ImGui::Separator();
-
-    if (m_game_data_initialized && m_error.empty()) {
-        try {
-            static auto version_t = sdk::find_type_definition("via.version");
-            static std::string clean_version{};
-            static std::string engine_config{};
-            static auto tdb_version = sdk::RETypeDB::get()->version;
-
-            if (version_t != nullptr && clean_version.empty()) {
-                auto m = version_t->get_method("getPrettyVersionString");
-
-                if (m != nullptr) {
-                    auto pretty_string = m->call<::SystemString*>(sdk::get_thread_context(), nullptr);
-
-                    if (pretty_string != nullptr) {
-                        clean_version = utility::re_string::get_string(pretty_string);
-                    }
-                }
-            }
-
-            if (version_t != nullptr && engine_config.empty()) {
-                auto m = version_t->get_method("getConfigName");
-
-                if (m != nullptr) {
-                    auto config_name = m->call<::SystemString*>(sdk::get_thread_context(), nullptr);
-
-                    if (config_name != nullptr) {
-                        engine_config = utility::re_string::get_string(config_name);
-                    }
-                }
-            }
-
-            ImGui::Text("Engine information");
-            ImGui::Text(" Config: %s", engine_config.c_str());
-            ImGui::Text(" Version: %s", clean_version.c_str());
-            ImGui::Text(" TDB Version: %i", tdb_version);
-        } catch(...) {
-            ImGui::Text("Unable to determine engine version.");
-        }
-    } else {
-        ImGui::Text("Unable to determine engine version.");
-    }
-
-    ImGui::TreePop();
 }
 
 void REFramework::set_imgui_style() noexcept {

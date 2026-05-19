@@ -14,11 +14,6 @@ public:
 
     std::string_view get_name() const override { return "Hooks"; };
     std::optional<std::string> on_initialize() override;
-    void on_draw_ui() override;
-
-    auto& get_application_entry_times() {
-        return m_application_entry_times;
-    }
 
     void ignore_application_entry(size_t hash) {
         std::unique_lock _{m_application_entry_data_mutex};
@@ -185,15 +180,5 @@ protected:
     std::unordered_map<const char*, void (*)(void*)> m_application_entry_hooks;
     std::unordered_set<size_t> m_ignored_application_entries{};
 
-    struct ApplicationEntryData {
-        std::chrono::nanoseconds callback_time;
-        std::chrono::nanoseconds reframework_pre_time;
-        std::chrono::nanoseconds reframework_post_time;
-    };
-
-    bool m_profiling_enabled{false};
-
-    std::recursive_mutex m_profiler_mutex{};
     std::shared_mutex m_application_entry_data_mutex{};
-    std::unordered_map<const char*, ApplicationEntryData> m_application_entry_times;
 };

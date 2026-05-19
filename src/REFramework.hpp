@@ -193,7 +193,6 @@ private:
     void invalidate_device_objects();
 
     void draw_ui();
-    void draw_about();
 
 public:
     bool hook_d3d11();
