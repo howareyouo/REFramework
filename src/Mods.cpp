@@ -4,7 +4,6 @@
 #include "mods/APIProxy.hpp"
 #include "mods/Camera.hpp"
 #include "mods/Graphics.hpp"
-#include "mods/DeveloperTools.hpp"
 #include "mods/FreeCam.hpp"
 #include "mods/Hooks.hpp"
 #include "mods/IntegrityCheckBypass.hpp"
@@ -37,8 +36,6 @@ Mods::Mods() {
     m_mods.emplace_back(FaultyFileDetector::get());
 #endif
 
-    // VR stub is not a mod, just a utility class
-    // m_mods.emplace_back(VR::get());
     m_mods.emplace_back(TemporalUpscaler::get());
 
 #if defined(RE8) || defined(RE7)
@@ -59,15 +56,6 @@ Mods::Mods() {
     m_mods.emplace_back(std::make_unique<SceneMods>());
 #endif
 
-#endif
-
-#ifdef DEVELOPER
-    auto dev_tools = std::make_shared<DeveloperTools>();
-    m_mods.emplace_back(dev_tools);
-
-    for (auto& tool : dev_tools->get_tools()) {
-        m_mods.emplace_back(tool);
-    }
 #endif
 
     m_mods.emplace_back(APIProxy::get());
