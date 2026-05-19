@@ -8,7 +8,7 @@
 #include <sdk/REGameObject.hpp>
 
 #include "Graphics.hpp"
-#include "VRStub.hpp"
+
 
 #if TDB_VER >= 83
 #include "sdk/regenny/re9/via/Window.hpp"
@@ -737,13 +737,6 @@ void Graphics::do_ultrawide_fix() {
         return;
     }
 
-    // No need to perform ultrawide fix if VR is running.
-#ifdef REFRAMEWORK_HAS_VR
-    if (VR::get()->is_hmd_active()) {
-        return;
-    }
-#endif
-
     set_ultrawide_fov(m_ultrawide_vertical_fov->value());
 
 #if defined(RE4)
@@ -806,13 +799,6 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
     if (!m_ultrawide_fix->value() && !force) {
         return;
     }
-
-    // No need to perform ultrawide fix if VR is running.
-#ifdef REFRAMEWORK_HAS_VR
-    if (VR::get()->is_hmd_active()) {
-        return;
-    }
-#endif
 
 #if defined(RE4) // Don't restore the FOV if we've just opened the inventory
     const auto now = std::chrono::steady_clock::now();

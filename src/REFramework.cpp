@@ -34,7 +34,6 @@ extern "C" {
 #include "mods/FaultyFileDetector.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/PluginLoader.hpp"
-#include "mods/VRStub.hpp"
 #include "sdk/REGlobals.hpp"
 #include "sdk/Application.hpp"
 #include "sdk/SDK.hpp"
@@ -923,14 +922,6 @@ void REFramework::on_frame_d3d11() {
     m_d3d11_hook->get_device()->GetImmediateContext(&context);
     context->ClearRenderTargetView(m_d3d11.blank_rt_rtv.Get(), clear_color);
 
-    // Only render this if VR is running.
-    // TODO: Instead use this as an SRV to render to the back buffer so we don't render twice.
-    if (VR::get()->is_hmd_active()) {
-        context->ClearRenderTargetView(m_d3d11.rt_rtv.Get(), clear_color);
-        context->OMSetRenderTargets(1, m_d3d11.rt_rtv.GetAddressOf(), NULL);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());    
-    }
-
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -1072,27 +1063,23 @@ void REFramework::on_frame_d3d12() {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rts[1]{};
 
-        // Only render this if VR is running.
-        // TODO: Instead use this as an SRV to render to the back buffer so we don't render twice.
-        if (VR::get()->is_hmd_active()) {
-            barrier.Transition.pResource = m_d3d12.get_rt(D3D12::RTV::IMGUI).Get();
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-    
-            float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-            cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI), clear_color, 0, nullptr);
-            rts[0] = m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI);
-            cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
-            cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
-    
-            ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[1];
-            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
-            
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-        }
+        barrier.Transition.pResource = m_d3d12.get_bb(D3D12::BBV::IMGUI).Get();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
+
+        float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
+        cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI), clear_color, 0, nullptr);
+        rts[0] = m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI);
+        cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
+        cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
+
+        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
+        
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
 
         // Draw to the back buffer.
         barrier.Transition.pResource = m_d3d12.rts[bb_index].Get();

@@ -40,7 +40,6 @@
 #endif
 
 #include "TemporalUpscaler.hpp"
-#include "VRStub.hpp"
 
 std::shared_ptr<TemporalUpscaler>& TemporalUpscaler::get() {
     static std::shared_ptr instance = std::make_shared<TemporalUpscaler>();
@@ -190,11 +189,6 @@ void TemporalUpscaler::on_draw_ui() {
         {
             SetMotionScaleX(get_evaluate_id(0), (float)m_motion_scale[0]);
             SetMotionScaleY(get_evaluate_id(0), (float)m_motion_scale[1]);
-
-            if (VR::get()->is_hmd_active()) {
-                SetMotionScaleX(get_evaluate_id(1), (float)m_motion_scale[0]);
-                SetMotionScaleY(get_evaluate_id(1), (float)m_motion_scale[1]);
-            }
         }
 
         ImGui::Text("OptimalBias: %f", GetOptimalMipmapBias(get_evaluate_id(0)));
@@ -249,172 +243,67 @@ void TemporalUpscaler::on_early_present() {
         m_backbuffer_size[0] = bb_desc.Width;
         m_backbuffer_size[1] = bb_desc.Height;
 
-        auto vr = VR::get();
-        const auto vr_enabled = vr->is_hmd_active();
-        const auto is_vr_multipass = vr_enabled && vr->is_using_multipass();
-        const auto frame = vr->get_render_frame_count();
-
         auto& copier = m_copiers[swapchain->GetCurrentBackBufferIndex() % m_copiers.size()];
         copier.wait(INFINITE);
 
-        if (vr_enabled && is_vr_multipass) {
-            for (auto& state : m_eye_states) {
-                if (state.scene_layer == nullptr) {
-                    state.depth = nullptr;
-                    state.color = nullptr;
-                    state.motion_vectors = nullptr;
-                    state.depth_copy = nullptr;
-                    state.motion_vectors_copy = nullptr;
-                    state.color_copy = nullptr;
-                    continue;
-                }
-
-                const auto new_depth = state.scene_layer->get_depth_stencil_d3d12();
-                const auto new_motion_vectors = state.scene_layer->get_motion_vectors_d3d12();
-
-                if (new_depth != nullptr && (state.depth_copy == nullptr || new_depth != state.depth.Get())) {
-                    state.depth_copy = state.scene_layer->get_depth_stencil()->clone();
-                    state.depth = new_depth;
-
-                    spdlog::info("[TemporalUpscaler] Made clone of depth stencil @ {:x}", (uintptr_t)state.depth_copy.get());
-                }
-
-                if (new_motion_vectors != nullptr && (state.motion_vectors_copy == nullptr || new_motion_vectors != state.motion_vectors.Get())) {
-                    const auto motion_vectors_state = state.scene_layer->get_motion_vectors_state();
-
-                    if (motion_vectors_state != nullptr) {
-                        const auto rtv = motion_vectors_state->get_rtv(0);
-
-                        if (rtv != nullptr) {
-                            auto tex = rtv->get_texture_d3d12();
-
-                            if (tex != nullptr) {
-                                state.motion_vectors_copy = tex->clone();
-                                state.motion_vectors = new_motion_vectors;
-
-                                spdlog::info("[TemporalUpscaler] Made clone of motion vectors @ {:x}", (uintptr_t)state.motion_vectors_copy.get());
-                            }
-                        }
-                    }
-                }
+        for (auto i = 0; i < m_eye_states.size(); ++i) {
+            if (i > 0) {
+                break;
             }
 
-            for (auto i = 0; i < 2; ++i) {
-                const auto& state = m_eye_states[i];
+            auto& state = m_eye_states[i];
 
-                if (state.color == nullptr || state.depth_copy == nullptr || state.motion_vectors_copy == nullptr || state.color_copy == nullptr) {
-                    spdlog::error("[TemporalUpscaler] Missing eye state for eye {} (D3D12)", i);
-                    return;
-                }
-
-                if (state.depth_copy->get_d3d12_resource_container() == nullptr || 
-                    state.motion_vectors_copy->get_d3d12_resource_container() == nullptr ||
-                    state.color_copy->get_d3d12_resource_container() == nullptr) 
-                {
-                    spdlog::error("[TemporalUpscaler] Missing resource for eye {} (D3D12)", i);
-                    return;
-                }
-
-                const auto motion_vectors = state.motion_vectors_copy->get_d3d12_resource_container()->get_native_resource();
-                const auto depth = state.depth_copy->get_d3d12_resource_container()->get_native_resource();
-                const auto color = state.color_copy->get_d3d12_resource_container()->get_native_resource();
-
-                if (motion_vectors == nullptr || depth == nullptr || color == nullptr) {
-                    spdlog::error("[TemporalUpscaler] Missing native resource for eye {} (D3D12)", i);
-                    return;
-                }
-
-                const auto evaluate_id = get_evaluate_id(i);
-                const auto evaluate_index = evaluate_id - 1;
-
-                UpscaleParams params{};
-                params.id = (int)evaluate_id;
-                params.execute = i == 1;
-                params.reset = false;
-                params.color = color;
-                params.motionVector = motion_vectors;
-                params.depth = depth;
-                params.mask = nullptr;
-                params.destination = nullptr;
-                params.motionScaleX = m_motion_scale[0];
-                params.motionScaleY = m_motion_scale[1];
-                params.renderSizeX = get_render_width();
-                params.renderSizeY = get_render_height();
-                params.jitterOffsetX = m_jitter_offsets[evaluate_index][0];
-                params.jitterOffsetY = m_jitter_offsets[evaluate_index][1];
-                params.sharpness = m_sharpness_amount->value();
-                params.nearPlane = m_nearz;
-                params.farPlane = m_farz;
-                params.verticalFOV = m_fov;
-
-                EvaluateUpscaler(&params);
-            }
-        } else {
-            for (auto i = 0; i < m_eye_states.size(); ++i) {
-                if (!vr_enabled && i > 0) {
-                    break;
-                }
-
-                auto& state = m_eye_states[i];
-
-                if (state.depth == nullptr) {
-                    if (i == 0) {
-                        spdlog::error("[TemporalUpscaler] Failed to get depth stencil (D3D12)");
-                    }
-
-                    continue;
-                }
-
-                if (state.motion_vectors == nullptr) {
-                    if (i == 0) {
-                        spdlog::error("[TemporalUpscaler] Failed to get motion vectors (D3D12)");
-                    }
-
-                    continue;
-                }
-
-                if (state.color == nullptr) {
-                    if (i == 0) {
-                        spdlog::error("[TemporalUpscaler] Failed to get color buffer (D3D12)");
-                    }
-
-                    continue;
-                }
-
-                const auto vr_index = is_vr_multipass ? i : frame;
-                const auto index = vr_enabled ? vr_index : i;
-
-                const auto evaluate_id = get_evaluate_id(index);
-                const auto evaluate_index = evaluate_id - 1;
-
-                UpscaleParams params{};
-                params.id = (int)evaluate_id;
-                params.execute = true;
-                params.reset = false;
-                params.color = state.color.Get();
-                params.motionVector = state.motion_vectors.Get();
-                params.depth = state.depth.Get();
-                params.mask = nullptr;
-                params.destination = nullptr;
-                params.motionScaleX = m_motion_scale[0];
-                params.motionScaleY = m_motion_scale[1];
-                params.renderSizeX = get_render_width();
-                params.renderSizeY = get_render_height();
-                params.jitterOffsetX = m_jitter_offsets[evaluate_index][0];
-                params.jitterOffsetY = m_jitter_offsets[evaluate_index][1];
-                params.sharpness = m_sharpness_amount->value();
-                params.nearPlane = m_nearz;
-                params.farPlane = m_farz;
-                params.verticalFOV = m_fov;
-
-                EvaluateUpscaler(&params);
-                //SimpleEvaluate(
-                    //evaluate_id, params.color, params.motionVector, params.depth, params.mask, params.destination,
-                    //params.renderSizeX, params.renderSizeY, params.sharpness, params.jitterOffsetX, params.jitterOffsetY, params.motionScaleX, params.motionScaleY, params.reset, params.nearPlane, params.farPlane, params.verticalFOV, params.execute);
-
+            if (state.depth == nullptr) {
                 if (i == 0) {
-                    copier.copy((ID3D12Resource*)m_upscaled_textures[evaluate_index], backbuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PRESENT);
+                    spdlog::error("[TemporalUpscaler] Failed to get depth stencil (D3D12)");
                 }
+
+                continue;
+            }
+
+            if (state.motion_vectors == nullptr) {
+                if (i == 0) {
+                    spdlog::error("[TemporalUpscaler] Failed to get motion vectors (D3D12)");
+                }
+
+                continue;
+            }
+
+            if (state.color == nullptr) {
+                if (i == 0) {
+                    spdlog::error("[TemporalUpscaler] Failed to get color buffer (D3D12)");
+                }
+
+                continue;
+            }
+
+            const auto evaluate_id = get_evaluate_id(i);
+            const auto evaluate_index = evaluate_id - 1;
+
+            UpscaleParams params{};
+            params.id = (int)evaluate_id;
+            params.execute = true;
+            params.reset = false;
+            params.color = state.color.Get();
+            params.motionVector = state.motion_vectors.Get();
+            params.depth = state.depth.Get();
+            params.mask = nullptr;
+            params.destination = nullptr;
+            params.motionScaleX = m_motion_scale[0];
+            params.motionScaleY = m_motion_scale[1];
+            params.renderSizeX = get_render_width();
+            params.renderSizeY = get_render_height();
+            params.jitterOffsetX = m_jitter_offsets[evaluate_index][0];
+            params.jitterOffsetY = m_jitter_offsets[evaluate_index][1];
+            params.sharpness = m_sharpness_amount->value();
+            params.nearPlane = m_nearz;
+            params.farPlane = m_farz;
+            params.verticalFOV = m_fov;
+
+            EvaluateUpscaler(&params);
+
+            if (i == 0) {
+                copier.copy((ID3D12Resource*)m_upscaled_textures[evaluate_index], backbuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PRESENT);
             }
         }
 
@@ -548,12 +437,6 @@ bool TemporalUpscaler::init_upscale_features() {
     params.enableAutoExposure = false;
     m_upscaled_textures[0] = InitUpscaler(&params);
 
-    // Right eye.
-    if (VR::get()->is_hmd_active()) {
-        params.id = get_evaluate_id(1);
-        m_upscaled_textures[1] = InitUpscaler(&params);
-    }
-
     update_motion_scale();
 
     if (m_is_d3d12) {
@@ -633,102 +516,12 @@ void TemporalUpscaler::on_view_get_size(REManagedObject* scene_view, float* resu
         return;
     }
 
-    /*auto regenny_view = (regenny::via::SceneView*)scene_view;
-    auto window = regenny_view->window;
-
-    static auto via_scene_view = sdk::find_type_definition("via.SceneView");
-    static auto set_display_type_method = via_scene_view->get_method("set_DisplayType");
-
-    // Force the display to stretch to the window size
-    if (set_display_type_method != nullptr) {
-        set_display_type_method->call(sdk::get_thread_context(), regenny_view, via::DisplayType::Fit);
-    } else {
-#if not defined(RE7) || TDB_VER <= 49
-        static auto is_sunbreak = utility::get_module_path(utility::get_executable())->find("MHRiseSunbreakDemo") != std::string::npos;
-
-        if (is_sunbreak) {
-            *(regenny::via::DisplayType*)((uintptr_t)&regenny_view->display_type + 4) = regenny::via::DisplayType::Fit;
-        } else {
-            regenny_view->display_type = regenny::via::DisplayType::Fit;
-        }
-#else
-        *(regenny::via::DisplayType*)((uintptr_t)&regenny_view->display_type + 4) = regenny::via::DisplayType::Fit;
-#endif
-    }
-
-    auto wanted_width = 0.0f;
-    auto wanted_height = 0.0f;
-
-    // Set the window size, which will increase the size of the backbuffer
-    if (window != nullptr) {
-        if (m_enabled) {
-#if TDB_VER <= 49
-            if (!g_previous_size) {
-                g_previous_size = regenny::via::Size{ (float)window->width, (float)window->height };
-            }
-#endif
-            window->width = GetRenderWidth();
-            window->height = GetRenderHeight();
-
-            if (m_is_d3d12) {
-                if (m_backbuffer_size[0] > 0 && m_backbuffer_size[1] > 0) {
-                    if (std::abs((int)m_backbuffer_size[0] - (int)window->width) > 50 || std::abs((int)m_backbuffer_size[1] - (int)window->height) > 50) {
-                        const auto now = VR::get()->get_game_frame_count();
-
-                        if (!m_backbuffer_inconsistency) {
-                            m_backbuffer_inconsistency_start = now;
-                            m_backbuffer_inconsistency = true;
-                        }
-
-                        const auto is_true_inconsistency = (now - m_backbuffer_inconsistency_start) >= 5;
-
-                        if (is_true_inconsistency) {
-                            // Force a reset of the backbuffer size
-                            window->width = GetRenderWidth() + 1;
-                            window->height = GetRenderHeight() + 1;
-
-                            spdlog::info("[TemporalUpscaler] Previous backbuffer size: {}x{}", m_backbuffer_size[0], m_backbuffer_size[1]);
-                            spdlog::info("[TemporalUpscaler] Backbuffer size inconsistency detected, resetting backbuffer size to {}x{}", window->width, window->height);
-
-                            // m_backbuffer_inconsistency gets set to false on device reset.
-                        }
-                    }
-                } else {
-                    m_backbuffer_inconsistency = false;
-                }
-            }
-        } else {
-            m_backbuffer_inconsistency = false;
-
-#if TDB_VER > 49
-            window->width = (uint32_t)window->borderless_size.w;
-            window->height = (uint32_t)window->borderless_size.h;
-#else
-            if (g_previous_size) {
-                window->width = (uint32_t)g_previous_size->w;
-                window->height = (uint32_t)g_previous_size->h;
-
-                g_previous_size = std::nullopt;
-            }
-#endif
-        }
-
-        wanted_width = (float)window->width;
-        wanted_height = (float)window->height;
-    }*/
-
     // spoof the size to the HMD's size
-    auto vr = VR::get();
 
     const auto evaluate_id = get_evaluate_id(0);
 
-    /*if (vr->is_hmd_active() && vr->is_using_multipass()) {
-        result[0] = (float)GetRenderWidth(evaluate_id) / 2.0f;
-        result[1] = (float)GetRenderHeight(evaluate_id);
-    } else {*/
-        result[0] = (float)get_render_width();
-        result[1] = (float)get_render_height();
-    //}
+    result[0] = (float)get_render_width();
+    result[1] = (float)get_render_height();
 
     m_set_view = true;
 }
@@ -744,24 +537,13 @@ void TemporalUpscaler::on_scene_layer_update(sdk::renderer::layer::Scene* layer,
         return;
     }
 
-    auto& vr = VR::get();
-
     // Other layers appear when using scopes or mirrors are displayed
     if (!layer->is_fully_rendered() || !layer->has_main_camera()) {
         return;
     }
 
-    // Multiple layers are not supported when not using VR
-    if (!vr->is_hmd_active() || !vr->is_using_multipass()) {
-        if (layer != m_eye_states[0].scene_layer) {
-            return;
-        }
-    }
-
-    if (vr->is_hmd_active() && vr->is_using_multipass()) {
-        if (layer != m_eye_states[0].scene_layer && layer != m_eye_states[1].scene_layer) {
-            return;
-        }
+    if (layer != m_eye_states[0].scene_layer) {
+        return;
     }
 
     auto scene_info = layer->get_scene_info();
@@ -771,30 +553,7 @@ void TemporalUpscaler::on_scene_layer_update(sdk::renderer::layer::Scene* layer,
     auto jitter_disable_post_scene_info = layer->get_jitter_disable_post_scene_info();
     auto z_prepass_scene_info = layer->get_z_prepass_scene_info();
 
-    uint32_t vr_index = 0;
-
-    const auto vr_enabled = vr->is_hmd_active();
-    const auto is_vr_multipass = vr_enabled && vr->is_using_multipass();
-
-    if (vr->is_using_multipass()) {
-        auto output_layer = sdk::renderer::get_output_layer();
-
-        if (output_layer != nullptr) {
-            const auto scenes = vr->get_camera_duplicator().get_relevant_scene_layers();
-
-            if (!scenes.empty()) {
-                if (layer == m_eye_states[0].scene_layer) {
-                    vr_index = 0;
-                } else {
-                    vr_index = 1;
-                }
-            }
-        }
-    } else if (vr_enabled) {
-        vr_index = vr->get_game_frame_count();
-    }
-
-    const auto evaluate_id = get_evaluate_id(vr_enabled ? vr_index : 0);
+    const auto evaluate_id = get_evaluate_id(0);
     const auto evaluate_index = evaluate_id - 1;
 
     const auto phase = GetJitterPhaseCount(evaluate_id);
@@ -953,13 +712,16 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
     if (hash == "EndRendering"_fnv) {
         fix_output_layer();
 
-        auto& vr = VR::get();
-        const auto is_vr_multipass = vr->is_hmd_active() && vr->is_using_multipass();
         auto root_layer = sdk::renderer::get_root_layer();
 
         if (root_layer != nullptr) {
             auto [output_parent, output_layer] = root_layer->find_layer_recursive("via.render.layer.Output");
-            auto valid_scene_layers =  is_vr_multipass ? vr->get_camera_duplicator().get_relevant_scene_layers() : (*output_layer)->find_fully_rendered_scene_layers();
+            
+            std::vector<sdk::renderer::layer::Scene*> valid_scene_layers;
+            
+            if (output_layer != nullptr && *output_layer != nullptr) {
+                valid_scene_layers = (*output_layer)->find_fully_rendered_scene_layers();
+            }
 
             if (valid_scene_layers.empty()) {
                 m_eye_states[0].scene_layer = nullptr;
@@ -968,18 +730,13 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
             }
 
             if (valid_scene_layers.size() > 1) {
-                if (!is_vr_multipass) {
-                    if (m_displayed_scene == 0) {
-                        m_eye_states[0].scene_layer = valid_scene_layers[0];
-                    } else {
-                        m_eye_states[0].scene_layer = valid_scene_layers[1];
-                    }
-
-                    m_eye_states[1].scene_layer = nullptr;
-                } else {
+                if (m_displayed_scene == 0) {
                     m_eye_states[0].scene_layer = valid_scene_layers[0];
-                    m_eye_states[1].scene_layer = valid_scene_layers[1];
+                } else {
+                    m_eye_states[0].scene_layer = valid_scene_layers[1];
                 }
+
+                m_eye_states[1].scene_layer = nullptr;
             } else {
                 m_eye_states[0].scene_layer = valid_scene_layers[0];
                 m_eye_states[1].scene_layer = nullptr;
@@ -1021,29 +778,18 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
                     continue;
                 }
 
-                if (!is_vr_multipass) {
-                    auto new_depth = state.scene_layer->get_depth_stencil_d3d12();
-                    auto new_motion_vectors = state.scene_layer->get_motion_vectors_d3d12();
+                auto new_depth = state.scene_layer->get_depth_stencil_d3d12();
+                auto new_motion_vectors = state.scene_layer->get_motion_vectors_d3d12();
 
-                    state.depth = new_depth;
-                    state.motion_vectors = new_motion_vectors;
-                }
+                state.depth = new_depth;
+                state.motion_vectors = new_motion_vectors;
 
                 if (prepareoutput_layer != nullptr && *prepareoutput_layer != nullptr) {
                     const auto current_target_state = (*prepareoutput_layer)->get_output_state();
 
                     if (current_target_state != nullptr) {
                         const auto new_color = current_target_state->get_native_resource_d3d12();
-
-                        if (is_vr_multipass && new_color != nullptr && (state.color == nullptr || new_color != state.color.Get() || state.color_copy == nullptr)) {
-                            const auto color_tex = current_target_state->get_rtv(0)->get_texture_d3d12();
-                            state.color_copy = color_tex->clone();
-                            state.color = new_color;
-
-                            spdlog::info("[TemporalUpscaler] Created color copy");
-                        } else if (!is_vr_multipass) {
-                            state.color = new_color;
-                        }
+                        state.color = new_color;
                     } else {
                         state.color.Reset();
                     }
@@ -1155,147 +901,7 @@ void TemporalUpscaler::fix_output_layer() {
 }
 
 void TemporalUpscaler::update_extra_scene_layer() {
-    if (!VR::get()->is_hmd_active() || !VR::get()->is_using_multipass()) {
-        return;
-    }
-
-    static auto last_time = std::chrono::high_resolution_clock::now();
-    const auto now = std::chrono::high_resolution_clock::now();
-
-    if (now - last_time < std::chrono::milliseconds(1000)) {
-        return;
-    }
-
-    last_time = now;
-
-    auto output_layer = sdk::renderer::get_output_layer();
-    if (output_layer == nullptr) {
-        return;
-    }
-
-    auto scene_layers = output_layer->find_fully_rendered_scene_layers();
-    if (scene_layers.empty()) {
-        return;
-    }
-
-    if (m_made_extra_scene_layer && scene_layers.size() > 1) {
-        /*if (!scene_layers.empty()) {
-            if (scene_layers.size() > 1) {
-                static auto potype = sdk::find_type_definition("via.render.layer.PrepareOutput")->get_type();
-                auto prepare_output_layer = (sdk::renderer::layer::PrepareOutput**)scene_layers[0]->find_layer(potype);
-
-                if (prepare_output_layer == nullptr) {
-                    spdlog::error("[TemporalUpscaler] Failed to find PrepareOutput layer");
-                    return;
-                }
-
-                const auto current_target_state = (*prepare_output_layer)->get_output_state();
-
-                if (m_new_target_state == nullptr) {
-                    if (current_target_state != nullptr) {
-                        m_new_target_state = current_target_state->clone();
-                        (*prepare_output_layer)->set_output_state(m_new_target_state);
-
-                        spdlog::info("[TemporalUpscaler] Created new target state");
-                    } else {
-                        spdlog::error("[TemporalUpscaler] Current target state is null");
-                    }
-                } else if (current_target_state != m_new_target_state) {
-                    spdlog::error("[TemporalUpscaler] Target state mismatch");
-                    m_new_target_state = nullptr;
-                }
-            } else {
-                //spdlog::error("[TemporalUpscaler] Failed to find second scene layer");
-            }
-        }*/
-
-        return;
-    }
-
-    auto camera = sdk::get_primary_camera();
-
-    if (camera == nullptr) {
-        return;
-    }
-
-    auto camera_gameobject = sdk::call_object_func_easy<::REGameObject*>(camera, "get_GameObject");
-
-    if (camera_gameobject == nullptr) {
-        return;
-    }
-
-    /*const auto tdef = sdk::find_type_definition("via.render.Mirror");
-    if (tdef == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to find via.render.Mirror type definition");
-        return;
-    }
-
-    const auto runtime_type = tdef->get_runtime_type();
-
-    if (runtime_type == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to get via.render.Mirror runtime type");
-        return;
-    }
-
-    const auto new_comp = sdk::call_object_func_easy<::REComponent*>(camera_gameobject, "createComponent(System.Type)", runtime_type);
-
-    if (new_comp == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to create via.render.Mirror component");
-        return;
-    }*/
-
-    const auto tdef = sdk::find_type_definition("via.render.RenderOutput");
-    if (tdef == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to find via.render.RenderOutput type definition");
-        return;
-    }
-
-    const auto runtime_type = tdef->get_runtime_type();
-
-    if (runtime_type == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to get via.render.RenderOutput runtime type");
-        return;
-    }
-
-    auto comp = sdk::call_object_func_easy<sdk::renderer::RenderOutput*>(camera_gameobject, "getComponent(System.Type)", runtime_type);
-
-    if (comp == nullptr) {
-        spdlog::error("[TemporalUpscaler] Failed to get via.render.RenderOutput component");
-        return;
-    }
-
-    if (m_eye_states[0].scene_layer == nullptr) {
-        return; // wait.
-    }
-
-    auto& scene_layers_output = comp->get_scene_layers();
-
-    if (scene_layers_output.empty()) {
-        return; // wait.
-    }
-
-    if (scene_layers.size() == 1 && scene_layers[0] == scene_layers_output[0]) {
-        scene_layers_output.emplace();
-        scene_layers_output.num = 0;
-    } else if (scene_layers.size() == 2 && scene_layers_output.size() == 1) {
-        scene_layers_output[0] = (sdk::renderer::layer::Scene*)scene_layers[0];
-        if (scene_layers_output.num_allocated == 1) {
-            scene_layers_output.emplace();
-        }
-        scene_layers_output[1] = (sdk::renderer::layer::Scene*)scene_layers[1];
-        m_made_extra_scene_layer = true;
-
-        spdlog::info("[TemporalUpscaler] Made extra scene layer");
-
-        if (!m_hooked_resource_release) {
-            spdlog::info("[TemporalUpscaler] Hooking resource release");
-            m_render_resource_release_hook = std::make_unique<FunctionHook>(sdk::renderer::RenderResource::get_release_fn(), &render_resource_release_hook);
-            m_render_resource_release_hook->create();
-            m_hooked_resource_release = true;
-
-            spdlog::info("[TemporalUpscaler] Hooked resource release");
-        }
-    }
+    return;
 }
 
 uint32_t TemporalUpscaler::get_render_width() const {
@@ -1363,11 +969,6 @@ void TemporalUpscaler::update_motion_scale() {
 
     SetMotionScaleX(get_evaluate_id(0), (float)m_motion_scale[0]);
     SetMotionScaleY(get_evaluate_id(0), (float)m_motion_scale[1]);
-
-    if (VR::get()->is_hmd_active()) {
-        SetMotionScaleX(get_evaluate_id(1), (float)m_motion_scale[0]);
-        SetMotionScaleY(get_evaluate_id(1), (float)m_motion_scale[1]);
-    }
 }
 
 void TemporalUpscaler::render_resource_release_hook(sdk::renderer::RenderResource* resource) {

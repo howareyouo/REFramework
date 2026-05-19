@@ -5,7 +5,6 @@
 #include "mods/Camera.hpp"
 #include "mods/Graphics.hpp"
 #include "mods/DeveloperTools.hpp"
-#include "mods/FirstPerson.hpp"
 #include "mods/FreeCam.hpp"
 #include "mods/Hooks.hpp"
 #include "mods/IntegrityCheckBypass.hpp"
@@ -15,7 +14,6 @@
 #include "mods/MethodDatabase.hpp"
 #include "mods/Scene.hpp"
 #include "mods/ScriptRunner.hpp"
-#include "mods/VRStub.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/FaultyFileDetector.hpp"
 #include "mods/TemporalUpscaler.hpp"
@@ -45,12 +43,6 @@ Mods::Mods() {
 
 #if defined(RE8) || defined(RE7)
     m_mods.emplace_back(RE8VR::get());
-#endif
-
-#ifndef RE8
-#if defined(RE2) || defined(RE3)
-    m_mods.emplace_back(FirstPerson::get());
-#endif
 #endif
 
     // All games!!!
