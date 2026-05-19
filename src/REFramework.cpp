@@ -248,7 +248,7 @@ try {
 
 REFramework::REFramework(HMODULE reframework_module)
     : m_game_module{GetModuleHandle(0)}
-    , m_logger{spdlog::basic_logger_mt("REFramework", (get_persistent_dir("re2_framework_log.txt")).string(), true)}
+    , m_logger{spdlog::basic_logger_mt("REFramework", (get_persistent_dir("reframework_log.txt")).string(), true)}
     {
 
     s_reframework_module = reframework_module;
@@ -298,6 +298,16 @@ REFramework::REFramework(HMODULE reframework_module)
 
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
+#else
+    // 可以在这里设置 release 模式的日志级别
+    // spdlog::level::trace    - 最详细，包含所有信息
+    // spdlog::level::debug    - 调试信息
+    // spdlog::level::info     - 一般信息（默认）
+    // spdlog::level::warn     - 警告信息
+    // spdlog::level::error    - 错误信息
+    // spdlog::level::critical - 严重错误
+    // spdlog::level::off      - 关闭日志
+    spdlog::set_level(spdlog::level::warn);  // 当前设置为 info
 #endif
 
     // Create the typedef for RtlGetVersion
