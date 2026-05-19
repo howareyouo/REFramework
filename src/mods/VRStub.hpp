@@ -3,6 +3,7 @@
 #include <memory>
 #include <array>
 #include <cmath>
+#include <vector>
 
 // VR stub - provides empty implementations when VR is disabled
 class VR {
@@ -53,5 +54,52 @@ public:
     
     unsigned int get_game_frame_count() const { 
         return 0u; 
+    }
+    
+    unsigned int get_render_frame_count() const { 
+        return 0u; 
+    }
+    
+    void set_rotation_offset(const void* rotation) { 
+        // Stub implementation - does nothing
+    }
+    
+    // Controller related methods
+    struct Vector2 {
+        float x = 0, y = 0;
+    };
+    
+    Vector2 get_left_stick_axis() const { return Vector2{}; }
+    Vector2 get_right_stick_axis() const { return Vector2{}; }
+    int get_left_joystick() const { return 0; }
+    int get_right_joystick() const { return 0; }
+    int get_action_grip() const { return 0; }
+    int get_action_trigger() const { return 0; }
+    
+    bool is_action_active(int action, int joystick) const { return false; }
+    
+    // Standing origin methods
+    Vector3 get_standing_origin() const { return Vector3{}; }
+    void set_standing_origin(const Vector3& origin) { }
+    
+    // Last render matrix
+    struct Matrix4x4 {
+        float data[4][4] = {};
+    };
+    
+    const Matrix4x4& get_last_render_matrix() const { 
+        static Matrix4x4 empty_matrix{};
+        return empty_matrix;
+    }
+    
+    // Camera duplicator stub
+    class CameraDuplicatorStub {
+    public:
+        std::vector<void*> get_relevant_scene_layers() const { return {}; }
+    };
+    
+    CameraDuplicatorStub& get_camera_duplicator() {
+        static CameraDuplicatorStub stub{};
+        return stub;
     }
 };

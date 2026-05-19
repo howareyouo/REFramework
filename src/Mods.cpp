@@ -39,7 +39,8 @@ Mods::Mods() {
     m_mods.emplace_back(FaultyFileDetector::get());
 #endif
 
-    m_mods.emplace_back(VR::get());
+    // VR stub is not a mod, just a utility class
+    // m_mods.emplace_back(VR::get());
     m_mods.emplace_back(TemporalUpscaler::get());
 
 #if defined(RE8) || defined(RE7)
