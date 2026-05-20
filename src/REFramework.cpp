@@ -1662,7 +1662,12 @@ void REFramework::draw_ui() {
     ImGui::SetNextWindowSize(ImVec2(300, 500), ImGuiCond_::ImGuiCond_FirstUseEver);
 
     ImGui::PushFont(m_default_font, m_font_size);
-    static const auto REF_NAME = std::format("REFramework [{}+{}-{:.8}]", REF_TAG, REF_COMMITS_PAST_TAG, REF_COMMIT_HASH);
+    // 默认标题
+    // static const auto REF_NAME = std::format("REFramework [{}+{}-{:.8}]", REF_TAG, REF_COMMITS_PAST_TAG, REF_COMMIT_HASH);
+    // 如果想用简单标题，可以改为：
+    static const std::string REF_NAME = "REFramework";
+    // 或者显示游戏名称：
+    // static const auto REF_NAME = std::format("REFramework ({})", REFramework::get_game_name());
     bool is_open = true;
     ImGui::Begin(REF_NAME.c_str(), &is_open);
     ImGui::Text("Default Menu Key: Insert");
