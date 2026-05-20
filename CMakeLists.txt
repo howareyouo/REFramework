@@ -2488,7 +2488,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -2669,7 +2668,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -4813,7 +4811,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -4992,7 +4989,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -5171,7 +5167,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -8299,7 +8294,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -8478,7 +8472,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -9641,7 +9634,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -10802,7 +10794,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -11965,7 +11956,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -13128,7 +13118,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -14291,7 +14280,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -15454,7 +15442,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -16617,7 +16604,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -17780,7 +17766,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
@@ -18943,7 +18928,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 
-		"src/re2-imgui/af_fadef.h"
 		"src/re2-imgui/af_faprolight.hpp"
 		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
