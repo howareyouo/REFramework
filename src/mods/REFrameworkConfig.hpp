@@ -41,7 +41,6 @@ private:
 #endif
     ModKey::Ptr m_show_cursor_key{ ModKey::create(generate_name("ShowCursorKey")) };
     ModInt32::Ptr m_font_size{ModInt32::create(generate_name("FontSize"), 16)};
-    ModToggle::Ptr m_script_generated_ui_open{ ModToggle::create(generate_name("ScriptGeneratedUIOpen"), false) };
     std::vector<std::string> fonts{};
     ModComboString::Ptr m_font_file{};
 
@@ -52,6 +51,5 @@ private:
         *m_always_show_cursor,
         *m_show_cursor_key,
         *m_font_size,
-        *m_script_generated_ui_open,
     };
 };
