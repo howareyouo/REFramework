@@ -1183,7 +1183,10 @@ void ScriptRunner::on_draw_ui() {
         ImGui::SetNextItemOpen(m_script_generated_ui_open_state->value(), ImGuiCond_Once);
         
         if (ImGui::CollapsingHeader("Script Generated UI")) {
-            m_script_generated_ui_open_state->set_value(true);
+            if (!m_script_generated_ui_open_state->value()) {
+                m_script_generated_ui_open_state->value() = true;
+                g_framework->request_save_config();
+            }
             if (m_states.empty()) {
                 return;
             }
@@ -1191,7 +1194,10 @@ void ScriptRunner::on_draw_ui() {
                 state->on_draw_ui();
             }
         } else {
-            m_script_generated_ui_open_state->set_value(false);
+            if (m_script_generated_ui_open_state->value()) {
+                m_script_generated_ui_open_state->value() = false;
+                g_framework->request_save_config();
+            }
         }
     }
 }
