@@ -430,9 +430,9 @@ private:
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
     bool m_attempted_hook_battle_rule{false};
-    bool m_script_generated_ui_open_state{false};
     std::optional<uint8_t> m_last_battle_type{};
     const ModToggle::Ptr m_log_to_disk{ ModToggle::create(generate_name("LogToDisk"), false) };
+    const ModToggle::Ptr m_script_generated_ui_open_state{ ModToggle::create(generate_name("ScriptGeneratedUIOpenState"), false) };
 
     const ModCombo::Ptr m_gc_handler { 
         ModCombo::create(generate_name("GarbageCollectionHandlerV2"),
@@ -478,7 +478,8 @@ private:
         *m_gc_mode,
         *m_gc_budget,
         *m_gc_minor_multiplier,
-        *m_gc_major_multiplier
+        *m_gc_major_multiplier,
+        *m_script_generated_ui_open_state
     };
 
     // Resets the ScriptState and runs autorun scripts again.

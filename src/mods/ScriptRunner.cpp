@@ -1180,10 +1180,10 @@ void ScriptRunner::on_draw_ui() {
     if (!m_last_online_match_state) { 
         std::scoped_lock _{ m_access_mutex };
 
-        ImGui::SetNextItemOpen(m_script_generated_ui_open_state, ImGuiCond_Once);
+        ImGui::SetNextItemOpen(m_script_generated_ui_open_state->value(), ImGuiCond_Once);
         
         if (ImGui::CollapsingHeader("Script Generated UI")) {
-            m_script_generated_ui_open_state = true;
+            m_script_generated_ui_open_state->set_value(true);
             if (m_states.empty()) {
                 return;
             }
@@ -1191,7 +1191,7 @@ void ScriptRunner::on_draw_ui() {
                 state->on_draw_ui();
             }
         } else {
-            m_script_generated_ui_open_state = false;
+            m_script_generated_ui_open_state->set_value(false);
         }
     }
 }
