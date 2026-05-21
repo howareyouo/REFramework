@@ -1180,16 +1180,19 @@ void ScriptRunner::on_draw_ui() {
     if (!m_last_online_match_state) { 
         std::scoped_lock _{ m_access_mutex };
 
-
+        ImGui::SetNextItemOpen(m_script_generated_ui_open_state, ImGuiCond_Once);
+        
         if (ImGui::CollapsingHeader("Script Generated UI")) {
+            m_script_generated_ui_open_state = true;
             if (m_states.empty()) {
                 return;
             }
             for (auto& state : m_states) {
                 state->on_draw_ui();
             }
+        } else {
+            m_script_generated_ui_open_state = false;
         }
-            
     }
 }
 

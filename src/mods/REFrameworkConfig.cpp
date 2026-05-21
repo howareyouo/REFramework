@@ -57,6 +57,8 @@ void REFrameworkConfig::on_draw_ui() {
         changed = true;
     }
 
+    changed |= m_script_generated_ui_open->draw("Remember Script Generated UI State");
+
     if (changed) {
         g_framework->request_save_config();
     }
