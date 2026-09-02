@@ -1,21 +1,16 @@
 #include <sdk/SceneManager.hpp>
 #include <sdk/RETypeDB.hpp>
-#include <sdk/GameIdentity.hpp>
 
 #include "Camera.hpp"
 
 using namespace utility;
 
 void Camera::on_config_load(const Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
+    config_load_options(cfg, m_options);
 }
 
 void Camera::on_config_save(Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
+    config_save_options(cfg, m_options);
 }
 
 void Camera::on_draw_ui() {
@@ -35,14 +30,14 @@ void Camera::on_draw_ui() {
     }
 
     // RE8 and above have vignetting brightness
-    if (sdk::GameIdentity::get().tdb_ver() >= 69) {
-        m_vignette_brightness->draw("Vignette Brightness");
-    }
+#if TDB_VER >= 69
+    m_vignette_brightness->draw("Vignette Brightness");
+#endif
 
-    if (sdk::GameIdentity::get().is_re8()) {
-        m_fov->draw("RE8 FOV");
-        m_fov_aiming->draw("RE8 Aiming FOV");
-    }
+#ifdef RE8
+    m_fov->draw("RE8 FOV");
+    m_fov_aiming->draw("RE8 Aiming FOV");
+#endif
 
     ImGui::Separator();
     ImGui::TextWrapped("These below settings are separate and do not require \"Enabled\" to be ticked.");
@@ -52,32 +47,32 @@ void Camera::on_draw_ui() {
 }
 
 void Camera::on_update_transform(RETransform* transform) {
-    if (sdk::GameIdentity::get().is_re8()) {
-        if (!m_enabled->value()) {
+#ifdef RE8
+    if (!m_enabled->value()) {
+        return;
+    }
+
+    // Cache off "AppPropsManager" once.
+    if (m_props_manager == nullptr) {
+        m_props_manager = reframework::get_globals()->get<AppPropsManager>(game_namespace("PropsManager"));
+        if (m_props_manager == nullptr) {
             return;
         }
+    }
 
-        // Cache off "AppPropsManager" once.
-        if (m_props_manager == nullptr) {
-            m_props_manager = reframework::get_globals()->get<AppPropsManager>(game_namespace("PropsManager"));
-            if (m_props_manager == nullptr) {
-                return;
-            }
+    const auto valid_player = reset_ptr(m_player, m_props_manager->player,
+        [&](bool valid) {
+            m_player_configure = nullptr;
         }
+    );
 
-        const auto valid_player = reset_ptr(m_player, m_props_manager->player,
-            [&](bool valid) {
-                m_player_configure = nullptr;
-            }
-        );
-
-        // Run on player transform.
-        if (valid_player) {
-            if (m_player->get_transform() != nullptr && m_player->get_transform() == transform) {
-                on_player_transform(transform);
-            }
+    // Run on player transform.
+    if (valid_player) {
+        if (m_player->transform != nullptr && m_player->transform == transform) {
+            on_player_transform(transform);
         }
     }
+#endif
 }
 
 void Camera::on_pre_application_entry(void* entry, const char* name, size_t hash) {
@@ -109,7 +104,7 @@ void Camera::on_application_entry(void* entry, const char* name, size_t hash) {
         );
 
         if (valid_camera) {
-            if (const auto owner = m_camera->get_game_object(); owner != nullptr && owner->get_transform() != nullptr) {
+            if (const auto owner = m_camera->ownerGameObject; owner != nullptr && owner->transform != nullptr) {
                 update_vignetting();
             }
         }
@@ -119,7 +114,7 @@ void Camera::on_application_entry(void* entry, const char* name, size_t hash) {
 void Camera::update_vignetting() noexcept {
     // Cache off "RenderToneMapping" once (if camera ptr changes, this will be cached again).
     if (m_tone_map == nullptr) {
-        m_tone_map = m_camera->find<RenderToneMapping>("via.render.ToneMapping");
+        m_tone_map = re_component::find<RenderToneMapping>(m_camera, "via.render.ToneMapping");
     }
 
     m_tone_map_internal = (m_tone_map != nullptr) ? m_tone_map->toneMappingInternal : nullptr;
@@ -127,55 +122,57 @@ void Camera::update_vignetting() noexcept {
     if (m_disable_vignette->value()) {
         set_vignette_type(via::render::ToneMapping::Vignetting::Disable);
     } 
-    else if (sdk::GameIdentity::get().tdb_ver() >= 69) {
+#if TDB_VER >= 69
+    else {
         set_vignette_brightness(m_vignette_brightness->value());
     }
+#endif
 }
 
 void Camera::on_player_transform(RETransform* transform) noexcept {
-    if (sdk::GameIdentity::get().is_re8()) {
-        // Cache off "AppPlayerConfigure" once (if player ptr changes, this will be cached again).
-        if (m_player_configure == nullptr) {
-            m_player_configure = transform->find<AppPlayerConfigure>(game_namespace("PlayerConfigure"));
-        }
-
-        if (m_player_configure != nullptr) {
-            m_player_camera_params = [&]() -> AppPlayerCameraParameter* {
-                const auto player_configuration = m_player_configure->playerConfiguration;
-                if (player_configuration == nullptr) {
-                    return nullptr;
-                }
-
-                const auto cam_configuration = player_configuration->cameraConfiguration;
-                if (cam_configuration == nullptr) {
-                    return nullptr;
-                }
-
-                const auto player_cam_configuration = cam_configuration->playerCameraConfiguration;
-                if (player_cam_configuration == nullptr) {
-                    return nullptr;
-                }
-
-                const auto player_cam_configuration_base = player_cam_configuration->playerCameraConfigurationBase;
-                if (player_cam_configuration_base == nullptr) {
-                    return nullptr;
-                }
-
-                return player_cam_configuration_base->playerCameraParameter;
-            }();
-        }
-
-        set_fov(m_fov->value(), m_fov_aiming->value());
+#ifdef RE8
+    // Cache off "AppPlayerConfigure" once (if player ptr changes, this will be cached again).
+    if (m_player_configure == nullptr) {
+        m_player_configure = re_component::find<AppPlayerConfigure>(transform, game_namespace("PlayerConfigure"));
     }
+
+    if (m_player_configure != nullptr) {
+        m_player_camera_params = [&]() -> AppPlayerCameraParameter* {
+            const auto player_configuration = m_player_configure->playerConfiguration;
+            if (player_configuration == nullptr) {
+                return nullptr;
+            }
+
+            const auto cam_configuration = player_configuration->cameraConfiguration;
+            if (cam_configuration == nullptr) {
+                return nullptr;
+            }
+
+            const auto player_cam_configuration = cam_configuration->playerCameraConfiguration;
+            if (player_cam_configuration == nullptr) {
+                return nullptr;
+            }
+
+            const auto player_cam_configuration_base = player_cam_configuration->playerCameraConfigurationBase;
+            if (player_cam_configuration_base == nullptr) {
+                return nullptr;
+            }
+
+            return player_cam_configuration_base->playerCameraParameter;
+        }();
+    }
+
+    set_fov(m_fov->value(), m_fov_aiming->value());
+#endif
 }
 
 void Camera::on_disabled() noexcept {
     set_vignette_type(via::render::ToneMapping::Vignetting::Enable);
     set_vignette_brightness(m_vignette_brightness->default_value());
 
-    if (sdk::GameIdentity::get().is_re8()) {
-        set_fov(m_fov->default_value(), m_fov_aiming->default_value());
-    }
+#ifdef RE8
+    set_fov(m_fov->default_value(), m_fov_aiming->default_value());
+#endif
 }
 
 void Camera::set_vignette_type(via::render::ToneMapping::Vignetting value) noexcept {
@@ -201,17 +198,17 @@ void Camera::set_vignette_brightness(float value) noexcept {
         set_vignetting_brightness_method->call<void*>(sdk::get_thread_context(), m_tone_map, value);
     } else {
         // Not a TDB method.
-        ((::REManagedObject*)m_tone_map)->call_method("setVignettingBrightness", (double)value);
+        utility::re_managed_object::call_method((::REManagedObject*)m_tone_map, "setVignettingBrightness", (double)value);
     }
 }
 
 void Camera::set_fov(float fov, float aiming_fov) noexcept {
-    if (sdk::GameIdentity::get().is_re8()) {
-        if (m_player_camera_params == nullptr) {
-            return;
-        }
-    
-        m_player_camera_params->DefaultFOV = fov;
-        m_player_camera_params->AimmingFOV = aiming_fov;
+#ifdef RE8
+    if (m_player_camera_params == nullptr) {
+        return;
     }
+    
+    m_player_camera_params->DefaultFOV = fov;
+    m_player_camera_params->AimmingFOV = aiming_fov;
+#endif
 }

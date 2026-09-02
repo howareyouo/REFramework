@@ -14,7 +14,6 @@
 #include "RETypeDB.hpp"
 #include "REDelegate.hpp"
 #include "REContext.hpp"
-#include "GameIdentity.hpp"
 
 namespace sdk {
     VM** VM::s_global_context{ nullptr };
@@ -203,22 +202,35 @@ namespace sdk {
         spdlog::info("[VM::update_pointers] s_global_context: {:x}", (uintptr_t)s_global_context);
         spdlog::info("[VM::update_pointers] s_get_thread_context: {:x}", (uintptr_t)s_get_thread_context);
 
-        // Needed on TDB73/AJ. The 0x30 offset we have is not correct, so we need to find the correct one
-        // And the "correct" one is the first one that doesn't look like a BS pointer (crude, i know)
-        // so... TODO: find a better way to do this
-        const bool should_fixup_static_tbl = sdk::GameIdentity::get().tdb_ver() >= 71;
-        if (should_fixup_static_tbl && s_global_context != nullptr && *s_global_context != nullptr) {
+        // Needed on TDB73/AJ. The 0x30 offset we have is not correct, so we need to find the correct one.
+        // We use tdb->numTypes (already resolved above) as the exact expected array count, instead of
+        // the original crude range check (2000..9999999). This eliminates false positives where unrelated
+        // adjacent arrays happen to have matching counts within that loose range.
+#if TDB_VER >= 71
+        if (s_global_context != nullptr && *s_global_context != nullptr) {
+            const auto expected_count = tdb != nullptr ? tdb->get_num_types() : 0;
+
             auto static_tbl = (REStaticTbl**)((uintptr_t)*s_global_context + s_static_tbl_offset);
             bool found_static_tbl_offset = false;
             const auto before_static_tbl_size = *(uint32_t*)((uintptr_t)static_tbl + sizeof(void*));
             spdlog::info("[VM::update_pointers] Static table size (before): {}", *(uint32_t*)((uintptr_t)static_tbl + sizeof(void*)));
-            if (IsBadReadPtr(*static_tbl, sizeof(void*)) || ((uintptr_t)*static_tbl & (sizeof(void*) - 1)) != 0 || before_static_tbl_size > 9999999 || before_static_tbl_size < 2000) {
+            spdlog::info("[VM::update_pointers] Expected count (numTypes): {}", expected_count);
+
+            // Validate the hardcoded offset: pointer must be readable/aligned AND count must match numTypes
+            const bool hardcoded_valid =
+                !IsBadReadPtr(*static_tbl, sizeof(void*)) &&
+                (((uintptr_t)*static_tbl & (sizeof(void*) - 1)) == 0) &&
+                expected_count > 0 &&
+                before_static_tbl_size == expected_count;
+
+            if (!hardcoded_valid) {
                 spdlog::info("[VM::update_pointers] Static table offset is bad, correcting...");
 
-                // We are looking for the two arrays, the static field table, and the static field "initialized table"
-                // The initialized table tells whether a specific entry in the static field table has been initialized or not
-                // so they both should have the same size, easy to find
-                for (auto i = sizeof(void*); i < 0x100; i+= sizeof(void*)) try {
+                // We are looking for the two arrays, the static field table, and the type table.
+                // Both arrays should have the same count (numTypes), making them easy to identify.
+                // We scan backwards from typeDb looking for a valid pointer whose count equals numTypes,
+                // then verify the preceding array (0x10 bytes earlier) also has count == numTypes.
+                for (auto i = sizeof(void*); i < 0x100; i += sizeof(void*)) try {
                     const auto& ptr = *(REStaticTbl**)((uintptr_t)*s_global_context + (s_type_db_offset - i));
 
                     if (IsBadReadPtr(ptr, sizeof(void*)) || ((uintptr_t)ptr & (sizeof(void*) - 1)) != 0) {
@@ -229,8 +241,16 @@ namespace sdk {
 
                     const auto& potential_count = *(uint32_t*)((uintptr_t)&ptr + sizeof(void*));
 
-                    if (potential_count < 2000) {
-                        continue;
+                    // Use exact numTypes match instead of loose range check
+                    if (expected_count > 0) {
+                        if (potential_count != expected_count) {
+                            continue;
+                        }
+                    } else {
+                        // Fallback: if numTypes is somehow unavailable, use the original range check
+                        if (potential_count < 2000) {
+                            continue;
+                        }
                     }
 
                     constexpr auto array_size = (sizeof(void*) * 2);
@@ -238,7 +258,12 @@ namespace sdk {
                     const auto& previous_ptr = *(REStaticTbl**)((uintptr_t)*s_global_context + previous_offset);
                     const auto& previous_count = *(uint32_t*)((uintptr_t)&previous_ptr + sizeof(void*));
 
-                    if (previous_count == potential_count) {
+                    // Both arrays must match numTypes (or each other as fallback)
+                    const bool counts_match = expected_count > 0
+                        ? (previous_count == expected_count && potential_count == expected_count)
+                        : (previous_count == potential_count);
+
+                    if (counts_match) {
                         spdlog::info("[VM::update_pointers] Found static table at {:x} (offset {:x})", (uintptr_t)ptr, previous_offset);
                         s_static_tbl_offset = previous_offset;
                         found_static_tbl_offset = true;
@@ -260,6 +285,7 @@ namespace sdk {
                 return;
             }
         }
+#endif
 
         // Get invoke_tbl
         // this SEEMS to work on RE2 and onwards, but not on RE7
@@ -636,8 +662,8 @@ namespace sdk {
 
                 const auto exception_managed_object = (::REManagedObject*)context->unkPtr->unkPtr;
 
-                if (REManagedObject::is_managed_object(exception_managed_object)) {
-                    const auto exception_tdb_type = exception_managed_object->get_type_definition();
+                if (utility::re_managed_object::is_managed_object(exception_managed_object)) {
+                    const auto exception_tdb_type = utility::re_managed_object::get_type_definition(exception_managed_object);
 
                     if (exception_tdb_type != nullptr) {
                         const auto exception_name = exception_tdb_type->get_full_name();
@@ -713,11 +739,11 @@ namespace sdk {
         static std::vector<uint8_t> huge_string_data{};
 
         if (huge_string_data.empty()) {
-            huge_string_data.resize(REManagedObject::runtime_size() + 4 + 2048);
+            huge_string_data.resize(sizeof(REManagedObject) + 4 + 2048);
             memset(&huge_string_data[0], 0, huge_string_data.size());
 
             auto huge_string = (SystemString*)&huge_string_data[0];
-            memcpy(huge_string, empty_string, REManagedObject::runtime_size());
+            memcpy(huge_string, empty_string, sizeof(REManagedObject));
         }
 
         const auto str_len = str.length();
@@ -842,8 +868,9 @@ namespace sdk {
             return nullptr;
         }
 
-        ::REObjectInfo fake_object_info{};
-        *(::REClassInfo**)&fake_object_info = (::REClassInfo*)t;
+        ::REObjectInfo fake_object_info {
+            .classInfo = (::REClassInfo*)t,
+        };
 
         sdk::Delegate fake_delegate_non_empty {
             .num_methods = 1,

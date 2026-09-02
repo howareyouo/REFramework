@@ -1,7 +1,6 @@
 #include <sdk/Application.hpp>
 #include "sdk/REMath.hpp"
 #include "sdk/SceneManager.hpp"
-#include <sdk/GameIdentity.hpp>
 
 #include "HookManager.hpp"
 
@@ -9,16 +8,16 @@
 
 using namespace utility;
 
+#if defined(RE2) || defined(RE3) || defined(RE8) || defined(RE4)
+#define MOVEMENT_DISABLE_FEATURE
+#endif
+
 void FreeCam::on_config_load(const Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
+    config_load_options(cfg, m_options);
 }
 
 void FreeCam::on_config_save(Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
+    config_save_options(cfg, m_options);
 }
 
 void FreeCam::on_frame() {
@@ -50,17 +49,17 @@ void FreeCam::on_draw_ui() {
     ImGui::SameLine();
     m_lock_camera->draw("Lock Position");
 
-    if (sdk::GameIdentity::get().is_re2() || sdk::GameIdentity::get().is_re3() || sdk::GameIdentity::get().is_re8() || sdk::GameIdentity::get().is_re4()) {
-        m_disable_movement->draw("Disable Character Movement");
-    }
+#ifdef MOVEMENT_DISABLE_FEATURE
+    m_disable_movement->draw("Disable Character Movement");
+#endif
 
     m_toggle_key->draw("Toggle Key");
     m_move_up_key->draw("Move camera up Key");
     m_move_down_key->draw("Move camera down Key");
     m_lock_camera_key->draw("Lock Position Toggle Key");
-    if (sdk::GameIdentity::get().is_re2() || sdk::GameIdentity::get().is_re3() || sdk::GameIdentity::get().is_re8() || sdk::GameIdentity::get().is_re4()) {
-        m_disable_movement_key->draw("Disable Movement Toggle Key");
-    }
+#ifdef MOVEMENT_DISABLE_FEATURE
+    m_disable_movement_key->draw("Disable Movement Toggle Key");
+#endif
     m_speed_modifier_fast_key->draw("Speed modifier Fast key");
     m_speed_modifier_slow_key->draw("Speed modifier Slow key");
 
@@ -77,24 +76,6 @@ enum class MoveDirection : uint8_t {
     RIGHT
 };
 
-std::unordered_map<MoveDirection, Vector4f> g_movedir_map{
-    { MoveDirection::FORWARD, { 0.0f, 0.0f, -1.0f, 0.0f } },
-    { MoveDirection::BACKWARD, { 0.0f, 0.0f, 1.0f, 0.0f  } },
-    { MoveDirection::LEFT, { -1.0f, 0.0f, 0.0f, 0.0f  } },
-    { MoveDirection::RIGHT, { 1.0f, 0.0f, 0.0f, 0.0f  } },
-};
-
-std::unordered_map<int32_t, MoveDirection> g_vk_to_movedir{
-    { VkKeyScan('w'), MoveDirection::FORWARD },
-    { VkKeyScan('a'), MoveDirection::LEFT },
-    { VkKeyScan('s'), MoveDirection::BACKWARD },
-    { VkKeyScan('d'), MoveDirection::RIGHT },
-    { VK_UP, MoveDirection::FORWARD },
-    { VK_LEFT, MoveDirection::LEFT },
-    { VK_DOWN, MoveDirection::BACKWARD },
-    { VK_RIGHT, MoveDirection::RIGHT },
-};
-
 void FreeCam::on_update_transform(RETransform* transform) {
     if (!m_enabled->value() && !m_first_time) {
         m_was_disabled = false;
@@ -107,50 +88,48 @@ void FreeCam::on_update_transform(RETransform* transform) {
         return;
     }
 
-    const auto& gi = sdk::GameIdentity::get();
 
-    if (gi.is_re8()) {
-        const auto player = m_props_manager->player;
-        if (player != nullptr && player->get_transform() != nullptr && player->get_transform() == transform) {
-            if (m_disable_movement->value() || m_was_disabled) {
-                player->set_shouldUpdate(!m_disable_movement->value());
-                m_was_disabled = !player->get_shouldUpdate();
-            }
+#ifdef RE8
+    const auto player = m_props_manager->player;
+    if (player != nullptr && player->transform != nullptr && player->transform == transform) {
+        if (m_disable_movement->value() || m_was_disabled) {
+            player->shouldUpdate = !m_disable_movement->value();
+            m_was_disabled = !player->shouldUpdate;
         }
     }
+#endif
 
     const auto camera = m_camera;
 
-    if (camera == nullptr || transform != camera->get_game_object()->get_transform()) {
+    if (camera == nullptr || camera->ownerGameObject == nullptr || transform != camera->ownerGameObject->transform) {
         return;
     }
 
-    RopewaySurvivorPlayerCondition* condition = nullptr;
-    RopewaySurvivorActionOrderer* orderer = nullptr;
-    if (gi.is_re2() || gi.is_re3()) {
-        static auto get_player_condition_method = sdk::find_method_definition(game_namespace("SurvivorManager"), "get_Player");
-        static auto get_action_orderer_method = sdk::find_method_definition(game_namespace("survivor.SurvivorCondition"), "get_ActionOrderer");
+#if defined(RE2) || defined(RE3)
+    static auto get_player_condition_method = sdk::find_method_definition(game_namespace("SurvivorManager"), "get_Player");
+    static auto get_action_orderer_method = sdk::find_method_definition(game_namespace("survivor.SurvivorCondition"), "get_ActionOrderer");
 
-        condition = get_player_condition_method->call<RopewaySurvivorPlayerCondition*>(sdk::get_thread_context(), m_survivor_manager);
-        orderer = condition != nullptr ? get_action_orderer_method->call<RopewaySurvivorActionOrderer*>(sdk::get_thread_context(), condition) : nullptr;
-    }
+    const auto condition = get_player_condition_method->call<RopewaySurvivorPlayerCondition*>(sdk::get_thread_context(), m_survivor_manager);
+    auto orderer = condition != nullptr ? get_action_orderer_method->call<RopewaySurvivorActionOrderer*>(sdk::get_thread_context(), condition) : nullptr;
+
+#endif
 
     // first joint
     auto joint = utility::re_transform::get_joint(*transform, 0);
 
     if (m_first_time) {
-        if (gi.is_re8()) {
-            if (m_props_manager != nullptr && m_props_manager->player != nullptr && m_was_disabled) {
-                m_props_manager->player->set_shouldUpdate(true);
-                m_was_disabled = false;
-            }
+#ifdef RE8
+        if (player != nullptr && m_was_disabled) {
+            player->shouldUpdate = true;
+            m_was_disabled = false;
         }
+#endif
 
-        if (gi.is_re2() || gi.is_re3()) {
-            if (orderer != nullptr) {
-                orderer->enabled = true;
-            }
+#if defined(RE2) || defined(RE3)
+        if (orderer != nullptr) {
+            orderer->enabled = true;
         }
+#endif
 
         /*if (joint != nullptr && transform->joints.matrices != nullptr) {
             m_last_camera_matrix = transform->joints.matrices->data[0].worldMatrix;
@@ -164,7 +143,7 @@ void FreeCam::on_update_transform(RETransform* transform) {
             m_last_camera_matrix[3] = sdk::get_joint_position(joint);
         }
         else {
-            m_last_camera_matrix = transform->get_world_transform();
+            m_last_camera_matrix = transform->worldTransform;
         }
 
         m_first_time = false;
@@ -179,35 +158,33 @@ void FreeCam::on_update_transform(RETransform* transform) {
         return;
     }
 
-    if (gi.is_re2() || gi.is_re3()) {
-        if (orderer != nullptr) {
-            orderer->enabled = !m_disable_movement->value();
-        }
+#if defined(RE2) || defined(RE3)
+    if (orderer != nullptr) {
+        orderer->enabled = !m_disable_movement->value();
     }
+#endif
 
     // Update wanted camera position
     if (!m_lock_camera->value()) {
-        float timescale_mult;
-        if (gi.tdb_ver() > 49) {
-            auto timescale = sdk::get_timescale() * sdk::Application::get_global_speed();
+#if TDB_VER > 49
+        auto timescale = sdk::get_timescale() * sdk::Application::get_global_speed();
 
-            if (timescale == 0.0f) {
-                timescale = std::numeric_limits<float>::epsilon();
-            }
-            
-            timescale_mult = 1.0f / timescale;
-        } else {
-            // RE7 doesn't have timescale
-            timescale_mult = 1.0f;
+        if (timescale == 0.0f) {
+            timescale = std::numeric_limits<float>::epsilon();
         }
+        
+        const auto timescale_mult = 1.0f / timescale;
+#else
+        // RE7 doesn't have timescale
+        const auto timescale_mult = 1.0f;
+#endif
 
         Vector4f dir{};
-        float delta;
-        if (gi.tdb_ver() > 49) {
-            delta = transform->get_delta_time();
-        } else {
-            delta = sdk::call_native_func_easy<float>(m_application.object, m_application.t, "get_DeltaTime");
-        }
+#if TDB_VER > 49
+        const auto delta = re_component::get_delta_time(transform);
+#else
+        const auto delta = sdk::call_native_func_easy<float>(m_application.object, m_application.t, "get_DeltaTime");
+#endif
 
         // The rotation speed gets scaled down here heavily since "1.0f" is way too fast... This makes the slider a bit more user-friendly.
         // TODO: Figure out a conversion here to make KB+M & Controllers equal in rotation sensitivity.
@@ -223,8 +200,8 @@ void FreeCam::on_update_transform(RETransform* transform) {
 
             // Move direction
             // It's not a Vector2f because via.vec2 is not actually 8 bytes, we don't want stack corruption to occur.
-            auto axis_l_field = pad->get_reflection_property<Vector3f*>("AxisL");
-            auto axis_r_field = pad->get_reflection_property<Vector3f*>("AxisR");
+            auto axis_l_field = re_managed_object::get_field<Vector3f*>(pad, "AxisL");
+            auto axis_r_field = re_managed_object::get_field<Vector3f*>(pad, "AxisR");
 
             // TODO: Fix for Wilds
             const auto axis_l = axis_l_field != nullptr ? *axis_l_field : Vector3f{};
@@ -284,10 +261,25 @@ void FreeCam::on_update_transform(RETransform* transform) {
         }
 
         const auto& keyboard_state = g_framework->get_keyboard_state();
-        for (const auto& entry : g_vk_to_movedir) {
-            if (keyboard_state[entry.first]) {
-                dir += g_movedir_map[entry.second];
-            }
+        // VkKeyScan packs shift-state in the high byte (and returns -1 on
+        // failure); only the low byte is the virtual-key code used to index
+        // the 256-entry keyboard state, so mask it to stay in bounds.
+        static const auto w_key = VkKeyScan('w') & 0xFF;
+        static const auto a_key = VkKeyScan('a') & 0xFF;
+        static const auto s_key = VkKeyScan('s') & 0xFF;
+        static const auto d_key = VkKeyScan('d') & 0xFF;
+
+        if (keyboard_state[w_key] || keyboard_state[VK_UP]) {
+            dir += Vector4f{ 0.0f, 0.0f, -1.0f, 0.0f };
+        }
+        if (keyboard_state[s_key] || keyboard_state[VK_DOWN]) {
+            dir += Vector4f{ 0.0f, 0.0f, 1.0f, 0.0f };
+        }
+        if (keyboard_state[a_key] || keyboard_state[VK_LEFT]) {
+            dir += Vector4f{ -1.0f, 0.0f, 0.0f, 0.0f };
+        }
+        if (keyboard_state[d_key] || keyboard_state[VK_RIGHT]) {
+            dir += Vector4f{ 1.0f, 0.0f, 0.0f, 0.0f };
         }
 
         if (keyboard_state[m_move_up_key->value()]) {
@@ -331,165 +323,157 @@ void FreeCam::on_update_transform(RETransform* transform) {
         m_last_camera_matrix[3] = new_pos;
     }
 
-    transform->get_world_transform() = m_last_camera_matrix;
-    transform->get_position() = m_last_camera_matrix[3];
+    transform->worldTransform = m_last_camera_matrix;
+    transform->position = m_last_camera_matrix[3];
 
     // IDK!!!
-    if (gi.tdb_ver() < 81) {
-        if (joint != nullptr) {
-            joint->posOffset = Vector4f{};
-            *(Vector4f*)&joint->anglesOffset = Vector4f{0.0f, 0.00f, 0.0f, 1.0f};
-        }
-    } else {
-        // TODO: Get rid of this hacky workaround for onimusha, not sure whats happening here yet.
-        if (joint != nullptr && !gi.is_onimusha_wots()) {
-            sdk::set_joint_local_rotation(joint, glm::quat{1.0f, 0.0f, 0.0f, 0.0f});
-            sdk::set_joint_local_position(joint, Vector4f{});
-        }
+#if TDB_VER < 81
+    if (joint != nullptr) {
+        joint->posOffset = Vector4f{};
+        *(Vector4f*)&joint->anglesOffset = Vector4f{0.0f, 0.00f, 0.0f, 1.0f};
     }
+#endif
 }
 
 void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t hash) {
     if (hash == "LockScene"_fnv) {
         if (!m_enabled->value()) {
             m_camera = nullptr;
-            if (sdk::GameIdentity::get().is_re4()) {
-                m_re4_body = nullptr;
-            }
+#ifdef RE4
+            m_re4_body = nullptr;
+#endif
             return;
         }
 
         m_camera = sdk::get_primary_camera();
 
-        if (sdk::GameIdentity::get().is_re4()) {
-            if (m_disable_movement->value()) {
-                const auto character_manager = sdk::get_managed_singleton<::REManagedObject>(game_namespace("CharacterManager"));
+#ifdef RE4
+        if (m_disable_movement->value()) {
+            const auto character_manager = sdk::get_managed_singleton<::REManagedObject>(game_namespace("CharacterManager"));
 
-                if (character_manager == nullptr) {
-                    m_re4_body = nullptr;
-                    return;
-                }
+            if (character_manager == nullptr) {
+                m_re4_body = nullptr;
+                return;
+            }
 
-                const auto player_context = sdk::call_object_func_easy<::REManagedObject*>(character_manager, "getPlayerContextRef");
+            const auto player_context = sdk::call_object_func_easy<::REManagedObject*>(character_manager, "getPlayerContextRef");
 
-                if (player_context == nullptr) {
-                    m_re4_body = nullptr;
-                    return;
-                }
+            if (player_context == nullptr) {
+                m_re4_body = nullptr;
+                return;
+            }
 
-                m_re4_body = sdk::call_object_func_easy<::REManagedObject*>(player_context, "get_BodyGameObject");
+            m_re4_body = sdk::call_object_func_easy<::REManagedObject*>(player_context, "get_BodyGameObject");
 
-                if (m_re4_body == nullptr) {
-                    return;
-                }
+            if (m_re4_body == nullptr) {
+                return;
+            }
 
-                auto standard_skip_pre_fn = [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
-                    if (!m_enabled->value() || !m_disable_movement->value()) {
-                        return HookManager::PreHookResult::CALL_ORIGINAL;
-                    }
-
-                    const auto comp = (REComponent*)args[1];
-                    const auto owner = comp->get_game_object();
-
-                    if (owner == m_re4_body) {
-                        return HookManager::PreHookResult::SKIP_ORIGINAL;
-                    }
-
+            auto standard_skip_pre_fn = [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+                if (!m_enabled->value() || !m_disable_movement->value()) {
                     return HookManager::PreHookResult::CALL_ORIGINAL;
-                };
-
-                if (!m_player_body_updater_hook.attempted_hook) {
-                    m_player_body_updater_hook.attempted_hook = true;
-
-                    const auto player_body_updater_t = sdk::find_type_definition(game_namespace("PlayerBodyUpdater"));
-                    if (player_body_updater_t == nullptr) {
-                        return;
-                    }
-
-                    const auto update_fn = player_body_updater_t->get_method("update");
-                    const auto late_update_fn = player_body_updater_t->get_method("lateUpdate");
-                    const auto get_past_frame_move_dir_fn = player_body_updater_t->get_method("getPastFrameMoveDirVec");
-
-                    if (update_fn != nullptr) {
-                        m_player_body_updater_hook.update_id = g_hookman.add(update_fn,
-                            standard_skip_pre_fn,
-                            [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                            }
-                        );
-                    }
-
-                    if (late_update_fn != nullptr) {
-                        m_player_body_updater_hook.late_update_id = g_hookman.add(late_update_fn,
-                            standard_skip_pre_fn,
-                            [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                            }
-                        );
-                    }
-
-                    if (get_past_frame_move_dir_fn != nullptr) {
-                        m_player_body_updater_hook.get_past_move_frame_move_dir_vec_id = g_hookman.add(get_past_frame_move_dir_fn,
-                            [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
-                                if (!m_enabled->value() || !m_disable_movement->value()) {
-                                    return HookManager::PreHookResult::CALL_ORIGINAL;
-                                }
-
-                                // The component is in arg2 because ValueTypes push everything to the right
-                                const auto comp = (REComponent*)args[2];
-                                const auto owner = comp->get_game_object();
-
-                                if (owner == m_re4_body) {
-                                    return HookManager::PreHookResult::SKIP_ORIGINAL;
-                                }
-
-                                return HookManager::PreHookResult::CALL_ORIGINAL;
-                            },
-                            [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                            }
-                        );
-                    }
                 }
 
-                if (!m_player_motion_controller_hook.attempted_hook) {
-                    m_player_motion_controller_hook.attempted_hook = true;
+                const auto comp = (REComponent*)args[1];
+                const auto owner = utility::re_component::get_game_object(comp);
 
-                    const auto player_motion_controller_t = sdk::find_type_definition(game_namespace("MotionController"));
-                    if (player_motion_controller_t == nullptr) {
-                        return;
-                    }
+                if (owner == m_re4_body) {
+                    return HookManager::PreHookResult::SKIP_ORIGINAL;
+                }
 
-                    const auto change_motion_internal_fn = player_motion_controller_t->get_method("changeMotionInternal");
+                return HookManager::PreHookResult::CALL_ORIGINAL;
+            };
 
-                    if (change_motion_internal_fn != nullptr) {
-                        m_player_motion_controller_hook.change_motion_internal_id = g_hookman.add(change_motion_internal_fn,
-                            standard_skip_pre_fn,
-                            [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
+            if (!m_player_body_updater_hook.attempted_hook) {
+                m_player_body_updater_hook.attempted_hook = true;
+
+                const auto player_body_updater_t = sdk::find_type_definition(game_namespace("PlayerBodyUpdater"));
+                if (player_body_updater_t == nullptr) {
+                    return;
+                }
+
+                const auto update_fn = player_body_updater_t->get_method("update");
+                const auto late_update_fn = player_body_updater_t->get_method("lateUpdate");
+                const auto get_past_frame_move_dir_fn = player_body_updater_t->get_method("getPastFrameMoveDirVec");
+
+                if (update_fn != nullptr) {
+                    m_player_body_updater_hook.update_id = g_hookman.add(update_fn,
+                        standard_skip_pre_fn,
+                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
+                        }
+                    );
+                }
+
+                if (late_update_fn != nullptr) {
+                    m_player_body_updater_hook.late_update_id = g_hookman.add(late_update_fn,
+                        standard_skip_pre_fn,
+                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
+                        }
+                    );
+                }
+
+                if (get_past_frame_move_dir_fn != nullptr) {
+                    m_player_body_updater_hook.get_past_move_frame_move_dir_vec_id = g_hookman.add(get_past_frame_move_dir_fn,
+                        [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+                            if (!m_enabled->value() || !m_disable_movement->value()) {
+                                return HookManager::PreHookResult::CALL_ORIGINAL;
                             }
-                        );
-                    }
+
+                            // The component is in arg2 because ValueTypes push everything to the right
+                            const auto comp = (REComponent*)args[2];
+                            const auto owner = utility::re_component::get_game_object(comp);
+
+                            if (owner == m_re4_body) {
+                                return HookManager::PreHookResult::SKIP_ORIGINAL;
+                            }
+
+                            return HookManager::PreHookResult::CALL_ORIGINAL;
+                        },
+                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
+                        }
+                    );
+                }
+            }
+
+            if (!m_player_motion_controller_hook.attempted_hook) {
+                m_player_motion_controller_hook.attempted_hook = true;
+
+                const auto player_motion_controller_t = sdk::find_type_definition(game_namespace("MotionController"));
+                if (player_motion_controller_t == nullptr) {
+                    return;
+                }
+
+                const auto change_motion_internal_fn = player_motion_controller_t->get_method("changeMotionInternal");
+
+                if (change_motion_internal_fn != nullptr) {
+                    m_player_motion_controller_hook.change_motion_internal_id = g_hookman.add(change_motion_internal_fn,
+                        standard_skip_pre_fn,
+                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
+                        }
+                    );
                 }
             }
         }
+#endif
     }
 }
 
 bool FreeCam::update_pointers() {
-    const auto& gi = sdk::GameIdentity::get();
-
-    if (gi.is_re2() || gi.is_re3()) {
-        if (m_survivor_manager == nullptr) {
-            auto& globals = *reframework::get_globals();
-            m_survivor_manager = globals.get<RopewaySurvivorManager>(game_namespace("SurvivorManager"));
-            return false;
-        }
+#if defined(RE2) || defined(RE3)
+    if (m_survivor_manager == nullptr) {
+        auto& globals = *reframework::get_globals();
+        m_survivor_manager = globals.get<RopewaySurvivorManager>(game_namespace("SurvivorManager"));
+        return false;
     }
+#endif
 
-    if (gi.is_re8()) {
-        if (m_props_manager == nullptr) {
-            auto& globals = *reframework::get_globals();
-            m_props_manager = globals.get<AppPropsManager>(game_namespace("PropsManager"));
-            return false;
-        }
+#ifdef RE8
+    if (m_props_manager == nullptr) {
+        auto& globals = *reframework::get_globals();
+        m_props_manager = globals.get<AppPropsManager>(game_namespace("PropsManager"));
+        return false;
     }
+#endif
 
     // Should work for all games.
     return m_via_hid_gamepad.update() && m_application.update();

@@ -87,7 +87,7 @@ public:
         for (auto&& md : m_metadata) {
             os << md;
             if (&md != &*m_metadata.rbegin()) {
-                os << md << ", ";
+                os << ", ";
             }
         }
 

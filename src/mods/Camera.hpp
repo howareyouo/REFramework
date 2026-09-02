@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Mod.hpp"
-#include <sdk/GameIdentity.hpp>
 
 class RenderToneMappingInternal {
 public:
@@ -57,6 +56,11 @@ public:
 
 class Camera : public Mod {
 public:
+    static std::shared_ptr<Camera>& get() {
+        static std::shared_ptr<Camera> instance = std::make_shared<Camera>();
+        return instance;
+    }
+
     std::string_view get_name() const override { return "Camera"; };
 
     void on_config_load(const utility::Config& cfg) override;
@@ -68,6 +72,10 @@ public:
     void on_pre_application_entry(void* entry, const char* name, size_t hash) override;
     void on_application_entry(void* entry, const char* name, size_t hash) override;
 
+    bool is_disable_vignette() const {
+        return m_enabled->value() && m_disable_vignette->value();
+    }
+
 private:
     const ModToggle::Ptr m_enabled{ ModToggle::create(generate_name("Enabled"), false) };
     const ModToggle::Ptr m_disable_vignette{ ModToggle::create(generate_name("DisableVignette"), true) };
@@ -76,14 +84,9 @@ private:
     const ModToggle::Ptr m_use_custom_global_fov{ ModToggle::create(generate_name("GlobalFOVEnabled"), false) };
     const ModSlider::Ptr m_global_fov{ ModSlider::create(generate_name("GlobalFOV"), 0.0f, 180.0f, 81.0f) };
 
-#ifdef REFRAMEWORK_UNIVERSAL
+#ifdef RE8
     const ModSlider::Ptr m_fov{ ModSlider::create(generate_name("FOV"), 0.0f, 180.0f, 81.0f) };
     const ModSlider::Ptr m_fov_aiming{ ModSlider::create(generate_name("FOVAiming"), 0.0f, 180.0f, 70.0f) };
-#else
-    #ifdef RE8
-    const ModSlider::Ptr m_fov{ ModSlider::create(generate_name("FOV"), 0.0f, 180.0f, 81.0f) };
-    const ModSlider::Ptr m_fov_aiming{ ModSlider::create(generate_name("FOVAiming"), 0.0f, 180.0f, 70.0f) };
-    #endif
 #endif
 
     ValueList m_options{
@@ -93,23 +96,14 @@ private:
         *m_use_custom_global_fov,
         *m_global_fov,
 
-#ifdef REFRAMEWORK_UNIVERSAL
+#ifdef RE8
         *m_fov,
         *m_fov_aiming
-#else
-    #ifdef RE8
-        *m_fov,
-        *m_fov_aiming
-    #endif
 #endif
     };
 
-#ifdef REFRAMEWORK_UNIVERSAL
+#ifdef RE8
     AppPropsManager* m_props_manager{ nullptr };
-#else
-    #ifdef RE8
-    AppPropsManager* m_props_manager{ nullptr };
-    #endif
 #endif
     RECamera* m_camera{ nullptr };
     REGameObject* m_player{ nullptr };
@@ -118,16 +112,20 @@ private:
     AppPlayerConfigure* m_player_configure{ nullptr };
     AppPlayerCameraParameter* m_player_camera_params{ nullptr };
 
-    template<class T>
-    inline bool reset_ptr(T* &m, T* ptr, const std::function< void (bool) > &on_change = {}) {
+    template<class T, typename F>
+    inline bool reset_ptr(T* &m, T* ptr, const F& on_change) {
         if (m != ptr) {
             m = ptr;
-
-            if (on_change) {
-                on_change(m != nullptr);
-            }
+            on_change(m != nullptr);
         }
+        return m != nullptr;
+    }
 
+    template<class T>
+    inline bool reset_ptr(T* &m, T* ptr) {
+        if (m != ptr) {
+            m = ptr;
+        }
         return m != nullptr;
     }
 

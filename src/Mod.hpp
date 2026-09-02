@@ -238,6 +238,22 @@ public:
         }
     }
 
+    void config_load(const utility::Config& cfg) override {
+        ModValue<int32_t>::config_load(cfg);
+
+        if (m_value >= (int32_t)m_options.size()) {
+            if (!m_options.empty()) {
+                m_value = m_options.size() - 1;
+            } else {
+                m_value = 0;
+            }
+        }
+
+        if (m_value < 0) {
+            m_value = 0;
+        }
+    };
+    
     const auto& options() const {
         return m_options;
     }
@@ -331,8 +347,6 @@ public:
             return false;
         }
 
-        bool changed = false;
-
         ImGui::PushID(this);
         ImGui::Button(name.data());
 
@@ -348,9 +362,7 @@ public:
                 }
 
                 if (keys[k]) {
-                    const auto new_value = is_erase_key(k) ? UNBOUND_KEY : k;
-                    changed = new_value != m_value;
-                    m_value = new_value;
+                    m_value = is_erase_key(k) ? UNBOUND_KEY : k;
                     m_waiting_for_new_key = false;
                     break;
                 }
@@ -372,7 +384,7 @@ public:
 
         ImGui::PopID();
 
-        return changed;
+        return true;
     }
 
     bool is_key_down() const {
@@ -432,6 +444,8 @@ protected:
     using ValueList = std::vector<std::reference_wrapper<IModValue>>;
 
 public:
+    using Component = Mod;
+
     virtual ~Mod() {};
     virtual std::string_view get_name() const { return "UnknownMod"; };
 
@@ -451,6 +465,7 @@ public:
     virtual void on_pre_imgui_frame() {};
     // Functionally equivalent, but on_frame will always get called, on_draw_ui can be disabled by REFramework
     virtual void on_frame() {}; // BeginRendering, can be used for imgui
+    virtual void on_early_present() {}; // same as on_present but slightly earlier for explicitly timed mods
     virtual void on_present() {}; // actual present frame, CANNOT be used for imgui
     virtual void on_post_frame() {}; // after imgui rendering is done
     virtual void on_post_present() {}; // actually after present gets called
@@ -460,6 +475,19 @@ public:
 
     virtual void on_config_load(const utility::Config& cfg) {};
     virtual void on_config_save(utility::Config& cfg) {};
+
+    // Helper for subclasses that have a `ValueList m_options` member.
+    // Call this from on_config_load/on_config_save to iterate all options.
+    void config_load_options(const utility::Config& cfg, ValueList& options) {
+        for (IModValue& option : options) {
+            option.config_load(cfg);
+        }
+    }
+    void config_save_options(utility::Config& cfg, ValueList& options) {
+        for (IModValue& option : options) {
+            option.config_save(cfg);
+        }
+    }
 
     // Game-specific callbacks
     virtual void on_pre_update_transform(RETransform* transform) {};
@@ -489,4 +517,6 @@ public:
     MAKE_LAYER_CALLBACK(Scene, scene);
     MAKE_LAYER_CALLBACK(PostEffect, post_effect);
     MAKE_LAYER_CALLBACK(Overlay, overlay);
+    MAKE_LAYER_CALLBACK(PrepareOutput, prepare_output);
+    MAKE_LAYER_CALLBACK(Output, output);
 };

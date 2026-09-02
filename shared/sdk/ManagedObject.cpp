@@ -2,10 +2,10 @@
 
 namespace sdk {
 void ManagedObject::add_ref() {
-    ::REManagedObject::add_ref();
+    ::utility::re_managed_object::add_ref(this);
 }
 
 void ManagedObject::release() {
-    ::REManagedObject::release();
+    ::utility::re_managed_object::release(this);
 }
 }

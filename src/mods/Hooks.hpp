@@ -14,11 +14,6 @@ public:
 
     std::string_view get_name() const override { return "Hooks"; };
     std::optional<std::string> on_initialize() override;
-    void on_draw_ui() override;
-
-    auto& get_application_entry_times() {
-        return m_application_entry_times;
-    }
 
     void ignore_application_entry(size_t hash) {
         std::unique_lock _{m_application_entry_data_mutex};
@@ -91,8 +86,8 @@ protected:
     void lightshaft_draw_hook_internal(void* shaft, void* render_context);
     static void lightshaft_draw_hook(void* shaft, void* render_context);
     
-    void global_application_entry_hook_internal(void* entry, const char* name, size_t hash);
-    static void global_application_entry_hook(void* entry, const char* name, size_t hash);
+    void global_application_entry_hook_internal(void* entry, const char* name, size_t hash, void* original);
+    static void global_application_entry_hook(void* entry, const char* name, size_t hash, void* original);
 
     float* view_get_size_hook_internal(REManagedObject* scene_view, float* result);
     static float* view_get_size_hook(REManagedObject* scene_view, float* result);
@@ -128,6 +123,14 @@ private:
             return error;
         }
 
+        if (auto error = hook_render_layer(m_layer_hooks.output); error.has_value()) {
+            return error;
+        }
+
+        if (auto error = hook_render_layer(m_layer_hooks.prepare_output); error.has_value()) {
+            return error;
+        }
+
         return std::nullopt;
     }
 
@@ -144,9 +147,11 @@ private:
         HOOK_LAMBDA(hook_update_camera_controller),
         HOOK_LAMBDA(hook_update_camera_controller2),
         HOOK_LAMBDA(hook_gui_draw),
-#if defined(REFRAMEWORK_UNIVERSAL) || (!defined(RE7) && !defined(MHRISE))
+#ifndef RE7
+#ifndef MHRISE
         HOOK_LAMBDA(hook_update_before_lock_scene),
         HOOK_LAMBDA(hook_lightshaft_draw),
+#endif
 #endif
         HOOK_LAMBDA(hook_view_get_size),
         HOOK_LAMBDA(hook_camera_get_projection_matrix),
@@ -168,20 +173,11 @@ protected:
         RenderLayerHook<sdk::renderer::layer::Overlay> overlay{"via.render.layer.Overlay"};
         RenderLayerHook<sdk::renderer::layer::PostEffect> post_effect{"via.render.layer.PostEffect"};
         RenderLayerHook<sdk::renderer::layer::Scene> scene{"via.render.layer.Scene"};
+        RenderLayerHook<sdk::renderer::layer::PrepareOutput> prepare_output{"via.render.layer.PrepareOutput"};
+        RenderLayerHook<sdk::renderer::layer::Output> output{"via.render.layer.Output"};
     } m_layer_hooks;
 
-    std::unordered_map<const char*, void (*)(void*)> m_application_entry_hooks;
     std::unordered_set<size_t> m_ignored_application_entries{};
 
-    struct ApplicationEntryData {
-        std::chrono::nanoseconds callback_time;
-        std::chrono::nanoseconds reframework_pre_time;
-        std::chrono::nanoseconds reframework_post_time;
-    };
-
-    bool m_profiling_enabled{false};
-
-    std::recursive_mutex m_profiler_mutex{};
     std::shared_mutex m_application_entry_data_mutex{};
-    std::unordered_map<const char*, ApplicationEntryData> m_application_entry_times;
 };

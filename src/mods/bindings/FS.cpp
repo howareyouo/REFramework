@@ -1,7 +1,6 @@
 #include <filesystem>
 #include <regex>
 #include <fstream>
-#include <filesystem>
 
 #include "../ScriptRunner.hpp"
 
@@ -69,7 +68,21 @@ namespace detail {
 
 sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
     sol::state_view state{l};
-    std::regex filter_regex{filter};
+
+    if (filter == nullptr) {
+        filter = ".*";
+    }
+
+    // An invalid pattern would otherwise throw std::regex_error across the Lua
+    // boundary; turn it into a Lua error so a script typo can't crash the game.
+    std::optional<std::regex> filter_regex;
+    try {
+        filter_regex.emplace(filter);
+    } catch (const std::regex_error& e) {
+        luaL_error(l, "fs.glob: invalid pattern: %s", e.what());
+        return state.create_table();
+    }
+
     auto results = state.create_table();
     auto datadir = detail::get_datadir(modifier != nullptr ? modifier : "");
     auto i = 0;
@@ -81,7 +94,7 @@ sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
 
         auto relpath = relative(entry.path(), datadir).string();
 
-        if (std::regex_match(relpath, filter_regex)) {
+        if (std::regex_match(relpath, *filter_regex)) {
             results[++i] = relpath;
         }
     }

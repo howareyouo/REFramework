@@ -9,7 +9,6 @@
 #include "RETypeDB.hpp"
 #include "RETypes.hpp"
 #include "SceneManager.hpp"
-#include "REGameObject.hpp"
 
 #include "Renderer.hpp"
 
@@ -183,11 +182,11 @@ sdk::NativeArray<RenderLayer*>& RenderLayer::get_layers() {
                 continue;
             }
 
-            if (!REManagedObject::is_managed_object(potential_layer)) {
+            if (!utility::re_managed_object::is_managed_object(potential_layer)) {
                 continue;
             }
 
-            if (potential_layer->is_a("via.render.RenderLayer")) {
+            if (utility::re_managed_object::is_a(potential_layer, "via.render.RenderLayer")) {
                 layers_offset = i;
                 break;
             }
@@ -203,11 +202,11 @@ RenderLayer** RenderLayer::find_layer(::REType* layer_type) {
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->get_class_info() == nullptr) {
+        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
-        const auto t = layer->get_type();
+        const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
             return &layer;
@@ -221,11 +220,11 @@ std::tuple<RenderLayer*, RenderLayer**> RenderLayer::find_layer_recursive(const 
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->get_class_info() == nullptr) {
+        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
-        const auto t = layer->get_type();
+        const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
             return std::make_tuple<RenderLayer*, RenderLayer**>(this, &layer);
@@ -261,11 +260,11 @@ std::vector<RenderLayer*> RenderLayer::find_layers(::REType* layer_type) {
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->get_class_info() == nullptr) {
+        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
-        const auto t = layer->get_type();
+        const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
             out.push_back(layer);
@@ -337,11 +336,11 @@ void RenderLayer::set_parent(RenderLayer* layer) {
 
 RenderLayer* RenderLayer::find_parent(::REType* layer_type) {
     for (auto parent = get_parent(); parent != nullptr; parent = parent->get_parent()) {
-        if (parent->info == nullptr || parent->info->get_class_info() == nullptr) {
+        if (parent->info == nullptr || parent->info->classInfo == nullptr) {
             break;
         }
 
-        const auto t = parent->get_type();
+        const auto t = utility::re_managed_object::get_type(parent);
 
         if (t == layer_type) {
             return parent;
@@ -352,7 +351,7 @@ RenderLayer* RenderLayer::find_parent(::REType* layer_type) {
 }
 
 RenderLayer* RenderLayer::clone(bool recursive) {
-    auto new_layer = (RenderLayer*)this->get_type_definition()->create_instance_full();
+    auto new_layer = (RenderLayer*)utility::re_managed_object::get_type_definition(this)->create_instance_full();
 
     if (new_layer == nullptr) {
         spdlog::error("[Renderer] Failed to clone layer");
@@ -368,9 +367,11 @@ void RenderLayer::clone(RenderLayer* other, bool recursive) {
     this->m_parent = other->m_parent;
     this->m_priority = other->m_priority;
 
-    for (uint32_t i = 0; i < sdk::renderer::RenderLayer::get_num_priority_offsets(); ++i) {
+#if TDB_VER > 49
+    for (auto i = 0; i < sdk::renderer::RenderLayer::NUM_PRIORITY_OFFSETS; ++i) {
         this->m_priority_offsets[i] = other->m_priority_offsets[i];
     }
+#endif
 
     this->clone_layers(other, recursive);
 }
@@ -381,7 +382,7 @@ void RenderLayer::clone_layers(RenderLayer* other, bool recursive) {
             continue;
         }
 
-        const auto def = child_layer->get_type_definition();
+        const auto def = utility::re_managed_object::get_type_definition(child_layer);
 
         if (def == nullptr) {
             continue;
@@ -406,7 +407,7 @@ void RenderLayer::clone_layers(RenderLayer* other, bool recursive) {
 }
 
 ::sdk::renderer::TargetState* RenderLayer::get_target_state(std::string_view name) {
-    return this->get_reflection_property<::sdk::renderer::TargetState*>(name);
+    return utility::re_managed_object::get_field<::sdk::renderer::TargetState*>(this, name);
 }
 
 void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_state) {
@@ -781,117 +782,120 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
     return;
 #else*/
 
-    // Two implementations depending on TDB version: the legacy (<82) form takes
-    // a single source/dest pair; the modern (>=82) form takes per-texture subresource
-    // indices. They resolve to different native functions with different signatures,
-    // so in universal builds we dispatch at runtime but both branches must compile.
-#if defined(REFRAMEWORK_UNIVERSAL) || TDB_VER < 82
-    auto copy_legacy = [&]() {
-        using CopyTexFn = void (*)(RenderContext*, Texture*, Texture*, Fence&);
-        static auto func = []() -> CopyTexFn {
-            spdlog::info("Searching for RenderContext::copy_texture");
+#if TDB_VER < 82
+    using CopyTexFn = void (*)(RenderContext*, Texture*, Texture*, Fence&);
+    static auto func = []() -> CopyTexFn {
+        spdlog::info("Searching for RenderContext::copy_texture");
 
-            std::vector<std::string> string_choices {
-            };
-            if (sdk::GameIdentity::get().tdb_ver() < 73) {
-                string_choices.push_back("InterleaveNormalDepthHalfWithoutGBuffer");
+        std::vector<std::string> string_choices {
+            // CopyTexture isn't directly behind InterleaveNormalDepthHalfWithoutGBuffer in DD2+
+#if TDB_VER < 73
+            "InterleaveNormalDepthHalfWithoutGBuffer",
+#endif
+            "opyImage", // Engine has a weird optimization sometimes where it starts from the +1 offset
+            "CopyImage",
+        };
+
+        const auto game = utility::get_executable();
+
+        for (const auto& str_choice : string_choices) {
+            spdlog::info("Scanning for string: {}", str_choice);
+
+            const auto string = utility::scan_string(game, str_choice, true);
+
+            if (!string) {
+                spdlog::error("Failed to find copy_texture (no string)");
+                continue;
             }
-            string_choices.push_back("opyImage");
-            string_choices.push_back("CopyImage");
-            {
 
-            const auto game = utility::get_executable();
+            const auto string_ref = utility::scan_displacement_reference(game, *string);
 
-            for (const auto& str_choice : string_choices) {
-                spdlog::info("Scanning for string: {}", str_choice);
+            if (!string_ref) {
+                spdlog::error("Failed to find copy_texture (no string ref)");
+                continue;
+            }
 
-                const auto string = utility::scan_string(game, str_choice, true);
+            uintptr_t ip = *string_ref;
 
-                if (!string) {
-                    spdlog::error("Failed to find copy_texture (no string)");
+            for (auto i = 0; i < 20; ++i) {
+                const auto resolved = utility::resolve_instruction(ip);
+
+                if (!resolved) {
+                    spdlog::error("Failed to find copy_texture (could not resolve instruction)");
                     continue;
                 }
 
-                const auto string_ref = utility::scan_displacement_reference(game, *string);
+                ip = resolved->addr;
 
-                if (!string_ref) {
-                    spdlog::error("Failed to find copy_texture (no string ref)");
-                    continue;
+                if (*(uint8_t*)ip == 0xE8) {
+                    const auto result = (CopyTexFn)utility::calculate_absolute(ip + 1);
+
+                    spdlog::info("Found copy_texture: {:x}", (uintptr_t)result);
+                    return result;
                 }
 
-                uintptr_t ip = *string_ref;
-
-                for (auto i = 0; i < 20; ++i) {
-                    const auto resolved = utility::resolve_instruction(ip);
-
-                    if (!resolved) {
-                        spdlog::error("Failed to find copy_texture (could not resolve instruction)");
-                        continue;
-                    }
-
-                    ip = resolved->addr;
-
-                    if (*(uint8_t*)ip == 0xE8) {
-                        const auto result = (CopyTexFn)utility::calculate_absolute(ip + 1);
-
-                        spdlog::info("Found copy_texture: {:x}", (uintptr_t)result);
-                        return result;
-                    }
-
-                    ip -= 1;
-                }
+                ip -= 1;
             }
-            }
-
-            spdlog::error("Could not find copy_texture");
-            return (CopyTexFn)nullptr;
-        }();
-
-        if (func != nullptr) {
-            func(this, dest, src, fence);
         }
-    };
-#endif
 
-#if defined(REFRAMEWORK_UNIVERSAL) || TDB_VER >= 82
-    auto copy_modern = [&]() {
-        using CopyTexFn = void (*)(RenderContext*, Texture*, int32_t, Texture*, int32_t, Fence&);
-        static auto func = []() -> CopyTexFn {
-            spdlog::info("Searching for RenderContext::copy_texture (>= TDB82)");
+        spdlog::error("Could not find copy_texture, trying fallback");
 
-            const auto game = utility::get_executable();
-            // constants 0x301 (the typeid 1 or'd with something) 0x36, 0x3f, 0x2a.
-            const auto mid_result = utility::scan(game, "01 03 00 00 *[64] 36 *[32] 3f *[32] 2a");
+        // Look for alloc call behind RE_POSTPROCESS_Color
+        /*
+            BA 01 00 00 00                                mov     edx, 1 ; this is the copy texture command type
+            41 B8 30 00 00 00                             mov     r8d, 30h ; can change, can also be a lea instruction
+            E8 9B A5 7E 09                                call    alloc
+            48 85 C0                                      test    rax, rax
+        */
+        const auto basic_sig_scan = utility::scan(game, "BA 01 00 00 00 41 B8 30 00 00 00 E8 ? ? ? ? 48 85 C0");
 
-            if (!mid_result) {
-                spdlog::error("Failed to find copy_texture (>= TDB82)");
-                return (CopyTexFn)nullptr;
-            }
-
-            const auto fn_start = utility::find_function_start_unwind(*mid_result);
-
-            if (!fn_start) {
-                spdlog::error("Failed to find copy_texture function start (>= TDB82)");
-                return (CopyTexFn)nullptr;
-            }
-
-            spdlog::info("Found copy_texture (>= TDB82) at {:x}", *fn_start);
-
-            return (CopyTexFn)*fn_start;
-        }();
-
-        if (func != nullptr) {
-            // src, src_subresource, dst, dst_subresource, fence
-            func(this, src, -1, dest, -1, fence);
+        if (!basic_sig_scan) {
+            spdlog::error("Failed to find copy_texture (fallback)");
+            return nullptr;
         }
-    };
-#endif
 
-    if (sdk::GameIdentity::get().tdb_ver() < 82) {
-        copy_legacy();
-    } else {
-        copy_modern();
-    }
+        const auto fn_start = utility::find_function_start_with_call(*basic_sig_scan);
+
+        if (!fn_start) {
+            spdlog::error("Failed to find copy_texture (fallback fn_start)");
+            return nullptr;
+        }
+
+        spdlog::info("Found copy_texture (fallback): {:x}", *fn_start);
+
+        return (CopyTexFn)*fn_start;
+    }();
+
+    func(this, dest, src, fence);
+#else
+    using CopyTexFn = void (*)(RenderContext*, Texture*, int32_t, Texture*, int32_t, Fence&);
+    static auto func = []() -> CopyTexFn {
+        spdlog::info("Searching for RenderContext::copy_texture (>= TDB82)");
+
+        const auto game = utility::get_executable();
+        // constants 0x301 (the typeid 1 or'd with something) 0x36, 0x3f, 0x2a.
+        const auto mid_result = utility::scan(game, "01 03 00 00 *[64] 36 *[32] 3f *[32] 2a");
+
+        if (!mid_result) {
+            spdlog::error("Failed to find copy_texture (>= TDB82)");
+            return nullptr;
+        }
+
+        const auto fn_start = utility::find_function_start_unwind(*mid_result);
+
+        if (!fn_start) {
+            spdlog::error("Failed to find copy_texture function start (>= TDB82)");
+            return nullptr;
+        }
+
+        spdlog::info("Found copy_texture (>= TDB82) at {:x}", *fn_start);
+
+        return (CopyTexFn)*fn_start;
+    }();
+
+    // src, src_subresource, dst, dst_subresource, fence
+    func(this, src, -1, dest, -1, fence);
+#endif
 //#endif
 }
 
@@ -910,7 +914,7 @@ ConstantBuffer* Renderer::get_constant_buffer(std::string_view name) const {
     static auto tdef = sdk::find_type_definition("via.render.Renderer");
     static auto t = tdef->get_type();
     const auto field_desc = utility::re_type::get_field_desc(t, name);
-    return ((::REManagedObject*)this)->get_reflection_property<ConstantBuffer*>(field_desc);
+    return utility::re_managed_object::get_field<ConstantBuffer*>((::REManagedObject*)this, field_desc);
 }
 
 Renderer* get_renderer() {
@@ -1006,11 +1010,11 @@ RenderLayer* get_root_layer() {
                     continue;
                 }
 
-                if (!REManagedObject::is_managed_object(ptr)) {
+                if (!utility::re_managed_object::is_managed_object(ptr)) {
                     continue;
                 }
 
-                if (ptr->is_a("via.render.RenderLayer")) {
+                if (utility::re_managed_object::is_a(ptr, "via.render.RenderLayer")) {
                     root_layer_offset = i;
                     spdlog::info("[Renderer] Found root_layer_offset with fallback: {:x}", root_layer_offset);
                     return *(RenderLayer**)((uintptr_t)renderer + root_layer_offset);
@@ -1088,11 +1092,11 @@ RenderLayer* find_layer(::REType* layer_type) {
                 continue;
             }
 
-            if (!REManagedObject::is_managed_object(ptr)) {
+            if (!utility::re_managed_object::is_managed_object(ptr)) {
                 continue;
             }
 
-            if (ptr->is_a("via.render.RenderLayer")) {
+            if (utility::re_managed_object::is_a(ptr, "via.render.RenderLayer")) {
                 layers_offset = i;
                 break;
             }
@@ -1109,11 +1113,11 @@ RenderLayer* find_layer(::REType* layer_type) {
     const auto& layers = *(std::array<RenderLayer*, 256>*)((uintptr_t)renderer + layers_offset);
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->get_class_info() == nullptr) {
+        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
-        const auto t = layer->get_type();
+        const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
             return layer;
@@ -1178,7 +1182,7 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
     static auto world_to_screen = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)");
 
     auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
-    auto camera_transform = camera_gameobject->get_transform();
+    auto camera_transform = camera_gameobject->transform;
 
     Matrix4x4f proj{}, view{};
     float screen_size[2]{};
@@ -1539,11 +1543,9 @@ ID3D12Resource* TargetState::get_native_resource_d3d12() const {
 }
 
 DirectXResource<ID3D12Resource>* Texture::get_d3d12_resource_container() {
-    // DMC5 (TDB <71) uses hardcoded offset; newer games bruteforce-scan.
-    if (sdk::GameIdentity::get().tdb_ver() < 71) {
-        return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + get_s_d3d12_resource_offset());
-    }
-    // fall through to bruteforce for TDB >= 71
+#if TDB_VER < 71
+    return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + s_d3d12_resource_offset);
+#else
     static std::optional<size_t> offset = std::nullopt;
 
     if (offset) {
@@ -1591,11 +1593,11 @@ DirectXResource<ID3D12Resource>* Texture::get_d3d12_resource_container() {
             continue;
         }
 
-        if (type_info->get_type_name() == nullptr || IsBadReadPtr(type_info->get_type_name(), sizeof(void*))) {
+        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
             continue;
         }
 
-        const auto type_name = std::string_view{type_info->get_type_name()};
+        const auto type_name = std::string_view{type_info->name};
 
         if (type_name == "via.render.RenderResource") {
             spdlog::info("[Texture] Found D3D12Resource container at offset {:x}", i);
@@ -1613,7 +1615,7 @@ DirectXResource<ID3D12Resource>* Texture::get_d3d12_resource_container() {
     }
 
     return nullptr;
-
+#endif
 }
 
 Texture* Texture::clone() {
@@ -1641,19 +1643,24 @@ sdk::intrusive_ptr<RenderTargetView> RenderTargetView::clone(uint32_t new_width,
 }
 
 namespace detail {
-inline uintptr_t rtv_size() {
-    const auto& gi = sdk::GameIdentity::get();
-    const auto v = gi.tdb_ver();
-    if (v >= 74) return 0xA8;
-    if (v >= 71) {
-        if (gi.is_sf6() || gi.is_dd2()) return 0x98;
-        if (gi.is_mhrise()) return 0x88;
-        return 0x98 - sizeof(void*);
-    }
-    if (v == 70) return 0x90 - sizeof(void*);
-    if (v == 69) return 0x88 - sizeof(void*);
-    return 0x88 - sizeof(void*); // TDB <= 67
-}
+#if TDB_VER >= 74
+    constexpr auto rtv_size = 0xA8;
+#elif TDB_VER >= 71
+#if defined(SF6) || defined(DD2)
+    constexpr auto rtv_size = 0x98;
+#elif defined(MHRISE)
+    constexpr auto rtv_size = 0x88;
+#else
+    constexpr auto rtv_size = 0x98 - sizeof(void*);
+#endif
+#elif TDB_VER == 70
+    constexpr auto rtv_size = 0x90 - sizeof(void*);
+#elif TDB_VER == 69
+    constexpr auto rtv_size = 0x88 - sizeof(void*);
+#elif TDB_VER <= 67
+// TODO: 66 and below
+    constexpr auto rtv_size = 0x88 - sizeof(void*);
+#endif
 }
 
 sdk::intrusive_ptr<Texture>& RenderTargetView::get_texture_d3d12() const {
@@ -1662,41 +1669,41 @@ sdk::intrusive_ptr<Texture>& RenderTargetView::get_texture_d3d12() const {
 
     // The texture and target state members are always at the very start of the RenderTargetViewDX12 structure
     // so we can very easily automate it like this, otherwise we fall back to the hardcoded offset
-    if (rtv_type != nullptr && utility::re_type_accessor::get_size(rtv_type) > 0 && utility::re_type_accessor::get_size(rtv_type) < 0x1000) {
-        const auto rtv_size = utility::re_type_accessor::get_size(rtv_type);
+    if (rtv_type != nullptr && rtv_type->size > 0 && rtv_type->size < 0x1000) {
+        const auto rtv_size = rtv_type->size;
 
-        const auto v = sdk::GameIdentity::get().tdb_ver();
-        if (v >= 74) {
-            // TDB >= 74: +4*ptr (0xC8-0xE0 range)
-            return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + (sizeof(void*) * 4));
-        } else if (v < 73) {
-            return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + sizeof(void*));
-        } else {
-            return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + (sizeof(void*) * 3));
-        }
+#if TDB_VER >= 81
+        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + (sizeof(void*) * 4)); // 0xE0 usually
+
+#elif TDB_VER >= 74
+        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + (sizeof(void*) * 4)); // 0xC8 usually
+#elif TDB_VER < 73
+        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + sizeof(void*));
+#else
+        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + rtv_size + (sizeof(void*) * 3));
+#endif
     }
     
-    const auto v2 = sdk::GameIdentity::get().tdb_ver();
-    if (v2 >= 74) {
-        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size() + (sizeof(void*) * 4));
-    } else if (v2 < 73) {
-        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size() + sizeof(void*));
-    } else {
-        return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size() + (sizeof(void*) * 3));
-    }
+#if TDB_VER >= 74
+    return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size + (sizeof(void*) * 4)); // 0xC8 usually
+#elif TDB_VER < 73
+    return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size + sizeof(void*));
+#else
+    return *(sdk::intrusive_ptr<Texture>*)((uintptr_t)this + detail::rtv_size + (sizeof(void*) * 3));
+#endif
 }
 
 sdk::intrusive_ptr<TargetState>& RenderTargetView::get_target_state_d3d12() const {
     // The via.render.RenderTargetView is not part of the normal TDB... I think.
     static const auto rtv_type = reframework::get_types()->get("via.render.RenderTargetView");
 
-    if (rtv_type != nullptr && utility::re_type_accessor::get_size(rtv_type) > 0 && utility::re_type_accessor::get_size(rtv_type) < 0x1000) {
-        const auto rtv_size = utility::re_type_accessor::get_size(rtv_type);
+    if (rtv_type != nullptr && rtv_type->size > 0 && rtv_type->size < 0x1000) {
+        const auto rtv_size = rtv_type->size;
 
         return *(sdk::intrusive_ptr<TargetState>*)((uintptr_t)this + rtv_size);
     }
     
-    return *(sdk::intrusive_ptr<TargetState>*)((uintptr_t)this + detail::rtv_size());
+    return *(sdk::intrusive_ptr<TargetState>*)((uintptr_t)this + detail::rtv_size);
 }
 
 sdk::intrusive_ptr<TargetState> TargetState::clone() const {
@@ -1851,25 +1858,25 @@ RECamera* layer::Scene::get_main_camera_if_possible() const {
         return nullptr;
     }
 
-    const auto camera_gameobject = camera->get_game_object();
+    const auto camera_gameobject = utility::re_component::get_game_object(camera);
 
     if (camera_gameobject == nullptr) {
         return nullptr;
     }
 
-    const auto name = camera_gameobject->get_name();
+    const auto name = utility::re_string::get_view(camera_gameobject->name);
 
-    static const std::vector<std::string> camera_names = {
-        "MainCamera",
-        "Main Camera",
-        "GameCamera", // DMC5
-        "ess_DefaultCamera",
-        "ess_DefaultCamera_01",
-        "WTMainCamera",
-        "DefaultCamera",
-        "Camera_mainmenu",
-        "Camera_cp7mainmenu",
-        "SnowCamera", // MHRise
+    static const std::vector<std::wstring> camera_names = {
+        L"MainCamera",
+        L"Main Camera",
+        L"GameCamera", // DMC5
+        L"ess_DefaultCamera",
+        L"ess_DefaultCamera_01",
+        L"WTMainCamera",
+        L"DefaultCamera",
+        L"Camera_mainmenu",
+        L"Camera_cp7mainmenu",
+        L"SnowCamera", // MHRise
     };
 
     for (const auto& camera_name : camera_names) {
@@ -1902,27 +1909,27 @@ bool layer::Scene::is_enabled() const {
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("SceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "SceneInfo");
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_depth_distortion_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("DepthDistortionSceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "DepthDistortionSceneInfo");
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_filter_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("FilterSceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "FilterSceneInfo");
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_jitter_disable_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("JitterDisableSceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "JitterDisableSceneInfo");
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_jitter_disable_post_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("JitterDisablePostSceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "JitterDisablePostSceneInfo");
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_z_prepass_scene_info() {
-    return this->get_reflection_property<SceneInfo*>("ZPrepassSceneInfo");
+    return utility::re_managed_object::get_field<SceneInfo*>(this, "ZPrepassSceneInfo");
 }
 
 std::optional<size_t> layer::PrepareOutput::get_output_state_offset() {
@@ -1969,11 +1976,11 @@ std::optional<size_t> layer::PrepareOutput::get_output_state_offset() {
             continue;
         }
 
-        if (type_info->get_type_name() == nullptr || IsBadReadPtr(type_info->get_type_name(), sizeof(void*))) {
+        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
             continue;
         }
 
-        const auto type_name = std::string_view{type_info->get_type_name()};
+        const auto type_name = std::string_view{type_info->name};
 
         if (type_name == "via.render.TargetState") {
             s_output_state_offset = offset;
@@ -1993,15 +2000,15 @@ std::optional<size_t> layer::PrepareOutput::get_output_state_offset() {
 }
 
 Texture* layer::Scene::get_depth_stencil() {
-    return this->get_reflection_property<::sdk::renderer::Texture*>("DepthStencilTex");;
+    return utility::re_managed_object::get_field<::sdk::renderer::Texture*>(this, "DepthStencilTex");;
 }
 
 TargetState* layer::Scene::get_motion_vectors_state() {
-    return this->get_reflection_property<::sdk::renderer::TargetState*>("VelocityTarget");
+    return utility::re_managed_object::get_field<::sdk::renderer::TargetState*>(this, "VelocityTarget");
 }
 
 ID3D12Resource* layer::Scene::get_depth_stencil_d3d12() {
-    const auto tex = this->get_reflection_property<::sdk::renderer::Texture*>("DepthStencilTex");
+    const auto tex = utility::re_managed_object::get_field<::sdk::renderer::Texture*>(this, "DepthStencilTex");
 
     if (tex == nullptr) {
         return nullptr;

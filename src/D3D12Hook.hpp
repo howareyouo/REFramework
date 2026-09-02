@@ -8,6 +8,7 @@
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <wrl/client.h>
 
 #include "utility/PointerHook.hpp"
 #include "utility/FunctionHook.hpp"
@@ -52,7 +53,7 @@ public:
     }*/
 
     ID3D12Device4* get_device() const {
-        return m_device;
+        return m_device.Get();
     }
 
     IDXGISwapChain3* get_swap_chain() const {
@@ -103,15 +104,15 @@ public:
 protected:
     void hook_impl();
     
-    ID3D12Device4* m_device{ nullptr };
+    Microsoft::WRL::ComPtr<ID3D12Device4> m_device{ nullptr };
     IDXGISwapChain3* m_swap_chain{ nullptr };
     IDXGISwapChain3* m_swapchain_0{};
     IDXGISwapChain3* m_swapchain_1{};
     ID3D12CommandQueue* m_command_queue{ nullptr };
-    UINT m_display_width{ NULL };
-    UINT m_display_height{ NULL };
-    UINT m_render_width{ NULL };
-    UINT m_render_height{ NULL };
+    UINT m_display_width{ 0 };
+    UINT m_display_height{ 0 };
+    UINT m_render_width{ 0 };
+    UINT m_render_height{ 0 };
 
     static inline uint32_t s_command_queue_offset{};
     static inline uint32_t s_proton_swapchain_offset{};

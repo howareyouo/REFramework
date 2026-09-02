@@ -33,7 +33,7 @@ void* get_actual_function(void* possible_fn) {
         }
 
         if (hde.opcode == 0xE9) { // jmp.
-            actual_fn = (void*)(ip + hde.imm.imm32);
+            actual_fn = (void*)(ip + (int32_t)hde.imm.imm32);
             break;
         }
     }
@@ -729,7 +729,7 @@ void HookManager::remove(sdk::REMethodDefinition* fn, HookId id) {
         auto& cbs = hook->cbs;
         std::scoped_lock _{hook->mux};
         std::unique_lock __{hook->access_mux};
-        cbs.erase(std::remove_if(cbs.begin(), cbs.end(), [id](const HookCallback& cb) { return cb.id == id; }));
+        cbs.erase(std::remove_if(cbs.begin(), cbs.end(), [id](const HookCallback& cb) { return cb.id == id; }), cbs.end());
     } else {
         std::vector<::REManagedObject*> queued_vtable_deletions{};
 
@@ -743,6 +743,7 @@ void HookManager::remove(sdk::REMethodDefinition* fn, HookId id) {
                 auto& hook_fn = search->second;
                 auto& cbs = hook_fn->cbs;
                 std::scoped_lock _{hook->mux};
+                std::unique_lock __{hook_fn->access_mux};
                 cbs.erase(std::remove_if(cbs.begin(), cbs.end(), [id](const HookCallback& cb) { return cb.id == id; }), cbs.end());
 
                 if (cbs.empty()) {

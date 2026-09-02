@@ -14,7 +14,6 @@
 #include "sdk/SF6Utility.hpp"
 
 #include "utility/String.hpp"
-#include "utility/PersistentTreeState.hpp"
 #include <utility/ScopeGuard.hpp>
 
 #include "Mods.hpp"
@@ -50,6 +49,8 @@ void error(const char* str) {
 }
 
 void debug(const char* str) {
+    OutputDebugString(str);
+    fprintf(stderr, "%s\n", str);
     spdlog::debug(str);
 }
 }
@@ -146,16 +147,12 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
     re["msg"] = api::re::msg;
     re["on_pre_application_entry"] = [this](const char* name, sol::function fn) { m_pre_application_entry_fns.emplace(utility::hash(name), fn); };
     re["on_application_entry"] = [this](const char* name, sol::function fn) { m_application_entry_fns.emplace(utility::hash(name), fn); };
-    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.add(fn); };
-    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.add(fn); };
-    re["on_draw_ui"] = [this](sol::function fn) { m_on_draw_ui_fns.add(fn); };
-    re["on_frame"] = [this](sol::function fn) { m_on_frame_fns.add(fn); };
-    re["on_script_reset"] = [this](sol::function fn) { m_on_script_reset_fns.add(fn); };
-    re["on_config_save"] = [this](sol::function fn) { m_on_config_save_fns.add(fn); };
-    re.new_enum("CallbackNextAction",
-        "CONTINUE", ReCallbackNextAction::CONTINUE,
-        "STOP", ReCallbackNextAction::STOP
-    );
+    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.emplace_back(fn); };
+    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.emplace_back(fn); };
+    re["on_draw_ui"] = [this](sol::function fn) { m_on_draw_ui_fns.emplace_back(fn); };
+    re["on_frame"] = [this](sol::function fn) { m_on_frame_fns.emplace_back(fn); };
+    re["on_script_reset"] = [this](sol::function fn) { m_on_script_reset_fns.emplace_back(fn); };
+    re["on_config_save"] = [this](sol::function fn) { m_on_config_save_fns.emplace_back(fn); };
     m_lua["re"] = re;
 
     auto thread = m_lua.create_table();
@@ -169,17 +166,6 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
     log["warn"] = api::log::warn;
     log["error"] = api::log::error;
     log["debug"] = api::log::debug;
-    log["set_level"] = [](const std::string& level) {
-        if (level == "info") {
-            spdlog::set_level(spdlog::level::info);
-        } else if (level == "warn") {
-            spdlog::set_level(spdlog::level::warn);
-        } else if (level == "error") {
-            spdlog::set_level(spdlog::level::err);
-        } else if (level == "debug") {
-            spdlog::set_level(spdlog::level::debug);
-        }
-    };
     m_lua["log"] = log;
 
     
@@ -408,7 +394,18 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
 ScriptState::~ScriptState() {
     {
         std::scoped_lock _{s_delegates_mutex};
-        std::erase_if(s_delegates, [](auto& pair) { return pair.second->owner.expired(); });
+        std::vector<REManagedObject*> objects_to_release{};
+        std::erase_if(s_delegates, [&objects_to_release](auto& pair) {
+            if (pair.second->owner.expired()) {
+                objects_to_release.push_back(pair.first);
+                return true;
+            }
+            return false;
+        });
+        // Release references outside erase_if to avoid holding lock during engine call
+        for (auto* obj : objects_to_release) {
+            utility::re_managed_object::release(obj);
+        }
     }
 
     std::scoped_lock _{m_execution_mutex};
@@ -469,36 +466,12 @@ sol::protected_function_result ScriptState::handle_protected_result(sol::protect
     return result;
 }
 
-bool ScriptState::should_remove_hook(const sol::protected_function_result &result) {
-    if (!result.valid()) {
-        return false;
-    }
-
-    auto result_obj = result.get<sol::object>();
-
-    if (!result_obj.valid() || result_obj.is<sol::nil_t>()) {
-        return false;
-    }
-
-    if (!result_obj.is<ReCallbackNextAction>()) {
-        return false;
-    }
-
-    auto action = result_obj.as<ReCallbackNextAction>();
-    return action == ReCallbackNextAction::STOP;
-}
-
 void ScriptState::on_frame() {
     try {
         std::scoped_lock _{ m_execution_mutex };
 
-        auto guard = m_on_frame_fns.acquire_iteration();
-        for (auto& fn : m_on_frame_fns.get()) {
-            auto result = handle_protected_result(fn());
-
-            if (should_remove_hook(result)) {
-                m_on_frame_fns.remove(fn);
-            }
+        for (auto& fn : m_on_frame_fns) {
+            handle_protected_result(fn());
         }
     } catch (const std::exception& e) {
         ScriptRunner::get()->spew_error(e.what());
@@ -514,13 +487,8 @@ void ScriptState::on_draw_ui() {
     try {
         std::scoped_lock _{ m_execution_mutex };
 
-        auto guard = m_on_draw_ui_fns.acquire_iteration();
-        for (auto& fn : m_on_draw_ui_fns.get()) {
-            auto result = handle_protected_result(fn());
-
-            if (should_remove_hook(result)) {
-                m_on_draw_ui_fns.remove(fn);
-            }
+        for (auto& fn : m_on_draw_ui_fns) {
+            handle_protected_result(fn());
         }
     } catch (const std::exception& e) {
         ScriptRunner::get()->spew_error(e.what());
@@ -534,12 +502,10 @@ void ScriptState::on_draw_ui() {
 
 void ScriptState::on_update_transform(RETransform* transform) {
     try {
-        if (m_on_update_transform_fns.empty()) {
-            return;
-        }
-        if (m_on_update_transform_fns.find(transform) != m_on_update_transform_fns.end()) {
-            std::scoped_lock _{m_execution_mutex};
-            handle_protected_result(m_on_update_transform_fns[transform](transform));
+        std::scoped_lock _{m_execution_mutex};
+        auto it = m_on_update_transform_fns.find(transform);
+        if (it != m_on_update_transform_fns.end()) {
+            handle_protected_result(it->second(transform));
         }
     } catch (const std::exception& e) {
         ScriptRunner::get()->spew_error(e.what());
@@ -559,25 +525,8 @@ void ScriptState::on_pre_application_entry(size_t hash) {
         if (range.first != range.second) {
             std::scoped_lock _{ m_execution_mutex };
 
-            // Collect callbacks that requested to be removed so we can erase them after iterating.
-            std::vector<sol::protected_function> to_remove{};
-
             for (auto it = range.first; it != range.second; ++it) {
-                auto result = handle_protected_result(it->second());
-
-                if (should_remove_hook(result)) {
-                    to_remove.emplace_back(it->second);
-                }
-            }
-
-            if (!to_remove.empty()) {
-                for (auto it = m_pre_application_entry_fns.begin(); it != m_pre_application_entry_fns.end();) {
-                    if (it->first == hash && std::find(to_remove.begin(), to_remove.end(), it->second) != to_remove.end()) {
-                        it = m_pre_application_entry_fns.erase(it);
-                    } else {
-                        ++it;
-                    }
-                }
+                handle_protected_result(it->second());
             }
         }
     } catch (const std::exception& e) {
@@ -595,25 +544,8 @@ void ScriptState::on_application_entry(size_t hash) {
             if (range.first != range.second) {
                 std::scoped_lock _{ m_execution_mutex };
 
-                // Collect callbacks that requested to be removed so we can erase them after iterating.
-                std::vector<sol::protected_function> to_remove{};
-
                 for (auto it = range.first; it != range.second; ++it) {
-                    auto result = handle_protected_result(it->second());
-
-                    if (should_remove_hook(result)) {
-                        to_remove.emplace_back(it->second);
-                    }
-                }
-
-                if (!to_remove.empty()) {
-                    for (auto it = m_application_entry_fns.begin(); it != m_application_entry_fns.end();) {
-                        if (it->first == hash && std::find(to_remove.begin(), to_remove.end(), it->second) != to_remove.end()) {
-                            it = m_application_entry_fns.erase(it);
-                        } else {
-                            ++it;
-                        }
-                    }
+                    handle_protected_result(it->second());
                 }
             }
         }
@@ -656,23 +588,18 @@ void ScriptState::on_application_entry(size_t hash) {
 }
 
 bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* context) {
+    if (m_pre_gui_draw_element_fns.empty()) {
+        return true;
+    }
+
     bool any_false = false;
 
     try {
         std::scoped_lock _{ m_execution_mutex };
 
-        auto guard = m_pre_gui_draw_element_fns.acquire_iteration();
-        for (auto& fn : m_pre_gui_draw_element_fns.get()) {
-            if (auto result = handle_protected_result(fn(gui_element, context)); result.valid()) {
-                auto result_obj = result.get<sol::object>();
-
-                if (!result_obj.is<sol::nil_t>() && result_obj.is<bool>() && result_obj.as<bool>() == false) {
-                    any_false = true;
-                } else {
-                    if (should_remove_hook(result)) {
-                        m_pre_gui_draw_element_fns.remove(fn);
-                    }
-                }
+        for (auto& fn : m_pre_gui_draw_element_fns) {
+            if (sol::object result = handle_protected_result(fn(gui_element, context)); !result.is<sol::nil_t>() && result.is<bool>() && result.as<bool>() == false) {
+                any_false = true;
             }
         }
     } catch (const std::exception& e) {
@@ -685,16 +612,15 @@ bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* contex
 }
 
 void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
+    if (m_gui_draw_element_fns.empty()) {
+        return;
+    }
+
     try {
         std::scoped_lock _{ m_execution_mutex };
 
-        auto guard = m_gui_draw_element_fns.acquire_iteration();
-        for (auto& fn : m_gui_draw_element_fns.get()) {
-            auto result = handle_protected_result(fn(gui_element, context));
-
-            if (should_remove_hook(result)) {
-                m_gui_draw_element_fns.remove(fn);
-            }
+        for (auto& fn : m_gui_draw_element_fns) {
+            handle_protected_result(fn(gui_element, context));
         }
     } catch (const std::exception& e) {
         ScriptRunner::get()->spew_error(e.what());
@@ -707,20 +633,12 @@ void ScriptState::on_script_reset() try {
     std::scoped_lock _{ m_execution_mutex };
 
     // We first call on_config_save functions so scripts can save prior to reset.
-    auto guard_save = m_on_config_save_fns.acquire_iteration();
-    for (auto& fn : m_on_config_save_fns.get()) {
-        auto result = handle_protected_result(fn());
-        if (should_remove_hook(result)) {
-            m_on_config_save_fns.remove(fn);
-        }
+    for (auto& fn : m_on_config_save_fns) {
+        handle_protected_result(fn());
     }
 
-    auto guard_reset = m_on_script_reset_fns.acquire_iteration();
-    for (auto& fn : m_on_script_reset_fns.get()) {
-        auto result = handle_protected_result(fn());
-        if (should_remove_hook(result)) {
-            m_on_script_reset_fns.remove(fn);
-        }
+    for (auto& fn : m_on_script_reset_fns) {
+        handle_protected_result(fn());
     }
 } catch (const std::exception& e) {
     ScriptRunner::get()->spew_error(e.what());
@@ -731,13 +649,8 @@ void ScriptState::on_script_reset() try {
 void ScriptState::on_config_save() try {
     std::scoped_lock _{ m_execution_mutex };
 
-    auto guard = m_on_config_save_fns.acquire_iteration();
-    for (auto& fn : m_on_config_save_fns.get()) {
-        auto result = handle_protected_result(fn());
-
-        if (should_remove_hook(result)) {
-            m_on_config_save_fns.remove(fn);
-        }
+    for (auto& fn : m_on_config_save_fns) {
+        handle_protected_result(fn());
     }
 }
 catch (const std::exception& e) {
@@ -861,16 +774,16 @@ void ScriptState::add_delegate_callback(sdk::DelegateInvocation& invo, sol::prot
     auto it = s_delegates.find(invo.object);
 
     if (it != s_delegates.end()) {
-        it->second->callbacks.add(callback);
+        it->second->callbacks.push_back(callback);
     } else {
         auto storage = std::make_unique<DelegateStorage>();
         storage->owner = shared_from_this();
-        storage->callbacks.add(callback);
+        storage->callbacks.push_back(callback);
         
         static auto system_object_t = sdk::find_type_definition("System.Object");
 
         invo.object = (::REManagedObject*)system_object_t->create_instance_full();
-        invo.object->add_ref();
+        utility::re_managed_object::add_ref(invo.object);
 
         invo.func = &ScriptState::delegate_callback;
         s_delegates[invo.object] = std::move(storage);
@@ -878,9 +791,13 @@ void ScriptState::add_delegate_callback(sdk::DelegateInvocation& invo, sol::prot
 }
 
 void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
+    if (ctx == nullptr) {
+        return;
+    }
+
     std::scoped_lock _{ s_delegates_mutex };
 
-    if (ctx == nullptr) {
+    if (s_delegates.empty()) {
         return;
     }
 
@@ -894,13 +811,13 @@ void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
     auto owner_state = delegate->owner.lock();
     if (owner_state == nullptr) {
         s_delegates.erase(it);
+        utility::re_managed_object::release(obj);
         return;
     }
 
     auto __ = owner_state->scoped_lock();
 
-    auto guard = delegate->callbacks.acquire_iteration();
-    for (auto& fn : delegate->callbacks.get()) {
+    for (auto& fn : delegate->callbacks) {
         try {
             auto script_result = fn(obj);
 
@@ -972,9 +889,7 @@ void ScriptRunner::on_config_load(const utility::Config& cfg) {
         return;
     }
 
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
+    config_load_options(cfg, m_options);
 
     if (m_main_state != nullptr) {
         m_main_state->gc_data_changed(make_gc_data());
@@ -988,13 +903,7 @@ void ScriptRunner::on_config_save(utility::Config& cfg) {
         return;
     }
 
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
-
-    //not sure if we want to trigger this for all states yet
-    //for (auto& state : m_states)
-    //    state->on_config_save();
+    config_save_options(cfg, m_options);
 
     if (m_main_state != nullptr) {
         m_main_state->on_config_save();
@@ -1002,121 +911,51 @@ void ScriptRunner::on_config_save(utility::Config& cfg) {
 }
 
 void ScriptRunner::hook_battle_rule() {
-    // Removed for now as it seems to cause some weird issues with matchmaking
-#if 0
-    if (m_attempted_hook_battle_rule) {
-        return;
-    }
-
-    m_attempted_hook_battle_rule = true;
-
-    const auto br_t = sdk::find_type_definition("app.network.FGBattleSession.FGBattleRuleParam");
-    
-    if (br_t == nullptr) {
-        return;
-    }
-
-    const auto from_packet_data_method = br_t->get_method("FromPacketData(app.network.FGBattleSession.MsgBattleRule)");
-
-    if (from_packet_data_method != nullptr) {
-        g_hookman.add(from_packet_data_method, 
-        [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
-            auto packet = (::REManagedObject*)args[2];
-            if (packet == nullptr) {
-                return HookManager::PreHookResult::CALL_ORIGINAL;
-            }
-
-            const auto game_mode = sdk::get_object_field<uint8_t>(packet, "GameMode");
-
-            if (game_mode == nullptr) {
-                return HookManager::PreHookResult::CALL_ORIGINAL;
-            }
-
-            switch((sdk::sf6::EGameMode)*game_mode) {
-            case sdk::sf6::EGameMode::RANKED_MATCH:
-            case sdk::sf6::EGameMode::PLAYER_MATCH:
-            case sdk::sf6::EGameMode::CABINET_MATCH:
-            case sdk::sf6::EGameMode::CUSTOM_ROOM_MATCH:
-            case sdk::sf6::EGameMode::ONLINE_TRAINING:
-                this->set_last_battle_type(*game_mode);
-                this->set_last_online_match_state();
-                break;
-
-            default:
-                break;
-            }
-
-            return HookManager::PreHookResult::CALL_ORIGINAL;
-        },
-        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) -> void {
-            // DONT set this, it probably breaks something now
-            auto bt = this->get_last_battle_type();
-
-            if (bt.has_value()) {
-                sdk::sf6::set_game_mode((sdk::sf6::EGameMode)bt.value());
-            }
-        });
-    }
-#endif
+    // Disabled: caused issues with matchmaking. See git history for original implementation.
 }
 
 void ScriptRunner::on_frame() {
-    if (!m_console_startup_checked) {
-        // Delay because C# API hides it
-        if (m_console_startup_delay_frames > 0) {
-            m_console_startup_delay_frames--;
-        } else {
-            m_console_startup_checked = true;
-
-            if (m_open_debug_console_at_startup->value()) {
-                g_framework->open_console();
-            }
-        }
-    }
     if (!m_scene_okay) try {
         if (!m_checked_scene_once) {
             m_checked_scene_once = true;
             m_scene_check_time = std::chrono::system_clock::now();
-        }
-
-        // Just bail out of this if 5 seconds have passed and we still haven't found the scene or scene manager.
-        if (std::chrono::system_clock::now() - m_scene_check_time > std::chrono::seconds(5)) {
+        } else if (std::chrono::system_clock::now() - m_scene_check_time > std::chrono::seconds(5)) {
             m_scene_okay = true;
             spdlog::warn("[ScriptRunner] Scene or scene manager not found after 5 seconds. Loading scripts anyways...");
             return;
+        } else {
+            const auto scene_manager_t = sdk::find_type_definition("via.SceneManager");
+            if (scene_manager_t == nullptr) {
+                return;
+            }
+
+            const auto get_CurrentScene = scene_manager_t->get_method("get_CurrentScene");
+
+            if (get_CurrentScene == nullptr) {
+                return;
+            }
+
+            const auto scene_manager = sdk::get_native_singleton("via.SceneManager");
+
+            if (scene_manager == nullptr) {
+                return;
+            }
+
+            const auto context = sdk::get_thread_context();
+            
+            if (context == nullptr) {
+                return;
+            }
+            
+            const auto scene = get_CurrentScene->call_safe<void*>(context, scene_manager);
+
+            if (scene == nullptr) {
+                return;
+            }
+
+            m_scene_okay = true;
+            spdlog::info("[ScriptRunner] Scene and scene manager found. Loading scripts...");
         }
-
-        const auto scene_manager_t = sdk::find_type_definition("via.SceneManager");
-        if (scene_manager_t == nullptr) {
-            return;
-        }
-
-        const auto get_CurrentScene = scene_manager_t->get_method("get_CurrentScene");
-
-        if (get_CurrentScene == nullptr) {
-            return;
-        }
-
-        const auto scene_manager = sdk::get_native_singleton("via.SceneManager");
-
-        if (scene_manager == nullptr) {
-            return;
-        }
-
-        const auto context = sdk::get_thread_context();
-        
-        if (context == nullptr) {
-            return;
-        }
-        
-        const auto scene = get_CurrentScene->call_safe<void*>(context, scene_manager);
-
-        if (scene == nullptr) {
-            return;
-        }
-
-        m_scene_okay = true;
-        spdlog::info("[ScriptRunner] Scene and scene manager found. Loading scripts...");
     } catch (const std::exception& e) {
         spdlog::error("[ScriptRunner] Error while checking for scene: {}", e.what());
         return;
@@ -1147,7 +986,7 @@ void ScriptRunner::on_frame() {
     }
 
     for (auto state_to_delete : m_states_to_delete) {
-        std::erase_if(m_states, [&](std::shared_ptr<ScriptState> state) { return state->lua().lua_state() == state_to_delete; });
+        std::erase_if(m_states, [&](const std::shared_ptr<ScriptState>& state) { return state->lua().lua_state() == state_to_delete; });
     }
 
     m_states_to_delete.clear();
@@ -1205,13 +1044,15 @@ void ScriptRunner::on_draw_ui() {
         ImGui::SameLine();
 
         if (ImGui::Button("Spawn Debug Console")) {
-            g_framework->open_console();
-        }
+            if (!m_console_spawned) {
+                AllocConsole();
+                freopen("CONIN$", "r", stdin);
+                freopen("CONOUT$", "w", stdout);
+                freopen("CONOUT$", "w", stderr);
 
-        if (m_open_debug_console_at_startup->draw("Open Debug Console at Startup")) {
-            g_framework->request_save_config();
+                m_console_spawned = true;
+            }
         }
-
         //Garbage collection currently only showing from main lua state, might rework to show total later?
         if (ImGui::TreeNode("Garbage Collection Stats")) {
             std::scoped_lock _{ m_access_mutex };
@@ -1295,16 +1136,23 @@ void ScriptRunner::on_draw_ui() {
     if (!m_last_online_match_state) { 
         std::scoped_lock _{ m_access_mutex };
 
-        const bool scripts_initialized = !m_states.empty();
-
-        if (reframework::ui::persistent_tree_item(
-                reframework::ui::TreeStateSource::Native,
-                "Script Generated UI",
-                []() { return ImGui::CollapsingHeader("Script Generated UI"); })) {
-            if (scripts_initialized) {
-                for (auto& state : m_states) {
-                    state->on_draw_ui();
-                }
+        ImGui::SetNextItemOpen(m_script_generated_ui_open_state->value(), ImGuiCond_Once);
+        
+        if (ImGui::CollapsingHeader("Script Generated UI")) {
+            if (!m_script_generated_ui_open_state->value()) {
+                m_script_generated_ui_open_state->value() = true;
+                g_framework->request_save_config();
+            }
+            if (m_states.empty()) {
+                return;
+            }
+            for (auto& state : m_states) {
+                state->on_draw_ui();
+            }
+        } else {
+            if (m_script_generated_ui_open_state->value()) {
+                m_script_generated_ui_open_state->value() = false;
+                g_framework->request_save_config();
             }
         }
     }
@@ -1401,7 +1249,11 @@ void ScriptRunner::on_gui_draw_element(REComponent* gui_element, void* primitive
 }
 
 void ScriptRunner::spew_error(const std::string& p) {
-    fprintf(stderr, "%s\n", p.c_str());
+    OutputDebugString(p.c_str());
+
+    if (m_console_spawned) {
+        fprintf(stderr, "%s\n", p.c_str());
+    }
 
     if (m_log_to_disk->value()) {
         spdlog::error(p);
@@ -1482,16 +1334,18 @@ void ScriptRunner::reset_scripts() {
         auto&& path = entry.path();
 
         if (path.has_extension() && path.extension() == ".lua") {
-            if (!m_loaded_scripts_map.contains(path.filename().string())) {
-                m_loaded_scripts_map.emplace(path.filename().string(), true);
+            auto filename = path.filename().string();
+
+            if (!m_loaded_scripts_map.contains(filename)) {
+                m_loaded_scripts_map.emplace(filename, true);
             }
 
-            if (m_loaded_scripts_map[path.filename().string()] == true) {
+            if (m_loaded_scripts_map[filename] == true) {
                 m_main_state->run_script(path.string());
-                m_loaded_scripts.emplace_back(path.filename().string());
+                m_loaded_scripts.emplace_back(filename);
             }
 
-            m_known_scripts.emplace_back(path.filename().string());
+            m_known_scripts.emplace_back(std::move(filename));
         }
     }
 

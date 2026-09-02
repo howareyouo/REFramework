@@ -2,8 +2,6 @@
 #include "RETypeDefinition.hpp"
 #include "REArray.hpp"
 
-using namespace utility::re_type_accessor;
-
 namespace utility::re_array {
 ::sdk::RETypeDefinition* get_contained_type(::REArrayBase* container) {
     if (container == nullptr || container->containedType == nullptr) {
@@ -13,11 +11,11 @@ namespace utility::re_array {
 #if TDB_VER > 49
     return (::sdk::RETypeDefinition*)container->containedType;
 #else
-    if (get_classInfo(container->containedType) == nullptr) {
+    if (container->containedType->classInfo == nullptr) {
         return nullptr;
     }
 
-    return (::sdk::RETypeDefinition*)get_classInfo(container->containedType);
+    return (::sdk::RETypeDefinition*)container->containedType->classInfo;
 #endif
 }
 

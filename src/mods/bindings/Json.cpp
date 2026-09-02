@@ -44,7 +44,9 @@ json encode_any(sol::object obj) {
             }
         }
 
-        json j{};
+        // Initialize the correct container up front so an empty table encodes
+        // as [] / {} rather than defaulting to json null.
+        json j = is_array ? json::array() : json::object();
 
         for (auto& kvp : table) {
             if (is_array) {
@@ -122,47 +124,54 @@ std::string dump_string(sol::object obj, sol::object indent_obj) try {
     return "";
 }
 
-sol::object load_file(sol::this_state l, const std::string& filepath) try {
+sol::object load_file(sol::this_state l, const std::string& filepath) {
+    // Security guards surface to the script as errors so misuse is visible.
     if (filepath.find("..") != std::string::npos) {
-        throw std::runtime_error{"json.load_file does not allow access to parent directories"};
+        throw sol::error{"json.load_file does not allow access to parent directories"};
     }
 
     if (std::filesystem::path(filepath).is_absolute()) {
-        throw std::runtime_error{"json.load_file does not allow absolute paths"};
+        throw sol::error{"json.load_file does not allow absolute paths"};
     }
 
-    const auto j = json::parse(std::ifstream{detail::get_datadir() / filepath});
-    return detail::decode_any(l, j);
-} catch (const json::exception& e) {
-    spdlog::error("[JSON] Failed to load file {}: {}", filepath, e.what());
-    return sol::nil;
+    try {
+        const auto j = json::parse(std::ifstream{detail::get_datadir() / filepath});
+        return detail::decode_any(l, j);
+    } catch (const std::exception& e) {
+        spdlog::error("[JSON] Failed to load file {}: {}", filepath, e.what());
+        return sol::nil;
+    }
 }
 
-bool dump_file(const std::string& filepath, sol::object obj, sol::object indent_obj) try {
-    int indent = 4;
-
-    if (indent_obj.get_type() == sol::type::number) {
-        indent = indent_obj.as<int>();
-    }
-
+bool dump_file(const std::string& filepath, sol::object obj, sol::object indent_obj) {
+    // Security guards surface to the script as errors (matching load_file)
+    // rather than being silently swallowed as a false return.
     if (filepath.find("..") != std::string::npos) {
-        throw std::runtime_error{"json.dump_file does not allow access to parent directories"};
+        throw sol::error{"json.dump_file does not allow access to parent directories"};
     }
 
     if (std::filesystem::path(filepath).is_absolute()) {
-        throw std::runtime_error{"json.dump_file does not allow absolute paths"};
+        throw sol::error{"json.dump_file does not allow absolute paths"};
     }
 
-    auto path = detail::get_datadir() / filepath;
+    try {
+        int indent = 4;
 
-    fs::create_directories(path.parent_path());
+        if (indent_obj.get_type() == sol::type::number) {
+            indent = indent_obj.as<int>();
+        }
 
-    std::ofstream f{path};
-    f << detail::encode_any(obj).dump(indent);
-    return true;
-} catch (const std::exception& e) {
-    spdlog::error("[JSON] Failed to dump file {}: {}", filepath, e.what());
-    return false;
+        auto path = detail::get_datadir() / filepath;
+
+        fs::create_directories(path.parent_path());
+
+        std::ofstream f{path};
+        f << detail::encode_any(obj).dump(indent);
+        return true;
+    } catch (const std::exception& e) {
+        spdlog::error("[JSON] Failed to dump file {}: {}", filepath, e.what());
+        return false;
+    }
 }
 
 } // namespace api::json
