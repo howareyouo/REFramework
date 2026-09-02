@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <chrono>
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
@@ -45,7 +46,6 @@ private:
 
     // Raw list of objects (for if the type hasn't been fully initialized, we need to refresh the map)
     std::unordered_set<REManagedObject**> m_objects;
-    std::unordered_set<REManagedObject**> m_object_list;
     std::unordered_map<std::string, std::function<REManagedObject* ()>> m_getters;
 
     // List of objects we've already logged
@@ -55,6 +55,8 @@ private:
     std::unordered_map<std::string, ::REType*> m_native_singleton_map{};
 
     std::mutex m_map_mutex{};
+    std::chrono::steady_clock::time_point m_last_refresh_time{};
+    std::chrono::steady_clock::time_point m_last_native_refresh_time{};
 };
 
 namespace reframework {

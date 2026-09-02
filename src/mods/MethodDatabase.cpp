@@ -8,6 +8,22 @@
 
 #include "MethodDatabase.hpp"
 
+namespace {
+// Reads a single byte behind a structured-exception guard. A TDB method's
+// function pointer almost always points into mapped game code, but a guarded/
+// unmapped page would otherwise fault here (the surrounding C++ try/catch does
+// not trap access violations). Kept in its own function with no C++ objects so
+// __try/__except is legal. Near-zero cost unless an actual fault occurs.
+bool try_read_byte(const void* p, uint8_t& out) {
+    __try {
+        out = *reinterpret_cast<const volatile uint8_t*>(p);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+}
+
 std::shared_ptr<MethodDatabase>& MethodDatabase::get() {
     static auto instance = std::make_shared<MethodDatabase>();
     return instance;
@@ -68,7 +84,8 @@ std::optional<std::string> MethodDatabase::on_initialize() {
                 m_method_map[func_addr] = full_name;
 
                 // If the function starts with an E9 jmp, also map the jump target
-                if (*(uint8_t*)func == 0xE9) {
+                uint8_t first_byte = 0;
+                if (try_read_byte(func, first_byte) && first_byte == 0xE9) {
                     const auto target = utility::calculate_absolute((uintptr_t)func + 1);
                     m_method_map[target] = full_name;
                     ++thunks;

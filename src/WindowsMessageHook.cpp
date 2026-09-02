@@ -16,7 +16,9 @@ LRESULT WINAPI window_proc(HWND wnd, UINT message, WPARAM w_param, LPARAM l_para
     std::lock_guard _{ g_proc_mutex };
 
     if (g_windows_message_hook == nullptr) {
-        return 0;
+        // During teardown there's no hook state left; let the OS apply default
+        // handling rather than swallowing the message with a bare 0.
+        return DefWindowProc(wnd, message, w_param, l_param);
     }
 
     // Call our onMessage callback.

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sdk/GameIdentity.hpp>
+#include <atomic>
 #include <deque>
 #include <unordered_set>
 #include <spdlog/spdlog.h>
@@ -8,7 +8,6 @@
 #include <utility/FunctionHook.hpp>
 
 #include "../Mod.hpp"
-#include "LooseTextureLoader.hpp"
 
 class LooseFileLoader : public Mod {
 public:
@@ -26,36 +25,26 @@ public:
     void on_draw_ui() override;
 
     void hook();
-    void early_initialize();
 
     bool is_enabled() const {
         return m_enabled->value();
     }
 
-    bool can_loosely_load_file(const wchar_t* path);
-
-    LooseTextureLoader& get_texture_loader() { return m_texture_loader; }
-
 private:
     bool handle_path(const wchar_t* path, size_t hash);
 
-#ifdef REFRAMEWORK_UNIVERSAL
-    static uint64_t path_to_hash_hook(const wchar_t* path);
-    static uint64_t path_to_hash_hook_legacy(void* This, const wchar_t* path);
-#else
 #if TDB_VER > 67
     static uint64_t path_to_hash_hook(const wchar_t* path);
 #else
     static uint64_t path_to_hash_hook(void* This, const wchar_t* path);
 #endif
-#endif
 
     bool m_hook_success{false};
     bool m_attempted_hook{false};
-    uint32_t m_files_encountered{};
-    uint32_t m_uncached_hits{};
-    uint32_t m_cache_hits{};
-    uint32_t m_loose_files_loaded{};
+    std::atomic<uint32_t> m_files_encountered{};
+    std::atomic<uint32_t> m_uncached_hits{};
+    std::atomic<uint32_t> m_cache_hits{};
+    std::atomic<uint32_t> m_loose_files_loaded{};
 
     std::shared_mutex m_mutex{};
     std::deque<std::wstring> m_recent_accessed_files{}; // max 100
@@ -83,7 +72,4 @@ private:
         *m_log_accessed_files,
         *m_log_loose_files,
     };
-
-    // Components
-    LooseTextureLoader m_texture_loader{};
 };

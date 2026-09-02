@@ -26,16 +26,16 @@ public:
     bool on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param) override;
 
 public:
-    using REFLuaStateCreatedCb = std::function<std::remove_pointer<::REFLuaStateCreatedCb>::type>;
-    using REFLuaStateDestroyedCb = std::function<std::remove_pointer<::REFLuaStateDestroyedCb>::type>;
-    using REFOnPresentCb = std::function<std::remove_pointer<::REFOnPresentCb>::type>;
-    using REFOnPreApplicationEntryCb = std::function<std::remove_pointer<::REFOnPreApplicationEntryCb>::type>;
-    using REFOnPostApplicationEntryCb = std::function<std::remove_pointer<::REFOnPostApplicationEntryCb>::type>;
-    using REFOnDeviceResetCb = std::function<std::remove_pointer<::REFOnDeviceResetCb>::type>;
-    using REFOnMessageCb = std::function<std::remove_pointer<::REFOnMessageCb>::type>;
-    using REFOnImGuiFrameCb = std::function<std::remove_pointer<::REFOnImGuiFrameCb>::type>;
-    using REFOnImGuiDrawUICb = std::function<std::remove_pointer<::REFOnImGuiDrawUICb>::type>;
-    using REFOnPreGuiDrawElementCb = std::function<std::remove_pointer<::REFOnPreGuiDrawElementCb>::type>;
+    using REFLuaStateCreatedCb = ::REFLuaStateCreatedCb;
+    using REFLuaStateDestroyedCb = ::REFLuaStateDestroyedCb;
+    using REFOnPresentCb = ::REFOnPresentCb;
+    using REFOnPreApplicationEntryCb = ::REFOnPreApplicationEntryCb;
+    using REFOnPostApplicationEntryCb = ::REFOnPostApplicationEntryCb;
+    using REFOnDeviceResetCb = ::REFOnDeviceResetCb;
+    using REFOnMessageCb = ::REFOnMessageCb;
+    using REFOnImGuiFrameCb = ::REFOnImGuiFrameCb;
+    using REFOnImGuiDrawUICb = ::REFOnImGuiDrawUICb;
+    using REFOnPreGuiDrawElementCb = ::REFOnPreGuiDrawElementCb;
 
     bool add_on_lua_state_created(REFLuaStateCreatedCb cb);
     bool add_on_lua_state_destroyed(REFLuaStateDestroyedCb cb);

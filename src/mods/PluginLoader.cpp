@@ -11,25 +11,20 @@
 #include "sdk/ResourceManager.hpp"
 #include "sdk/Memory.hpp"
 
-#include <sdk/GameIdentity.hpp>
 #include "APIProxy.hpp"
 #include "ScriptRunner.hpp"
 #include "HookManager.hpp"
 
 #include "PluginLoader.hpp"
 
-// In the monolithic build, game_name is set at runtime after GameIdentity::initialize().
-// The g_plugin_version global is updated in PluginLoader's initialization.
 REFrameworkPluginVersion g_plugin_version{
-    REFRAMEWORK_PLUGIN_VERSION_MAJOR, REFRAMEWORK_PLUGIN_VERSION_MINOR, REFRAMEWORK_PLUGIN_VERSION_PATCH, "REFramework"};
+    REFRAMEWORK_PLUGIN_VERSION_MAJOR, REFRAMEWORK_PLUGIN_VERSION_MINOR, REFRAMEWORK_PLUGIN_VERSION_PATCH, REFRAMEWORK_GAME_NAME};
 
 namespace reframework {
 REFrameworkRendererData g_renderer_data{
     REFRAMEWORK_RENDERER_D3D12, nullptr, nullptr, nullptr
 };
 }
-
-using namespace utility::re_type_accessor;
 
 namespace reframework {
 void log_error(const char* format, ...) {
@@ -118,7 +113,7 @@ REFrameworkSDKFunctions g_sdk_functions {
                 continue;
             }
             
-            auto tdef = instance->get_type_definition();
+            auto tdef = utility::re_managed_object::get_type_definition(instance);
 
             out[out_written].instance = (REFrameworkManagedObjectHandle)instance;
             out[out_written].t = (REFrameworkTypeDefinitionHandle)tdef;
@@ -157,7 +152,7 @@ REFrameworkSDKFunctions g_sdk_functions {
             out[out_written].instance = instance;
             out[out_written].t = (REFrameworkTypeDefinitionHandle)utility::re_type::get_type_definition(t);
             out[out_written].type_info = (REFrameworkTypeInfoHandle)t;
-            out[out_written].name = t->get_type_name();
+            out[out_written].name = t->name;
 
             ++out_written;
         }
@@ -396,14 +391,14 @@ REFrameworkTDBProperty g_tdb_property_data {
 #define RETDB(var) ((sdk::RETypeDB*)var)
 
 REFrameworkTDB g_tdb_data {
-    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->get_num_types(); },
-    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->get_num_methods(); },
-    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->get_num_fields(); },
-    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->get_num_properties(); },
-    [](REFrameworkTDBHandle tdb) { return (unsigned int)RETDB(tdb)->get_string_pool_size(); },
-    [](REFrameworkTDBHandle tdb) { return (unsigned int)RETDB(tdb)->get_byte_pool_size(); },
-    [](REFrameworkTDBHandle tdb) { return (const char*)RETDB(tdb)->get_stringPool_ptr(); },
-    [](REFrameworkTDBHandle tdb) { return (unsigned char*)RETDB(tdb)->get_bytePool_ptr(); },
+    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numTypes; },
+    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numMethods; },
+    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numFields; },
+    [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numProperties; },
+    [](REFrameworkTDBHandle tdb) { return (unsigned int)RETDB(tdb)->numStringPool; },
+    [](REFrameworkTDBHandle tdb) { return (unsigned int)RETDB(tdb)->numBytePool; },
+    [](REFrameworkTDBHandle tdb) { return (const char*)RETDB(tdb)->stringPool; },
+    [](REFrameworkTDBHandle tdb) { return (unsigned char*)RETDB(tdb)->bytePool; },
 
     [](REFrameworkTDBHandle tdb, unsigned int index) { return (REFrameworkTypeDefinitionHandle)RETDB(tdb)->get_type(index); },
     [](REFrameworkTDBHandle tdb, const char* name) { return (REFrameworkTypeDefinitionHandle)RETDB(tdb)->find_type(name); },
@@ -439,17 +434,17 @@ REFrameworkTDB g_tdb_data {
 #define REMANAGEDOBJECT(var) ((::REManagedObject*)var)
 
 REFrameworkManagedObject g_managed_object_data {
-    [](REFrameworkManagedObjectHandle obj) { REMANAGEDOBJECT(obj)->add_ref(); },
-    [](REFrameworkManagedObjectHandle obj) { REMANAGEDOBJECT(obj)->release(); },
-    [](REFrameworkManagedObjectHandle obj) { return (REFrameworkTypeDefinitionHandle)REMANAGEDOBJECT(obj)->get_type_definition(); },
-    [](void* potential_obj) { return REManagedObject::is_managed_object(potential_obj); },
-    [](REFrameworkManagedObjectHandle obj) { return REMANAGEDOBJECT(obj)->get_ref_count(); },
-    [](REFrameworkManagedObjectHandle obj) { return REMANAGEDOBJECT(obj)->get_size(); },
-    [](REFrameworkManagedObjectHandle obj) { return (unsigned int)REMANAGEDOBJECT(obj)->get_vm_type(); },
-    [](REFrameworkManagedObjectHandle obj) { return (REFrameworkTypeInfoHandle)REMANAGEDOBJECT(obj)->get_type(); },
-    [](REFrameworkManagedObjectHandle obj) { return (void*)REMANAGEDOBJECT(obj)->get_variables(); },
-    [](REFrameworkManagedObjectHandle obj, const char* name) { return (REFrameworkReflectionPropertyHandle)REMANAGEDOBJECT(obj)->get_field_desc(name); },
-    [](REFrameworkManagedObjectHandle obj, const char* name) { return (REFrameworkReflectionMethodHandle)REMANAGEDOBJECT(obj)->get_method_desc(name); },
+    [](REFrameworkManagedObjectHandle obj) { utility::re_managed_object::add_ref(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj) { utility::re_managed_object::release(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj) { return (REFrameworkTypeDefinitionHandle)utility::re_managed_object::get_type_definition(REMANAGEDOBJECT(obj)); },
+    [](void* potential_obj) { return utility::re_managed_object::is_managed_object(potential_obj); },
+    [](REFrameworkManagedObjectHandle obj) { return REMANAGEDOBJECT(obj)->referenceCount; },
+    [](REFrameworkManagedObjectHandle obj) { return utility::re_managed_object::get_size(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj) { return (unsigned int)utility::re_managed_object::get_vm_type(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj) { return (REFrameworkTypeInfoHandle)utility::re_managed_object::get_type(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj) { return (void*)utility::re_managed_object::get_variables(REMANAGEDOBJECT(obj)); },
+    [](REFrameworkManagedObjectHandle obj, const char* name) { return (REFrameworkReflectionPropertyHandle)utility::re_managed_object::get_field_desc(REMANAGEDOBJECT(obj), name); },
+    [](REFrameworkManagedObjectHandle obj, const char* name) { return (REFrameworkReflectionMethodHandle)utility::re_managed_object::get_method_desc(REMANAGEDOBJECT(obj), name); },
 };
 
 #define RERESOURCEMGR(var) ((sdk::ResourceManager*)var)
@@ -481,7 +476,7 @@ REFrameworkResourceManager g_resource_manager_data {
 
         // The intrusive_ptr holds the reference for us initially, but when we return it back to the plugin
         // we need to add another reference so that the plugin can hold onto it before we release it.
-        obj.get()->add_ref();
+        utility::re_managed_object::add_ref(obj.get());
         return (REFrameworkManagedObjectHandle)obj.get();
     }
 };
@@ -509,7 +504,7 @@ REFrameworkResource g_resource_data {
 #define RETYPEINFO(var) ((::REType*)var)
 
 REFrameworkTypeInfo g_type_info_data {
-    [](REFrameworkTypeInfoHandle ti) -> const char* { return RETYPEINFO(ti)->get_type_name(); },
+    [](REFrameworkTypeInfoHandle ti) -> const char* { return RETYPEINFO(ti)->name; },
     [](REFrameworkTypeInfoHandle ti) { return (REFrameworkTypeDefinitionHandle)utility::re_type::get_type_definition(RETYPEINFO(ti)); },
     [](REFrameworkTypeInfoHandle ti) { return utility::re_type::is_clr_type(RETYPEINFO(ti)); },
     [](REFrameworkTypeInfoHandle ti) { return utility::re_type::is_singleton(RETYPEINFO(ti)); },
@@ -519,17 +514,17 @@ REFrameworkTypeInfo g_type_info_data {
     [](REFrameworkTypeInfoHandle ti, const char* name) { return (REFrameworkReflectionPropertyHandle)utility::re_type::get_field_desc(RETYPEINFO(ti), name); },
     [](REFrameworkTypeInfoHandle ti, const char* name) { return (REFrameworkReflectionMethodHandle)utility::re_type::get_method_desc(RETYPEINFO(ti), name); },
     [](REFrameworkTypeInfoHandle ti) -> void* {
-        if (get_fields(RETYPEINFO(ti)) == nullptr) {
+        if (RETYPEINFO(ti)->fields == nullptr) {
             return nullptr;
         }
 
-        return get_fields(RETYPEINFO(ti))->get_deserializer();
+        return RETYPEINFO(ti)->fields->deserializer;
     },
     [](REFrameworkTypeInfoHandle ti) -> REFrameworkTypeInfoHandle {
-        return (REFrameworkTypeInfoHandle)get_super(RETYPEINFO(ti));
+        return (REFrameworkTypeInfoHandle)RETYPEINFO(ti)->super;
     },
     [](REFrameworkTypeInfoHandle ti) {
-        return get_typeCRC(RETYPEINFO(ti));
+        return RETYPEINFO(ti)->typeCRC;
     }
 };
 
@@ -547,7 +542,7 @@ REFrameworkVMContext g_vm_context_data {
 
 REFrameworkReflectionMethod g_reflection_method_data {
     [](REFrameworkReflectionMethodHandle method) -> REFrameworkInvokeMethod {
-        return (REFrameworkInvokeMethod)REFLMETHOD(method)->get_functionPtr();
+        return (REFrameworkInvokeMethod)REFLMETHOD(method)->functionPtr;
     }
 };
 
@@ -555,7 +550,7 @@ REFrameworkReflectionMethod g_reflection_method_data {
 
 REFrameworkReflectionProperty g_reflection_prop_data {
     [](REFrameworkReflectionPropertyHandle prop) -> REFrameworkReflectionPropertyMethod {
-        return (REFrameworkReflectionPropertyMethod)REFLPROP(prop)->get_function();
+        return (REFrameworkReflectionPropertyMethod)REFLPROP(prop)->function;
     },
     [](REFrameworkReflectionPropertyHandle prop) { 
         return utility::reflection_property::is_static(REFLPROP(prop));
@@ -714,8 +709,6 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
     std::scoped_lock _{m_mux};
 
-    // In monolithic build, update game_name now that GameIdentity is initialized.
-    g_plugin_version.game_name = sdk::GameIdentity::get().target_name().data();
     verify_sdk_pointers();
 
     g_plugin_initialize_param.reframework_module = g_framework->get_reframework_module();
@@ -825,7 +818,7 @@ void PluginLoader::on_draw_ui() {
             ImGui::Text("Loaded plugins:");
 
             for (auto&& [name, _] : m_plugins) {
-                ImGui::Text(name.c_str());
+                ImGui::Text("%s", name.c_str());
             }
         } else {
             ImGui::Text("No plugins loaded.");

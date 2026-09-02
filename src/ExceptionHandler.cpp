@@ -10,7 +10,6 @@
 
 #include "utility/Exceptions.hpp"
 
-#include <sdk/GameIdentity.hpp>
 #include "REFramework.hpp"
 #include "ExceptionHandler.hpp"
 
@@ -57,7 +56,7 @@ LONG WINAPI reframework::global_exception_handler(struct _EXCEPTION_POINTERS* ei
     const auto module_within = utility::get_module_within(ei->ContextRecord->Rip);
 
     if (module_within) {
-    if (sdk::GameIdentity::get().is_re8()) {
+#ifdef RE8
         // funny way to fix a crash.
         if (*module_within == utility::get_executable() && (uint32_t)ei->ContextRecord->Rcx == 0xFFFFFFFF) {
             spdlog::info("Attempting to fix RE8 overlay draw crash...");
@@ -79,7 +78,7 @@ LONG WINAPI reframework::global_exception_handler(struct _EXCEPTION_POINTERS* ei
                 spdlog::info("Instructions did not match RE8 overlay draw crash.");
             }
         }
-    }
+#endif
 
         const auto module_path = utility::get_module_path(*module_within);
 

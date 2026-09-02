@@ -1,5 +1,4 @@
 #include "utility/FunctionHookMinHook.hpp"
-#include "utility/PersistentTreeState.hpp"
 #include "utility/String.hpp"
 
 #include "ScriptRunner.hpp"
@@ -13,10 +12,13 @@ std::shared_ptr<APIProxy>& APIProxy::get() {
 }
 
 bool APIProxy::add_on_lua_state_created(APIProxy::REFLuaStateCreatedCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
+    {
+        std::unique_lock _{m_api_cb_mtx};
+        m_on_lua_state_created_cbs.push_back(cb);
+    }
 
-    m_on_lua_state_created_cbs.push_back(cb);
-
+    // Call the callback outside the lock to prevent potential deadlock
+    // if the callback tries to access other APIProxy methods.
     auto& state = ScriptRunner::get()->get_state();
 
     if (state != nullptr && state->lua().lua_state() != nullptr) {
@@ -169,6 +171,12 @@ HMODULE load_library_ex_w_hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlag
 }
 
 void setup_hook() {
+    static bool attempted = false;
+    if (attempted) {
+        return;
+    }
+    attempted = true;
+
     if (cimgui::g_load_library_ex_w_hook == nullptr) {
         auto llxw = GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExW");
 
@@ -186,6 +194,26 @@ void setup_hook() {
 }
 } // namespace cimgui
 
+// Shared helper to get cached ImGui allocator functions and build the callback data.
+static REFImGuiFrameCbData get_cached_imgui_cb_data() {
+    static ImGuiMemAllocFunc cached_alloc_fn{};
+    static ImGuiMemFreeFunc cached_free_fn{};
+    static void* cached_user_data{};
+    static bool alloc_cached = false;
+
+    if (!alloc_cached) {
+        ImGui::GetAllocatorFunctions(&cached_alloc_fn, &cached_free_fn, &cached_user_data);
+        alloc_cached = true;
+    }
+
+    ::REFImGuiFrameCbData data{};
+    data.context = ImGui::GetCurrentContext();
+    data.malloc_fn = (void*)cached_alloc_fn;
+    data.free_fn = (void*)cached_free_fn;
+    data.user_data = cached_user_data;
+    return data;
+}
+
 // imgui frame.
 void APIProxy::on_frame() {
     std::shared_lock _{m_api_cb_mtx};
@@ -193,10 +221,7 @@ void APIProxy::on_frame() {
     if (!m_on_imgui_frame_cbs.empty()) {
         cimgui::setup_hook();
 
-        ::REFImGuiFrameCbData data{};
-        data.context = ImGui::GetCurrentContext();
-
-        ImGui::GetAllocatorFunctions((ImGuiMemAllocFunc*)&data.malloc_fn, (ImGuiMemFreeFunc*)&data.free_fn, &data.user_data);
+        auto data = get_cached_imgui_cb_data();
 
         for (auto&& cb : m_on_imgui_frame_cbs) {
             try {
@@ -215,10 +240,7 @@ void APIProxy::on_draw_ui() {
     if (!m_on_imgui_draw_ui_cbs.empty()) {
         cimgui::setup_hook();
 
-        ::REFImGuiFrameCbData data{};
-        data.context = ImGui::GetCurrentContext();
-
-        ImGui::GetAllocatorFunctions((ImGuiMemAllocFunc*)&data.malloc_fn, (ImGuiMemFreeFunc*)&data.free_fn, &data.user_data);
+        auto data = get_cached_imgui_cb_data();
 
         for (auto&& cb : m_on_imgui_draw_ui_cbs) {
             try {

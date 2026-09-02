@@ -1,8 +1,10 @@
 #include <thread>
 #include <future>
 #include <unordered_set>
-#include <stacktrace>
 #include <wrl/client.h>
+
+#include <shared_mutex>
+#include <mutex>
 
 #include <spdlog/spdlog.h>
 #include <utility/Thread.hpp>
@@ -21,23 +23,36 @@
 static D3D12Hook* g_d3d12_hook = nullptr;
 thread_local bool g_inside_d3d12_hook = false;
 
+static std::once_flag s_streamline_once{};
+
+// Replacement for deprecated IsBadReadPtr - uses VirtualQuery instead
+static bool is_readable(const void* addr, size_t size) {
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(addr, &mbi, sizeof(mbi))) {
+        return false;
+    }
+    if (mbi.State != MEM_COMMIT) {
+        return false;
+    }
+    if (mbi.Protect & PAGE_NOACCESS) {
+        return false;
+    }
+    return (mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0;
+}
+
 D3D12Hook::~D3D12Hook() {
     unhook();
 }
 
 void* D3D12Hook::Streamline::link_swapchain_to_cmd_queue(void* rcx, void* rdx, void* r8, void* r9) {
+    auto& hook = D3D12Hook::s_streamline.link_swapchain_to_cmd_queue_hook;
+
     if (g_inside_d3d12_hook) {
         spdlog::info("[Streamline] linkSwapchainToCmdQueue: {:x} (inside D3D12 hook)", (uintptr_t)_ReturnAddress());
-
-        auto& hook = D3D12Hook::s_streamline.link_swapchain_to_cmd_queue_hook;
         return hook->get_original<decltype(link_swapchain_to_cmd_queue)>()(rcx, rdx, r8, r9);
     }
 
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("[Streamline] linkSwapchainToCmdQueue: {:x}", (uintptr_t)_ReturnAddress());
 
@@ -48,7 +63,6 @@ void* D3D12Hook::Streamline::link_swapchain_to_cmd_queue(void* rcx, void* rdx, v
         g_d3d12_hook->unhook(); // Removes all vtable hooks
     }
 
-    auto& hook = D3D12Hook::s_streamline.link_swapchain_to_cmd_queue_hook;
     const auto result = hook->get_original<decltype(link_swapchain_to_cmd_queue)>()(rcx, rdx, r8, r9);
 
     // Re-hooks present after the above function creates the swapchain
@@ -71,11 +85,7 @@ HRESULT WINAPI D3D12Hook::create_swapchain(IDXGIFactory4* factory, IUnknown* dev
 
     spdlog::info("create_swapchain called");
 
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     bool hook_was_nullptr = g_d3d12_hook == nullptr;
 
@@ -95,17 +105,18 @@ HRESULT WINAPI D3D12Hook::create_swapchain(IDXGIFactory4* factory, IUnknown* dev
 }
 
 void D3D12Hook::hook_streamline(HMODULE dlssg_module) try {
-    if (D3D12Hook::s_streamline.setup) {
-        return;
-    }
+    std::call_once(s_streamline_once, [&]() {
+        if (D3D12Hook::s_streamline.setup) {
+            return;
+        }
 
-    std::scoped_lock _{D3D12Hook::s_streamline.hook_mutex};
+        std::scoped_lock _{D3D12Hook::s_streamline.hook_mutex};
 
-    if (D3D12Hook::s_streamline.setup) {
-        return;
-    }
+        if (D3D12Hook::s_streamline.setup) {
+            return;
+        }
 
-    spdlog::info("[Streamline] Hooking Streamline");
+        spdlog::info("[Streamline] Hooking Streamline");
 
     if (dlssg_module == nullptr) {
         dlssg_module = GetModuleHandleW(L"sl.dlss_g.dll");
@@ -146,6 +157,7 @@ void D3D12Hook::hook_streamline(HMODULE dlssg_module) try {
     }
 
     D3D12Hook::s_streamline.setup = true;
+    });
 } catch(...) {
     spdlog::error("[Streamline] Failed to hook Streamline");
 }
@@ -173,9 +185,9 @@ bool D3D12Hook::hook() {
         return m_hooked;
     }
 
-    IDXGISwapChain1* swap_chain1{ nullptr };
-    IDXGISwapChain3* swap_chain{ nullptr };
-    ID3D12Device* device{ nullptr };
+    Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain1;
+    Microsoft::WRL::ComPtr<IDXGISwapChain3> swap_chain;
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
 
     D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;
     DXGI_SWAP_CHAIN_DESC1 swap_chain_desc1;
@@ -221,7 +233,7 @@ bool D3D12Hook::hook() {
         ProtectionOverride protection_override{ d3d12_create_device, original_bytes->size(), PAGE_EXECUTE_READWRITE };
         memcpy(d3d12_create_device, original_bytes->data(), original_bytes->size());
         
-        if (FAILED(d3d12_create_device(nullptr, feature_level, IID_PPV_ARGS(&device)))) {
+        if (FAILED(d3d12_create_device(nullptr, feature_level, IID_PPV_ARGS(device.GetAddressOf())))) {
             spdlog::error("Failed to create D3D12 Dummy device");
             memcpy(d3d12_create_device, hooked_bytes.data(), hooked_bytes.size());
             return false;
@@ -230,13 +242,13 @@ bool D3D12Hook::hook() {
         spdlog::info("Restoring hooked bytes for D3D12CreateDevice");
         memcpy(d3d12_create_device, hooked_bytes.data(), hooked_bytes.size());
     } else { // D3D12CreateDevice is not hooked
-        if (FAILED(d3d12_create_device(nullptr, feature_level, IID_PPV_ARGS(&device)))) {
+        if (FAILED(d3d12_create_device(nullptr, feature_level, IID_PPV_ARGS(device.GetAddressOf())))) {
             spdlog::error("Failed to create D3D12 Dummy device");
             return false;
         }
     }
 
-    spdlog::info("Dummy device: {:x}", (uintptr_t)device);
+    spdlog::info("Dummy device: {:x}", (uintptr_t)device.Get());
 
     // Manually get CreateDXGIFactory export because the user may be running Windows 7
     const auto dxgi_module = LoadLibraryA("dxgi.dll");
@@ -254,8 +266,8 @@ bool D3D12Hook::hook() {
 
     spdlog::info("Creating dummy DXGI factory");
 
-    IDXGIFactory4* factory{ nullptr };
-    if (FAILED(create_dxgi_factory(IID_PPV_ARGS(&factory)))) {
+    Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
+    if (FAILED(create_dxgi_factory(IID_PPV_ARGS(factory.GetAddressOf())))) {
         spdlog::error("Failed to create D3D12 Dummy DXGI Factory");
         return false;
     }
@@ -268,8 +280,8 @@ bool D3D12Hook::hook() {
 
     spdlog::info("Creating dummy command queue");
 
-    ID3D12CommandQueue* command_queue{ nullptr };
-    if (FAILED(device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&command_queue)))) {
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> command_queue;
+    if (FAILED(device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(command_queue.GetAddressOf())))) {
         spdlog::error("Failed to create D3D12 Dummy Command Queue");
         return false;
     }
@@ -319,15 +331,15 @@ bool D3D12Hook::hook() {
         // and all we're doing is creating a dummy swapchain
         // we don't want to screw up the overlay
         [&]() {
-            return !FAILED(factory->CreateSwapChainForComposition(command_queue, &swap_chain_desc1, nullptr, &swap_chain1));
+            return !FAILED(factory->CreateSwapChainForComposition(command_queue.Get(), &swap_chain_desc1, nullptr, swap_chain1.GetAddressOf()));
         },
         [&]() {
             init_dummy_window();
 
-            return !FAILED(factory->CreateSwapChainForHwnd(command_queue, hwnd, &swap_chain_desc1, nullptr, nullptr, &swap_chain1));
+            return !FAILED(factory->CreateSwapChainForHwnd(command_queue.Get(), hwnd, &swap_chain_desc1, nullptr, nullptr, swap_chain1.GetAddressOf()));
         },
         [&]() {
-            return !FAILED(factory->CreateSwapChainForHwnd(command_queue, GetDesktopWindow(), &swap_chain_desc1, nullptr, nullptr, &swap_chain1));
+            return !FAILED(factory->CreateSwapChainForHwnd(command_queue.Get(), GetDesktopWindow(), &swap_chain_desc1, nullptr, nullptr, swap_chain1.GetAddressOf()));
         },
     };
 
@@ -369,13 +381,13 @@ bool D3D12Hook::hook() {
 
     spdlog::info("Querying dummy swapchain");
 
-    if (FAILED(swap_chain1->QueryInterface(IID_PPV_ARGS(&swap_chain)))) {
+    if (FAILED(swap_chain1->QueryInterface(IID_PPV_ARGS(swap_chain.GetAddressOf())))) {
         spdlog::error("Failed to retrieve D3D12 DXGI SwapChain");
         return false;
     }
 
     try {
-        const auto ti = utility::rtti::get_type_info(swap_chain1);
+        const auto ti = utility::rtti::get_type_info(swap_chain1.Get());
         const auto swapchain_classname = ti != nullptr && ti->name() != nullptr ? std::string_view{ti->name()} : "unknown";
         const auto raw_name = ti != nullptr && ti->raw_name() != nullptr ? std::string_view{ti->raw_name()} : "unknown";
 
@@ -383,10 +395,10 @@ bool D3D12Hook::hook() {
         spdlog::info("Swapchain raw type info: {}", raw_name);
         
         if (swapchain_classname.contains("interposer::DXGISwapChain")) { // DLSS3
-            spdlog::info("Found Streamline (DLSSFG) swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain1);
+            spdlog::info("Found Streamline (DLSSFG) swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain1.Get());
             m_using_frame_generation_swapchain = true;
         } else if (swapchain_classname.contains("FrameInterpolationSwapChain")) { // FSR3
-            spdlog::info("Found FSR3 swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain1);
+            spdlog::info("Found FSR3 swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain1.Get());
             m_using_frame_generation_swapchain = true;
         }
     } catch (const std::exception& e) {
@@ -402,23 +414,23 @@ bool D3D12Hook::hook() {
 
     // Find the command queue offset in the swapchain
     for (auto i = 0; i < 512 * sizeof(void*); i += sizeof(void*)) {
-        const auto base = (uintptr_t)swap_chain1 + i;
+        const auto base = (uintptr_t)swap_chain1.Get() + i;
 
         // reached the end
-        if (IsBadReadPtr((void*)base, sizeof(void*))) {
+        if (!is_readable((void*)base, sizeof(void*))) {
             break;
         }
 
         auto data = *(ID3D12CommandQueue**)base;
 
-        if (data == command_queue) {
+        if (data == command_queue.Get()) {
             s_command_queue_offset = i;
             spdlog::info("Found command queue offset: {:x}", i);
             break;
         }
     }
 
-    auto target_swapchain = swap_chain;
+    IDXGISwapChain3* target_swapchain = swap_chain.Get();
 
     // Scan throughout the swapchain for a valid pointer to scan through
     // this is usually only necessary for Proton
@@ -426,29 +438,29 @@ bool D3D12Hook::hook() {
         bool should_break = false;
 
         for (auto base = 0; base < 512 * sizeof(void*); base += sizeof(void*)) {
-            const auto pre_scan_base = (uintptr_t)swap_chain1 + base;
+            const auto pre_scan_base = (uintptr_t)swap_chain1.Get() + base;
 
             // reached the end
-            if (IsBadReadPtr((void*)pre_scan_base, sizeof(void*))) {
+            if (!is_readable((void*)pre_scan_base, sizeof(void*))) {
                 break;
             }
 
             const auto scan_base = *(uintptr_t*)pre_scan_base;
 
-            if (scan_base == 0 || IsBadReadPtr((void*)scan_base, sizeof(void*))) {
+            if (scan_base == 0 || !is_readable((void*)scan_base, sizeof(void*))) {
                 continue;
             }
 
             for (auto i = 0; i < 512 * sizeof(void*); i += sizeof(void*)) {
                 const auto pre_data = scan_base + i;
 
-                if (IsBadReadPtr((void*)pre_data, sizeof(void*))) {
+                if (!is_readable((void*)pre_data, sizeof(void*))) {
                     break;
                 }
 
                 auto data = *(ID3D12CommandQueue**)pre_data;
 
-                if (data == command_queue) {
+                if (data == command_queue.Get()) {
                     // If we hook Streamline's Swapchain, the menu fails to render correctly/flickers
                     // So we switch out the swapchain with the internal one owned by Streamline
                     // Side note: Even though we are scanning for Proton here,
@@ -482,25 +494,15 @@ bool D3D12Hook::hook() {
         return false;
     }
 
-    //utility::ThreadSuspender suspender{};
-
     try {
         s_swapchain_vtable = *(void***)target_swapchain;
-        s_factory_vtable = *(void***)factory;
+        s_factory_vtable = *(void***)factory.Get();
 
         hook_impl();
     } catch (const std::exception& e) {
         spdlog::error("Failed to initialize hooks: {}", e.what());
         m_hooked = false;
     }
-
-    //suspender.resume();
-
-    command_queue->Release();
-    swap_chain1->Release();
-    swap_chain->Release();
-    device->Release();
-    factory->Release();
 
     if (hwnd) {
         ::DestroyWindow(hwnd);
@@ -535,11 +537,7 @@ void D3D12Hook::hook_impl() {
 }
 
 bool D3D12Hook::unhook() {
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::unique_lock<std::shared_mutex> _(get_hook_monitor_mutex_safe());
 
     if (!m_hooked) {
         return true;
@@ -559,11 +557,7 @@ bool D3D12Hook::unhook() {
 thread_local int32_t g_present_depth = 0;
 
 HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_interval, uint64_t flags, void* r9) {
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     auto d3d12 = g_d3d12_hook;
 
@@ -578,7 +572,7 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
     HWND swapchain_wnd{nullptr};
     swap_chain->GetHwnd(&swapchain_wnd);
 
-    if (d3d12->m_is_phase_1 && WindowFilter::get().is_filtered(swapchain_wnd)) {
+    if (d3d12->m_is_phase_1 && WindowFilter::is_hwnd_filtered_fast(swapchain_wnd)) {
         //present_fn = d3d12->m_present_hook->get_original<decltype(D3D12Hook::present)*>();
         return present_fn(swap_chain, sync_interval, flags, r9);
     }
@@ -612,10 +606,8 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
     d3d12->m_inside_present = true;
     d3d12->m_swap_chain = swap_chain;
 
-    {
-        Microsoft::WRL::ComPtr<ID3D12Device4> temp_device{};
-        swap_chain->GetDevice(IID_PPV_ARGS(&temp_device));
-        d3d12->m_device = temp_device.Get();
+    if (d3d12->m_device == nullptr) {
+        swap_chain->GetDevice(IID_PPV_ARGS(d3d12->m_device.GetAddressOf()));
     }
 
     if (d3d12->m_using_proton_swapchain) {
@@ -635,31 +627,6 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
     // if an infinite loop occurs, this will prevent the game from crashing
     // while keeping our hook intact
     if (g_present_depth > 0) {
-        auto original_bytes = utility::get_original_bytes(Address{present_fn});
-
-        if (original_bytes) {
-            ProtectionOverride protection_override{present_fn, original_bytes->size(), PAGE_EXECUTE_READWRITE};
-
-            memcpy(present_fn, original_bytes->data(), original_bytes->size());
-
-            spdlog::info("Present fixed");
-        }
-
-        if ((uintptr_t)present_fn != (uintptr_t)D3D12Hook::present && g_present_depth == 1) {
-            spdlog::info("Attempting to call real present function");
-
-            ++g_present_depth;
-            const auto result = present_fn(swap_chain, sync_interval, flags, r9);
-            --g_present_depth;
-
-            if (result != S_OK) {
-                spdlog::error("Present failed: {:x}", result);
-            }
-
-            return result;
-        }
-
-        spdlog::info("Just returning S_OK");
         return S_OK;
     }
 
@@ -674,8 +641,11 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
     if (!d3d12->m_ignore_next_present) {
         result = present_fn(swap_chain, sync_interval, flags, r9);
 
-        if (result != S_OK) {
-            spdlog::error("Present failed: {:x}", result);
+        // Only genuine failures; success codes like DXGI_STATUS_OCCLUDED
+        // (returned every frame while the window is minimized/occluded) are
+        // not errors and would otherwise spam the log each present.
+        if (FAILED(result)) {
+            spdlog::error("Present failed: {:x}", (uint64_t)result);
         }
     } else {
         d3d12->m_ignore_next_present = false;
@@ -695,40 +665,12 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
 thread_local int32_t g_resize_buffers_depth = 0;
 
 HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags) {
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("D3D12 resize buffers called");
     spdlog::info(" Parameters: buffer_count {} width {} height {} new_format {} swap_chain_flags {}", buffer_count, width, height, new_format, swap_chain_flags);
 
-    // Walk the callstack and print out module names
-    try {
-        std::string callstack_str{};
-        for (const auto& entry : std::stacktrace::current()) {
-            //spdlog::info(" {}", entry.description());
-            callstack_str += entry.description() + "\n";
-        }
-
-        spdlog::info("callstack: \n{}", callstack_str); // because this can be running on a different thread and get garbled in the middle of the log
-    } catch (const std::exception& e) {
-        spdlog::error("Failed to print callstack: {}", e.what());
-    } catch(...) {
-        spdlog::error("Failed to print callstack: unknown exception");
-    }
-
     auto d3d12 = g_d3d12_hook;
-    //auto& hook = d3d12->m_resize_buffers_hook;
-    //auto resize_buffers_fn = hook->get_original<decltype(D3D12Hook::resize_buffers)*>();
-
-    HWND swapchain_wnd{nullptr};
-    swap_chain->GetHwnd(&swapchain_wnd);
-
-    /*if (WindowFilter::get().is_filtered(swapchain_wnd)) {
-        return resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
-    }*/
 
     auto resize_buffers_fn = d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::resize_buffers)*>(13);
 
@@ -736,32 +678,7 @@ HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffe
     d3d12->m_display_height = height;
 
     if (g_resize_buffers_depth > 0) {
-        auto original_bytes = utility::get_original_bytes(Address{resize_buffers_fn});
-
-        if (original_bytes) {
-            ProtectionOverride protection_override{resize_buffers_fn, original_bytes->size(), PAGE_EXECUTE_READWRITE};
-
-            memcpy(resize_buffers_fn, original_bytes->data(), original_bytes->size());
-
-            spdlog::info("Resize buffers fixed");
-        }
-
-        if ((uintptr_t)resize_buffers_fn != (uintptr_t)&D3D12Hook::resize_buffers && g_resize_buffers_depth == 1) {
-            spdlog::info("Attempting to call the real resize buffers function");
-
-            ++g_resize_buffers_depth;
-            const auto result = resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
-            --g_resize_buffers_depth;
-
-            if (result != S_OK) {
-                spdlog::error("Resize buffers failed: {:x}", result);
-            }
-
-            return result;
-        } else {
-            spdlog::info("Just returning S_OK");
-            return S_OK;
-        }
+        return S_OK;
     }
 
     if (d3d12->m_on_resize_buffers) {
@@ -772,7 +689,7 @@ HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffe
 
     const auto result = resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
     
-    if (result != S_OK) {
+    if (FAILED(result)) {
         spdlog::error("Resize buffers failed: {:x}", result);
     }
 
@@ -784,39 +701,12 @@ HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffe
 thread_local int32_t g_resize_target_depth = 0;
 
 HRESULT WINAPI D3D12Hook::resize_target(IDXGISwapChain3* swap_chain, const DXGI_MODE_DESC* new_target_parameters) {
-    while (g_framework == nullptr) {
-        std::this_thread::yield();
-    }
-
-    std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
+    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("D3D12 resize target called");
     spdlog::info(" Parameters: new_target_parameters {:x}", (uintptr_t)new_target_parameters);
 
-    // Walk the callstack and print out module names
-    try {
-        std::string callstack_str{};
-        for (const auto& entry : std::stacktrace::current()) {
-            //spdlog::info(" {}", entry.description());
-            callstack_str += entry.description() + "\n";
-        }
-
-        spdlog::info("callstack: \n{}", callstack_str); // because this can be running on a different thread and get garbled in the middle of the log
-    } catch (const std::exception& e) {
-        spdlog::error("Failed to print callstack: {}", e.what());
-    } catch(...) {
-        spdlog::error("Failed to print callstack: unknown exception");
-    }
-
     auto d3d12 = g_d3d12_hook;
-    //auto resize_target_fn = d3d12->m_resize_target_hook->get_original<decltype(D3D12Hook::resize_target)*>();
-
-    HWND swapchain_wnd{nullptr};
-    swap_chain->GetHwnd(&swapchain_wnd);
-
-    /*if (WindowFilter::get().is_filtered(swapchain_wnd)) {
-        return resize_target_fn(swap_chain, new_target_parameters);
-    }*/
 
     auto resize_target_fn = d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::resize_target)*>(14);
 
@@ -825,32 +715,7 @@ HRESULT WINAPI D3D12Hook::resize_target(IDXGISwapChain3* swap_chain, const DXGI_
 
     // Restore the original code to the resize_buffers function.
     if (g_resize_target_depth > 0) {
-        auto original_bytes = utility::get_original_bytes(Address{resize_target_fn});
-
-        if (original_bytes) {
-            ProtectionOverride protection_override{resize_target_fn, original_bytes->size(), PAGE_EXECUTE_READWRITE};
-
-            memcpy(resize_target_fn, original_bytes->data(), original_bytes->size());
-
-            spdlog::info("Resize target fixed");
-        }
-
-        if ((uintptr_t)resize_target_fn != (uintptr_t)&D3D12Hook::resize_target && g_resize_target_depth == 1) {
-            spdlog::info("Attempting to call the real resize target function");
-
-            ++g_resize_target_depth;
-            const auto result = resize_target_fn(swap_chain, new_target_parameters);
-            --g_resize_target_depth;
-
-            if (result != S_OK) {
-                spdlog::error("Resize target failed: {:x}", result);
-            }
-
-            return result;
-        } else {
-            spdlog::info("Just returning S_OK");
-            return S_OK;
-        }
+        return S_OK;
     }
 
     if (d3d12->m_on_resize_target) {
@@ -861,7 +726,7 @@ HRESULT WINAPI D3D12Hook::resize_target(IDXGISwapChain3* swap_chain, const DXGI_
 
     const auto result = resize_target_fn(swap_chain, new_target_parameters);
     
-    if (result != S_OK) {
+    if (FAILED(result)) {
         spdlog::error("Resize target failed: {:x}", result);
     }
 

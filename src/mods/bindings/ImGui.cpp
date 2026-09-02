@@ -6,7 +6,6 @@
 #include "sdk/SceneManager.hpp"
 #include "REFramework.hpp"
 #include "utility/ImGui.hpp"
-#include "utility/PersistentTreeState.hpp"
 
 #include "ImGui.hpp"
 
@@ -135,7 +134,7 @@ void text_colored(const char* text, unsigned int color) {
     auto b = (color >> 16) & 0xFF;
     auto a = (color >> 24) & 0xFF;
 
-    ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, text);
+    ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, "%s", text);
 }
 
 sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
@@ -359,7 +358,7 @@ sol::variadic_results combo(sol::this_state s, const char* label, sol::object se
     if (ImGui::BeginCombo(label, preview_value)) {
         //for (auto i = 1u; i <= values.size(); ++i) {
         for (auto& [key, val] : values) {
-            auto val_at_k = values[key].get<sol::object>();
+            sol::object val_at_k = val;
 
             if (val_at_k.is<const char*>()) {
                 auto entry = val_at_k.as<const char*>();
@@ -387,10 +386,7 @@ bool tree_node(const char* label) {
         label = "";
     }
 
-    return reframework::ui::persistent_tree_item(
-        reframework::ui::TreeStateSource::Lua,
-        label,
-        [label]() { return ImGui::TreeNode(label); });
+    return ImGui::TreeNode(label);
 }
 
 bool tree_node_ptr_id(const void* id, const char* label) {
@@ -406,10 +402,7 @@ bool tree_node_str_id(const char* id, const char* label) {
         label = "";
     }
 
-    return reframework::ui::persistent_tree_item(
-        reframework::ui::TreeStateSource::Lua,
-        id != nullptr ? id : "",
-        [id, label]() { return ImGui::TreeNode(id, label); });
+    return ImGui::TreeNode(id, label);
 }
 
 void tree_pop() {
@@ -543,14 +536,7 @@ void new_line() {
 }
 
 bool collapsing_header(const char* name) {
-    if (name == nullptr) {
-        name = "";
-    }
-
-    return reframework::ui::persistent_tree_item(
-        reframework::ui::TreeStateSource::Lua,
-        name,
-        [name]() { return ImGui::CollapsingHeader(name); });
+    return ImGui::CollapsingHeader(name);
 }
 
 int load_font(sol::object filepath_obj, float size) {
@@ -976,7 +962,7 @@ void set_tooltip(const char* text) {
         text = "";
     }
 
-    ImGui::SetTooltip(text);
+    ImGui::SetTooltip("%s", text);
 }
 
 void open_popup(const char* str_id, sol::object flags_obj) {
@@ -1482,7 +1468,7 @@ std::optional<Vector2f> world_to_screen(sol::object world_pos_object) {
         return std::nullopt;
     }
 
-    static auto transform_def = first_transform->get_type_definition();
+    static auto transform_def = utility::re_managed_object::get_type_definition(first_transform);
     static auto next_transform_method = transform_def->get_method("get_Next");
     static auto get_gameobject_method = transform_def->get_method("get_GameObject");
     static auto get_position_method = transform_def->get_method("get_Position");
@@ -1502,7 +1488,12 @@ std::optional<Vector2f> world_to_screen(sol::object world_pos_object) {
     }
 
     auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
-    auto camera_transform = camera_gameobject->get_transform();
+
+    if (camera_gameobject == nullptr) {
+        return std::nullopt;
+    }
+
+    auto camera_transform = camera_gameobject->transform;
 
     Vector4f camera_origin{};
     get_position_method->call<void*>(&camera_origin, context, camera_transform);

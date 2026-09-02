@@ -12,11 +12,15 @@ std::optional<std::string> BackBufferRenderer::on_initialize_d3d_thread() {
             context->setup(L"BackBufferRenderer D3D12 Command Context");
         }
 
-        auto swapchain = g_framework->get_d3d12_hook()->get_swap_chain();
-        auto device = g_framework->get_d3d12_hook()->get_device();
+        m_d3d12.swapchain = g_framework->get_d3d12_hook()->get_swap_chain();
+        m_d3d12.device = g_framework->get_d3d12_hook()->get_device();
+        
+        if (m_d3d12.swapchain == nullptr || m_d3d12.device == nullptr) {
+            return "Failed to get swapchain or device";
+        }
         
         d3d12::ComPtr<ID3D12Resource> backbuffer{};
-        if (FAILED(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)))) {
+        if (FAILED(m_d3d12.swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)))) {
             return "Failed to get back buffer";
         }
 
@@ -35,6 +39,9 @@ std::optional<std::string> BackBufferRenderer::on_initialize_d3d_thread() {
 }
 
 void BackBufferRenderer::on_device_reset() {
+    m_d3d12.device = nullptr;
+    m_d3d12.swapchain = nullptr;
+    
     for (auto& ctx : m_d3d12.command_contexts) {
         ctx.reset();
     }
@@ -45,8 +52,15 @@ void BackBufferRenderer::on_device_reset() {
 }
 
 void BackBufferRenderer::render_d3d12() {
-    if (m_d3d12.render_work.empty()) {
-        return;
+    // Short-lived lock just for the emptiness check; the actual queue is drained
+    // under the same mutex later via swap(). render_work_mtx is a non-recursive
+    // std::mutex, so we must NOT hold it across that swap.
+    {
+        std::scoped_lock _{m_d3d12.render_work_mtx};
+
+        if (m_d3d12.render_work.empty()) {
+            return;
+        }
     }
 
     for (auto& ctx : m_d3d12.command_contexts) {
@@ -56,8 +70,16 @@ void BackBufferRenderer::render_d3d12() {
         }
     }
 
-    auto swapchain = g_framework->get_d3d12_hook()->get_swap_chain();
-    auto device = g_framework->get_d3d12_hook()->get_device();
+    if (m_d3d12.swapchain == nullptr || m_d3d12.device == nullptr) {
+        m_d3d12.swapchain = g_framework->get_d3d12_hook()->get_swap_chain();
+        m_d3d12.device = g_framework->get_d3d12_hook()->get_device();
+        if (m_d3d12.swapchain == nullptr || m_d3d12.device == nullptr) {
+            return;
+        }
+    }
+    
+    auto& swapchain = m_d3d12.swapchain;
+    auto& device = m_d3d12.device;
     for (size_t i = 0; i < m_d3d12.backbuffers.size(); ++i) {
         d3d12::ComPtr<ID3D12Resource> backbuffer{};
         if (FAILED(swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)))) {
@@ -78,7 +100,11 @@ void BackBufferRenderer::render_d3d12() {
         }
     }
 
-    const auto bb_index = swapchain->GetCurrentBackBufferIndex();
+    d3d12::ComPtr<IDXGISwapChain3> swapchain3{};
+    if (FAILED(swapchain->QueryInterface(IID_PPV_ARGS(&swapchain3)))) {
+        return;
+    }
+    const auto bb_index = swapchain3->GetCurrentBackBufferIndex();
 
     d3d12::ComPtr<ID3D12Resource> backbuffer{};
     if (FAILED(swapchain->GetBuffer(bb_index, IID_PPV_ARGS(&backbuffer)))) {
@@ -121,7 +147,7 @@ void BackBufferRenderer::render_d3d12() {
     decltype(m_d3d12.render_work) works{};
     {
         std::scoped_lock _{m_d3d12.render_work_mtx};
-        works = m_d3d12.render_work;
+        works.swap(m_d3d12.render_work);
     }
 
     const RenderWorkData data{
@@ -156,8 +182,6 @@ void BackBufferRenderer::on_present() {
 
 void BackBufferRenderer::on_frame() {
     // Clearing this here instead of every time whenever we present fixes flickering in some games
-    if (g_framework->is_dx12() && !m_d3d12.render_work.empty()) {
-        std::scoped_lock _{m_d3d12.render_work_mtx};
-        m_d3d12.render_work.clear();
-    }
+    std::scoped_lock _{m_d3d12.render_work_mtx};
+    m_d3d12.render_work.clear();
 }

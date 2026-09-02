@@ -103,7 +103,14 @@ public:
         }
 
         __declspec(noinline) static HookStorage* get_storage(HookedFn* fn) {
-            auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+            // Cache thread ID hash in thread_local to avoid recomputing on every call
+            static thread_local size_t cached_tid = 0;
+            static thread_local bool tid_cached = false;
+            if (!tid_cached) {
+                cached_tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+                tid_cached = true;
+            }
+            auto tid = cached_tid;
             {
                 std::shared_lock _{fn->storage_mux};
 

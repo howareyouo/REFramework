@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <thread>
 #include <unordered_set>
 #include <filesystem>
 #include <map>
@@ -10,9 +12,8 @@
 #include <utility/Patch.hpp>
 
 #include <../../directxtk12-src/Inc/GraphicsMemory.h>
-#include "mods/vr/d3d12/CommandContext.hpp"
+#include "utility/d3d12/CommandContext.hpp"
 
-#include <sdk/GameIdentity.hpp>
 class Mods;
 class REGlobals;
 class RETypes;
@@ -77,6 +78,10 @@ public:
     void on_post_present_d3d11();
     void on_frame_d3d12();
     void on_post_present_d3d12();
+
+    // Common initialization logic shared between on_frame_d3d11 and on_frame_d3d12.
+    // Returns true if initialization is OK and the frame should proceed.
+    bool on_frame_common_init();
     void on_reset();
 
     void patch_set_cursor_pos();
@@ -110,7 +115,35 @@ public:
     auto get_last_window_size() const { return m_last_window_size; } // REFramework imgui window
 
     static const char* get_game_name() {
-        return sdk::GameIdentity::get().game_name().data();
+    #if defined(RE2)
+        return "re2";
+    #elif defined(RE3)
+        return "re3";
+    #elif defined(RE4)
+        return "re4";
+    #elif defined(RE7)
+        return "re7";
+    #elif defined(RE8)
+        return "re8";
+    #elif defined(RE9)
+        return "re9";
+    #elif defined(DMC5)
+        return "dmc5";
+    #elif defined(MHRISE)
+        return "mhrise";
+    #elif defined(SF6)
+        return "sf6";
+    #elif defined(DD2)
+        return "dd2";
+    #elif defined(MHWILDS)
+        return "mhwilds";
+    #elif defined(MHSTORIES3)
+        return "mhstories3";
+    #elif defined(PRAGMATA)
+        return "pragmata";
+    #else
+        return "unknown";
+    #endif
     }
 
     bool is_drawing_ui() const {
@@ -127,25 +160,22 @@ public:
         return m_startup_mutex;
     }
 
-    void set_font_size(float size) {
-        if (m_font_size != size) {
-            m_font_size = size;
-        }
-
-        if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().DisplaySize.y > 0.0f) {
-            m_font_display_height = ImGui::GetIO().DisplaySize.y;
-        }
+    // ImGui 1.92 RendererHasTextures 机制下，改字号不需要重新加载字体文件。
+    // PushFont(font, size) 会自动调用 GetFontBaked(size) 按需 bake 新字号，
+    // 旧字号 baked 由 ImGui GC 自动回收。因此只更新 m_font_size 即可。
+    void set_font_size(int size) { 
+        m_font_size = size;
     }
 
-    void set_font_size_for_display(float size, float source_display_height);
-
     auto get_font_size() const { return m_font_size; }
-    auto get_main_window_display_size() const { return m_main_window_display_size; }
     auto get_default_font() const { return m_default_font; }
 
     void set_font(std::string path) { 
-        m_default_font_file = path;
-        m_fonts_need_init = true;
+        if (m_default_font_file != path) {
+            m_default_font_file = path;
+            loaded_fonts.clear();
+            m_fonts_need_init = true;
+        }
     }
 
     int add_font(const std::filesystem::path& filepath, float size);
@@ -167,23 +197,16 @@ public:
     }
 
 private:
-    void save_config();
+        void save_config();
     void consume_input();
     void init_fonts();
     void invalidate_device_objects();
 
     void draw_ui();
-    void draw_about();
-    void preserve_main_window_position(const char* window_name);
-    void scale_font_for_display(float display_height);
-    void track_manual_ui_layout_changes();
-    void ensure_ui_layout_baseline();
-    void process_ui_layout_save(bool from_present);
 
 public:
     bool hook_d3d11();
     bool hook_d3d12();
-    void open_console();
 
 private:
     bool initialize();
@@ -212,7 +235,6 @@ private:
     bool m_has_frame{false};
     bool m_wants_device_object_cleanup{false};
     bool m_wants_save_config{false};
-    std::atomic<bool> m_wants_save_imgui_config{false};
     bool m_draw_ui{true};
     bool m_last_draw_ui{m_draw_ui};
     bool m_is_ui_focused{false};
@@ -223,19 +245,6 @@ private:
     
     ImVec2 m_last_window_pos{};
     ImVec2 m_last_window_size{};
-    ImVec2 m_main_window_display_size{};
-    bool m_loaded_saved_ui_display_size{false};
-    ImVec2 m_saved_ui_display_size{};
-    bool m_ui_layout_save_pending{false};
-    std::chrono::steady_clock::time_point m_ui_layout_last_changed{};
-
-    struct UIWindowGeometry {
-        ImVec2 position{};
-        ImVec2 size{};
-    };
-
-    std::map<ImGuiID, UIWindowGeometry> m_ui_window_geometries{};
-    bool m_manual_ui_geometry_dirty{false};
 
     struct AdditionalFont {
         std::filesystem::path filepath{};
@@ -246,8 +255,7 @@ private:
     std::string m_default_font_file = "DEFAULT";
     bool m_fonts_need_init{true};
     float m_font_size{16};
-    float m_font_display_height{};
-    ImFont* m_default_font;
+    ImFont* m_default_font{};
     std::map<std::string, ImFont*> loaded_fonts{};
     std::vector<AdditionalFont> m_additional_fonts{};
 
@@ -267,7 +275,6 @@ private:
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
     std::unique_ptr<DInputHook> m_dinput_hook;
     std::shared_ptr<spdlog::logger> m_logger;
-    spdlog::sink_ptr m_dist_sink;
     Patch::Ptr m_set_cursor_pos_patch{};
 
     std::string m_error{""};
@@ -275,20 +282,19 @@ private:
     // Game-specific stuff
     std::unique_ptr<Mods> m_mods;
 
-    std::recursive_mutex m_hook_monitor_mutex{};
+    std::shared_mutex m_hook_monitor_mutex{};
     std::recursive_mutex m_startup_mutex{};
     std::unique_ptr<std::jthread> m_d3d_monitor_thread{};
-    std::chrono::steady_clock::time_point m_last_present_time{};
-    std::chrono::steady_clock::time_point m_last_message_time{};
-    std::chrono::steady_clock::time_point m_last_sendmessage_time{};
-    std::chrono::steady_clock::time_point m_last_chance_time{};
+    std::atomic<std::chrono::steady_clock::time_point> m_last_present_time{};
+    std::atomic<std::chrono::steady_clock::time_point> m_last_message_time{};
+    std::atomic<std::chrono::steady_clock::time_point> m_last_sendmessage_time{};
+    std::atomic<std::chrono::steady_clock::time_point> m_last_chance_time{};
     uint32_t m_frames_since_init{0};
-    bool m_has_last_chance{true};
+    std::atomic<bool> m_has_last_chance{true};
     bool m_first_initialize{true};
 
-    bool m_sent_message{false};
-    bool m_message_hook_requested{false};
-    bool m_console_setup{false};
+    std::atomic<bool> m_sent_message{false};
+    std::atomic<bool> m_message_hook_requested{false};
 
     RendererType m_renderer_type{RendererType::D3D11};
 
@@ -390,6 +396,16 @@ private:
 };
 
 extern std::unique_ptr<REFramework> g_framework;
+
+// 统一安全的钩子监视器互斥锁访问。
+// 在 g_framework 尚未初始化完成（构造函数尚未返回）时，后面的调用者自旋等待，
+// 避免其他线程（如 D3D11/D3D12 钩子）因空指针解引用导致崩溃。
+inline std::shared_mutex& get_hook_monitor_mutex_safe() {
+    while (g_framework == nullptr) {
+        std::this_thread::yield(); // 自旋等待启动线程完成
+    }
+    return g_framework->get_hook_monitor_mutex();
+}
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
     HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam); // Use ImGui::GetCurrentContext()

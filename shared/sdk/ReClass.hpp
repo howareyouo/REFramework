@@ -6,12 +6,6 @@
 #include "TDBVer.hpp"
 
 #pragma pack(push, r1, 1)
-#ifdef REFRAMEWORK_UNIVERSAL
-// Monolithic build: RE8 layout at global scope (majority of games use 0x60 REType).
-// MHWILDS/RE9 have 0x68 REType — runtime dispatch via RETypeLayouts.hpp accessors.
-#include "ReClass_Internal_RE8.hpp"
-#else
-// Legacy per-game build (when individual game macros are defined)
 #ifdef DMC5
 #include "ReClass_Internal_DMC5.hpp"
 #elif defined(PRAGMATA)
@@ -19,13 +13,11 @@
 #elif defined(RE9)
 #include "ReClass_Internal_RE9.hpp"
 #elif defined(MHWILDS)
-#include "ReClass_Internal_MHWILDS.hpp"
+#include "ReClass_Internal_MHWILDS.hpp" // Copy of DD2 (for now)
 #elif defined(MHSTORIES3)
-#include "ReClass_Internal_MHSTORIES3.hpp"
-#elif defined(STARFORCE)
-#include "ReClass_Internal_MHSTORIES3.hpp" // Copy of MHSTORIES3 (for now)
+#include "ReClass_Internal_MHSTORIES3.hpp" // Copy of MHWILDS (for now)
 #elif defined(DD2)
-#include "ReClass_Internal_DD2.hpp"
+#include "ReClass_Internal_DD2.hpp" // Copy of SF6
 #elif defined(SF6)
 #include "ReClass_Internal_SF6.hpp"
 #elif defined(MHRISE)
@@ -52,15 +44,13 @@
 #else
 #include "ReClass_Internal_RE2_TDB70.hpp"
 #endif
-#endif // game macros
-#endif // REFRAMEWORK_UNIVERSAL
+#endif
 #pragma pack(pop, r1)
 
 #include "Enums_Internal.hpp"
 
 #include "RETypes.hpp"
 #include "REType.hpp"
-#include "RETypeLayouts.hpp"
 #include "RETypeCLR.hpp"
 #include "RETypeDB.hpp"
 #include "RETypeDefinition.hpp"

@@ -33,4 +33,5 @@ private:
     };
 
     bool m_was_continuous_down{ false };
+    bool m_timescale_before_continuous{ false };
 };

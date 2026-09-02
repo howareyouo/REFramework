@@ -11,15 +11,11 @@ std::optional<std::string> SceneMods::on_initialize() {
 }
 
 void SceneMods::on_config_load(const utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
+    config_load_options(cfg, m_options);
 }
 
 void SceneMods::on_config_save(utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
+    config_save_options(cfg, m_options);
 }
 
 void SceneMods::on_frame() {
@@ -35,11 +31,17 @@ void SceneMods::on_frame() {
 
     if (m_timescale_continuous_key->is_key_down()) {
         set_timescale = true;
+        // Remember the persistent toggle state on the first frame of the hold
+        // so releasing the continuous key restores it instead of always
+        // clobbering it to disabled.
+        if (!m_was_continuous_down) {
+            m_timescale_before_continuous = m_set_timescale->value();
+        }
         m_was_continuous_down = true;
         m_set_timescale->value() = true;
     } else if (m_was_continuous_down) {
         set_timescale = true;
-        m_set_timescale->value() = false;
+        m_set_timescale->value() = m_timescale_before_continuous;
         m_was_continuous_down = false;
     }
 

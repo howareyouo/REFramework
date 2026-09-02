@@ -5,18 +5,14 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
-#include <deque>
 #include <shared_mutex>
 
 #include <Windows.h>
 
 #include <sol/sol.hpp>
-#include <asmjit/asmjit.h>
 
 #include "sdk/RETypeDB.hpp"
 #include "utility/FunctionHook.hpp"
-#include <utility/ScopeGuard.hpp>
-#include <utility/SafeCallbackVector.hpp>
 
 #include "Mod.hpp"
 
@@ -121,11 +117,6 @@ public:
         LAST
     };
 
-    enum class ReCallbackNextAction: uint32_t {
-        CONTINUE = 0,
-        STOP = 1
-    };
-
     struct GarbageCollectionData {
         GarbageCollectionHandler gc_handler{GarbageCollectionHandler::REFRAMEWORK_MANAGED};
         GarbageCollectionType gc_type{GarbageCollectionType::FULL};
@@ -141,7 +132,6 @@ public:
 
     void run_script(const std::string& p);
     sol::protected_function_result handle_protected_result(sol::protected_function_result result); // because protected_functions don't throw
-    bool should_remove_hook(const sol::protected_function_result &result);
 
     void on_frame();
     void on_draw_ui();
@@ -291,12 +281,12 @@ private:
 
     std::unordered_map<RETransform*, sol::protected_function> m_on_update_transform_fns{};
 
-    SafeCallbackVector<sol::protected_function> m_pre_gui_draw_element_fns{};
-    SafeCallbackVector<sol::protected_function> m_gui_draw_element_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_draw_ui_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_frame_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_script_reset_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_config_save_fns{};
+    std::vector<sol::protected_function> m_pre_gui_draw_element_fns{};
+    std::vector<sol::protected_function> m_gui_draw_element_fns{};
+    std::vector<sol::protected_function> m_on_draw_ui_fns{};
+    std::vector<sol::protected_function> m_on_frame_fns{};
+    std::vector<sol::protected_function> m_on_script_reset_fns{};
+    std::vector<sol::protected_function> m_on_config_save_fns{};
 
     struct HookDef {
         ::REManagedObject* obj{nullptr};
@@ -316,7 +306,7 @@ private:
 
     struct DelegateStorage {
         std::weak_ptr<ScriptState> owner{}; // Weak pointer to the ScriptState that owns this delegate storage because the ScriptState may be deleted. 
-        SafeCallbackVector<sol::protected_function> callbacks{};
+        std::vector<sol::protected_function> callbacks{};
 
     };
 
@@ -434,13 +424,12 @@ private:
     bool m_checked_scene_once{false};
     bool m_scene_okay{false};
     bool m_has_any_transform_updates{false};
+    bool m_console_spawned{false};
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
-    bool m_attempted_hook_battle_rule{false};
-    bool m_console_startup_checked{false};
-    int m_console_startup_delay_frames{2};
     std::optional<uint8_t> m_last_battle_type{};
     const ModToggle::Ptr m_log_to_disk{ ModToggle::create(generate_name("LogToDisk"), false) };
+    const ModToggle::Ptr m_script_generated_ui_open_state{ ModToggle::create(generate_name("ScriptGeneratedUIOpenState"), false) };
 
     const ModCombo::Ptr m_gc_handler { 
         ModCombo::create(generate_name("GarbageCollectionHandlerV2"),
@@ -479,8 +468,6 @@ private:
         ModSlider::create(generate_name("GarbageCollectionMajorMultiplier"), 1.0f, 1000.0f, 100.0f)
     };
 
-    const ModToggle::Ptr m_open_debug_console_at_startup{ ModToggle::create(generate_name("OpenDebugConsoleAtStartup"), false) };
-
     ValueList m_options{
         *m_log_to_disk,
         *m_gc_handler,
@@ -489,7 +476,7 @@ private:
         *m_gc_budget,
         *m_gc_minor_multiplier,
         *m_gc_major_multiplier,
-        *m_open_debug_console_at_startup
+        *m_script_generated_ui_open_state
     };
 
     // Resets the ScriptState and runs autorun scripts again.

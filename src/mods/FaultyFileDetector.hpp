@@ -6,22 +6,11 @@
 #include <safetyhook.hpp>
 #include <deque>
 #include <map>
-#include <regex>
 #include <shared_mutex>
 #include <thread>
 #include <unordered_set>
 #include <spdlog/spdlog.h>
 #include <utility/Scan.hpp>
-
-#include <sdk/TDBVer.hpp>
-
-#ifdef REFRAMEWORK_UNIVERSAL
-// Universal build compiles the detector unconditionally; runtime check in
-// early_init/on_frame gates whether hooks actually install.
-#define FAULTY_FILE_DETECTOR_ENABLED 1
-#elif TDB_VER >= 81
-#define FAULTY_FILE_DETECTOR_ENABLED 1
-#endif
 
 class FaultyFileDetector : public Mod {
 public:
@@ -51,7 +40,6 @@ public:
     std::optional<std::string> on_initialize() override;
     void on_config_load(const utility::Config& cfg) override;
     void on_config_save(utility::Config& cfg) override;
-    void on_frame() override;
     void on_draw_ui() override;
 
     static void early_init();
@@ -77,8 +65,16 @@ private:
 
     void initialize_impl();
 
+    // Transparent hash/equality so we can look up by std::wstring_view without
+    // allocating a temporary std::wstring on the (common) duplicate path.
+    struct WStringHash {
+        using is_transparent = void;
+        size_t operator()(std::wstring_view sv) const noexcept { return std::hash<std::wstring_view>{}(sv); }
+        size_t operator()(const std::wstring& s) const noexcept { return std::hash<std::wstring_view>{}(s); }
+    };
+
     std::optional<std::string> m_blocking_error{};
-    std::unordered_set<std::wstring> m_faulty_files{}; // All faulty files for spam detection
+    std::unordered_set<std::wstring, WStringHash, std::equal_to<>> m_faulty_files{}; // All faulty files for spam detection
     std::map<FaultyReason, std::deque<std::wstring>> m_recent_faulty_files_by_reason{}; // Recent files organized by reason
     std::shared_mutex m_mutex{};
     std::shared_ptr<spdlog::logger> m_logger{};
@@ -92,20 +88,6 @@ private:
     uint8_t m_resource_open_failed_register{0};
     bool m_initialized{false};
 
-    struct Notification {
-        std::string text;
-        FaultyReason reason;
-        float elapsed{0.0f};
-        bool started{false}; // false until first on_frame processes it
-    };
-
-    std::deque<Notification> m_notifications{};
-    static constexpr float NOTIFICATION_DURATION = 5.0f;
-    static constexpr float NOTIFICATION_FADE_IN = 0.3f;
-    static constexpr float NOTIFICATION_FADE_OUT = 0.5f;
-    static constexpr float NOTIFICATION_HEIGHT = 30.0f;
-    static constexpr float NOTIFICATION_PADDING = 8.0f;
-    static constexpr float NOTIFICATION_MARGIN = 4.0f;
     ModToggle::Ptr m_enabled{ ModToggle::create(generate_name("Enabled"), true) };
     ModInt32::Ptr m_max_recent_files{ ModInt32::create(generate_name("MaxRecentFiles"), 100) };
 

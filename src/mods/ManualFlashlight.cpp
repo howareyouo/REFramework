@@ -1,7 +1,6 @@
 #include "REFramework.hpp"
 
 #include "ManualFlashlight.hpp"
-#include <sdk/GameIdentity.hpp>
 
 using namespace utility;
 
@@ -34,23 +33,19 @@ void ManualFlashlight::on_draw_ui() {
 
     m_key->draw("Change Key");
 
-    if (sdk::GameIdentity::get().is_re8()) {
-        m_light_ignore_power_on_zones->draw("Ignore Light Power On Zones");
+#ifdef RE8
+    m_light_ignore_power_on_zones->draw("Ignore Light Power On Zones");
 
-        ImGui::Text("Light power on zones: %i\n", m_light_power_on_zones);
-    }
+    ImGui::Text("Light power on zones: %i\n", m_light_power_on_zones);
+#endif
 }
 
 void ManualFlashlight::on_config_load(const utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
+    config_load_options(cfg, m_options);
 }
 
 void ManualFlashlight::on_config_save(utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
+    config_save_options(cfg, m_options);
 }
 
 void ManualFlashlight::on_update_transform(RETransform* transform) {
@@ -58,89 +53,93 @@ void ManualFlashlight::on_update_transform(RETransform* transform) {
         return;
     }
 
-    if (!sdk::GameIdentity::get().is_re8()) {
+#ifndef RE8
+    if (m_illumination_manager == nullptr) {
+        m_illumination_manager = reframework::get_globals()->get<RopewayIlluminationManager>(game_namespace("IlluminationManager"));
         if (m_illumination_manager == nullptr) {
-            m_illumination_manager = reframework::get_globals()->get<RopewayIlluminationManager>(game_namespace("IlluminationManager"));
-            if (m_illumination_manager == nullptr) {
-                return;
-            }
-        }
-
-        if (transform != m_illumination_manager->get_game_object()->get_transform()) {
             return;
         }
+    }
 
-        m_illumination_manager->shouldUseFlashlight = (int32_t)m_wants_flashlight;
-        m_illumination_manager->someCounter = (int32_t)m_wants_flashlight;
-        m_illumination_manager->shouldUseFlashlight2 = m_wants_flashlight;
-    } else {
-        const auto reset_player_data = [&](REGameObject* new_player = nullptr) {
-            m_player = new_player;
-            m_player_hand_light = nullptr;
-        };
+    if (transform != m_illumination_manager->ownerGameObject->transform) {
+        return;
+    }
 
-        // Cache off "AppPropsManager" once.
+    m_illumination_manager->shouldUseFlashlight = (int32_t)m_wants_flashlight;
+    m_illumination_manager->someCounter = (int32_t)m_wants_flashlight;
+    m_illumination_manager->shouldUseFlashlight2 = m_wants_flashlight;
+#else
+    const auto reset_player_data = [&](REGameObject* new_player = nullptr) {
+        m_player = new_player;
+        m_player_hand_light = nullptr;
+    };
+
+    // Cache off "AppPropsManager" once.
+    if (m_props_manager == nullptr) {
+        m_props_manager = reframework::get_globals()->get<AppPropsManager>(game_namespace("PropsManager"));
         if (m_props_manager == nullptr) {
-            m_props_manager = reframework::get_globals()->get<AppPropsManager>(game_namespace("PropsManager"));
-            if (m_props_manager == nullptr) {
-                return;
-            }
+            return;
         }
+    }
 
+    if (m_player == nullptr || m_player->transform == nullptr) {
         const auto player = sdk::call_object_func_easy<REGameObject*>(m_props_manager, "get_Player");
         if (player == nullptr) {
             reset_player_data();
             return;
         }
+        reset_player_data(player);
+    }
 
-        const auto player_transform = player->get_transform();
-        if (player_transform == nullptr || transform != player_transform) {
+    // If this transform isn't the player's, there's nothing to do. The cache
+    // stays valid so we don't re-query get_Player for every non-player transform
+    // in the scene (which would be O(#transforms) native calls per frame).
+    if (transform != m_player->transform) {
+        return;
+    }
+
+    // Wait until "AppPlayerHandLight" is valid...
+    if (m_player_hand_light == nullptr) {
+        m_player_hand_light = re_component::find<AppPlayerHandLight2>(m_player->transform, game_namespace("PlayerHandLight"));
+        if (m_player_hand_light == nullptr) {
             return;
         }
+    }
 
-        if (m_player != player) {
-            reset_player_data(player);
-        }
+    // TODO: Check for scene change and cache this stuff, maybe theres a power on zone count in the current scene somewhere?
+    // Also, sometimes the game will force this on before it can be set here, making your flashlight toggle on.
+    // I don't really care to find a way around this since it's user-friendly anyway... Some areas are pitch-black.
+    auto light_power_on_zones = sdk::get_object_field<int32_t>(m_player_hand_light, "EnterHandLightPowerOnZoneCount");
 
-        // Wait until "AppPlayerHandLight" is valid...
-        if (m_player_hand_light == nullptr) {
-            m_player_hand_light = player_transform->find<AppPlayerHandLight2>(game_namespace("PlayerHandLight"));
-            if (m_player_hand_light == nullptr) {
-                return;
-            }
-        }
-
-        // TODO: Check for scene change and cache this stuff, maybe theres a power on zone count in the current scene somewhere?
-        // Also, sometimes the game will force this on before it can be set here, making your flashlight toggle on.
-        // I don't really care to find a way around this since it's user-friendly anyway... Some areas are pitch-black.
-        auto light_power_on_zones = sdk::get_object_field<int32_t>(m_player_hand_light, "EnterHandLightPowerOnZoneCount");
-
-        if (light_power_on_zones != nullptr) {
-            m_light_power_on_zones = *light_power_on_zones;
-            
-            if (m_light_ignore_power_on_zones->value()) {
-                *light_power_on_zones = 0;
-            }
-        }
-
-        auto is_continous_on = sdk::get_object_field<bool>(m_player_hand_light, "IsContinuousOn");
-
-        if (is_continous_on != nullptr) {
-            *is_continous_on = m_wants_flashlight;
+    if (light_power_on_zones != nullptr) {
+        m_light_power_on_zones = *light_power_on_zones;
+        
+        if (m_light_ignore_power_on_zones->value()) {
+            *light_power_on_zones = 0;
         }
     }
+
+    auto is_continous_on = sdk::get_object_field<bool>(m_player_hand_light, "IsContinuousOn");
+
+    if (is_continous_on != nullptr) {
+        *is_continous_on = m_wants_flashlight;
+    }
+#endif
 }
 
 void ManualFlashlight::on_disabled() noexcept {
-    if (!sdk::GameIdentity::get().is_re8()) {
-        if (m_illumination_manager != nullptr) {
-            m_illumination_manager->shouldUseFlashlight = 0;
-            m_illumination_manager->someCounter = 0;
-            m_illumination_manager->shouldUseFlashlight2 = false;
-        }
-    } else {
-        if (m_player_hand_light != nullptr) {
-            *sdk::get_object_field<bool>(m_player_hand_light, "IsContinuousOn") = false;
+#ifndef RE8
+    if (m_illumination_manager != nullptr) {
+        m_illumination_manager->shouldUseFlashlight = 0;
+        m_illumination_manager->someCounter = 0;
+        m_illumination_manager->shouldUseFlashlight2 = false;
+    }
+#else
+    if (m_player_hand_light != nullptr) {
+        auto is_continous_on = sdk::get_object_field<bool>(m_player_hand_light, "IsContinuousOn");
+        if (is_continous_on != nullptr) {
+            *is_continous_on = false;
         }
     }
+#endif
 }

@@ -5,32 +5,20 @@
 #include "RETypeDefinition.hpp"
 #include "REType.hpp"
 
-using namespace utility::re_type_accessor;
-
-#include "GameIdentity.hpp"
-
-size_t REType::runtime_size() {
-    static const auto size = []() -> size_t {
-        if (sdk::GameIdentity::get().is_mhwilds() || sdk::GameIdentity::get().is_re9()) return 0x68;
-        return 0x60;
-    }();
-    return size;
-}
-
 sdk::RETypeDefinition* utility::re_type::get_type_definition(REType* type) {
-    if (type == nullptr || get_classInfo(type) == nullptr) {
+    if (type == nullptr || type->classInfo == nullptr) {
         return nullptr;
     }
 
 #if TDB_VER > 49
-    return (sdk::RETypeDefinition*)get_classInfo(type);
+    return (sdk::RETypeDefinition*)type->classInfo;
 #else
-    return (sdk::RETypeDefinition*)get_classInfo(type)->classInfo;
+    return (sdk::RETypeDefinition*)type->classInfo->classInfo;
 #endif
 }
 
 uint32_t utility::re_type::get_vm_type(::REType* t) {
-    if (t == nullptr || get_classInfo(t) == nullptr) {
+    if (t == nullptr || t->classInfo == nullptr) {
         return (uint32_t)via::clr::VMObjType::NULL_;
     }
 
@@ -44,12 +32,12 @@ uint32_t utility::re_type::get_vm_type(::REType* t) {
 }
 
 uint32_t utility::re_type::get_value_type_size(::REType* t) {
-    if (t == nullptr || get_classInfo(t) == nullptr) {
+    if (t == nullptr || t->classInfo == nullptr) {
         return 0;
     }
 
     if (get_vm_type(t) != (uint32_t)via::clr::VMObjType::ValType) {
-        return get_size(t);
+        return t->size;
     }
 
     const auto tdef = get_type_definition(t);
@@ -62,11 +50,11 @@ uint32_t utility::re_type::get_value_type_size(::REType* t) {
 }
 
 bool utility::re_type::is_clr_type(::REType* t) {
-    return (t->get_flags() & (int16_t)via::dti::decl::Script) != 0;
+    return (t->flags & (int16_t)via::dti::decl::Script) != 0;
 }
 
 bool utility::re_type::is_singleton(::REType* t) {
-    return (t->get_flags() & (uint16_t)via::dti::decl::Singleton) != 0;
+    return (t->flags & (uint16_t)via::dti::decl::Singleton) != 0;
 }
 
 void* utility::re_type::get_singleton_instance(::REType* t) {
@@ -103,7 +91,7 @@ VariableDescriptor* utility::re_type::get_field_desc(::REType* t, std::string_vi
         return nullptr;
     }
 
-    auto full_name = std::string{t->get_type_name()} + "." + field.data();
+    auto full_name = std::string{t->name} + "." + field.data();
 
     {
         std::shared_lock _{ insertion_mutex };
@@ -113,21 +101,21 @@ VariableDescriptor* utility::re_type::get_field_desc(::REType* t, std::string_vi
         }
     }
 
-    for (; t != nullptr; t = get_super(t)) {
+    for (; t != nullptr; t = t->super) {
         auto vars = get_variables(t);
 
         if (vars == nullptr) {
             continue;
         }
 
-        for (auto i = 0; i < vars->get_num(); ++i) {
+        for (auto i = 0; i < vars->num; ++i) {
             auto& var = vars->data->descriptors[i];
 
-            if (var == nullptr || var->get_name() == nullptr) {
+            if (var == nullptr || var->name == nullptr) {
                 continue;
             }
 
-            if (field == var->get_name()) {
+            if (field == var->name) {
                 std::unique_lock _{insertion_mutex};
                 var_map[full_name] = var;
                 return var;
@@ -139,13 +127,13 @@ VariableDescriptor* utility::re_type::get_field_desc(::REType* t, std::string_vi
 }
 
 REVariableList* utility::re_type::get_variables(::REType* t) {
-    if (t == nullptr || get_fields(t) == nullptr || get_fields(t)->get_variables() == nullptr) {
+    if (t == nullptr || t->fields == nullptr || t->fields->variables == nullptr) {
         return nullptr;
     }
 
-    auto vars = get_fields(t)->get_variables();
+    auto vars = t->fields->variables;
 
-    if (vars->data == nullptr || vars->get_num() <= 0) {
+    if (vars->data == nullptr || vars->num <= 0) {
         return nullptr;
     }
 
@@ -160,7 +148,7 @@ FunctionDescriptor* utility::re_type::get_method_desc(::REType* t, std::string_v
         return nullptr;
     }
 
-    auto full_name = std::string{t->get_type_name()} + "." + name.data();
+    auto full_name = std::string{t->name} + "." + name.data();
 
     {
         std::shared_lock _{ method_insertion_mutex };
@@ -170,16 +158,16 @@ FunctionDescriptor* utility::re_type::get_method_desc(::REType* t, std::string_v
         }
     }
 
-    for (; t != nullptr; t = get_super(t)) {
-        auto fields = get_fields(t);
+    for (; t != nullptr; t = t->super) {
+        auto fields = t->fields;
 
-        if (fields == nullptr || fields->get_methods() == nullptr) {
+        if (fields == nullptr || fields->methods == nullptr) {
             continue;
         }
 
-        auto methods = fields->get_methods();
+        auto methods = fields->methods;
 
-        for (auto i = 0; i < fields->get_num(); ++i) {
+        for (auto i = 0; i < fields->num; ++i) {
             auto top = (*methods)[i];
 
             if (top == nullptr || *top == nullptr) {
@@ -188,11 +176,11 @@ FunctionDescriptor* utility::re_type::get_method_desc(::REType* t, std::string_v
 
             auto& holder = **top;
 
-            if (holder.descriptor == nullptr || holder.descriptor->get_name() == nullptr) {
+            if (holder.descriptor == nullptr || holder.descriptor->name == nullptr) {
                 continue;
             }
 
-            if (name == holder.descriptor->get_name()) {
+            if (name == holder.descriptor->name) {
                 std::unique_lock _{ method_insertion_mutex};
                 method_map[full_name] = holder.descriptor;
                 return holder.descriptor;

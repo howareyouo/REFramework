@@ -1,4 +1,3 @@
-#include <sdk/GameIdentity.hpp>
 #include <sdk/RETypeDB.hpp>
 #include <utility/Scan.hpp>
 #include <utility/Module.hpp>
@@ -44,11 +43,7 @@ void LooseFileLoader::on_frame() {
 }
 
 void LooseFileLoader::on_config_load(const utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_load(cfg);
-    }
-
-    m_texture_loader.on_config_load(cfg);
+    config_load_options(cfg, m_options);
 
     /*if (!m_attempted_hook && m_enabled->value()) {
         hook();
@@ -56,11 +51,7 @@ void LooseFileLoader::on_config_load(const utility::Config& cfg) {
 }
 
 void LooseFileLoader::on_config_save(utility::Config& cfg) {
-    for (IModValue& option : m_options) {
-        option.config_save(cfg);
-    }
-
-    m_texture_loader.on_config_save(cfg);
+    config_save_options(cfg, m_options);
 }
 
 void LooseFileLoader::on_draw_ui() {
@@ -87,8 +78,8 @@ void LooseFileLoader::on_draw_ui() {
     }
 
     if (m_hook_success) {
-        ImGui::TextWrapped("Files encountered: %d", m_files_encountered);
-        ImGui::TextWrapped("Loose files loaded: %d", m_loose_files_loaded);
+        ImGui::TextWrapped("Files encountered: %d", m_files_encountered.load());
+        ImGui::TextWrapped("Loose files loaded: %d", m_loose_files_loaded.load());
 
         if (ImGui::Button("Clear stats")) {
             m_files_encountered = 0;
@@ -103,8 +94,8 @@ void LooseFileLoader::on_draw_ui() {
 
         if (ImGui::TreeNode("Debug")) {
             ImGui::Checkbox("Enable file cache", &m_enable_file_cache);
-            ImGui::TextWrapped("Cache hits: %d", m_cache_hits);
-            ImGui::TextWrapped("Uncached hits: %d", m_uncached_hits);
+            ImGui::TextWrapped("Cache hits: %d", m_cache_hits.load());
+            ImGui::TextWrapped("Uncached hits: %d", m_uncached_hits.load());
 
             if (ImGui::Button("Clear existence cache")) {
                 clear_existence_cache();
@@ -149,8 +140,6 @@ void LooseFileLoader::on_draw_ui() {
             }
         }
     }
-
-    m_texture_loader.on_draw_ui();
 }
 
 void LooseFileLoader::hook() {
@@ -308,11 +297,7 @@ void LooseFileLoader::hook() {
         return;
     }
 
-    if (sdk::GameIdentity::get().tdb_ver() > 67) {
-        m_path_to_hash_hook = std::make_unique<FunctionHook>(candidate.value(), (uintptr_t)&path_to_hash_hook);
-    } else {
-        m_path_to_hash_hook = std::make_unique<FunctionHook>(candidate.value(), (uintptr_t)&path_to_hash_hook_legacy);
-    }
+    m_path_to_hash_hook = std::make_unique<FunctionHook>(candidate.value(), (uintptr_t)&path_to_hash_hook);
 
     if (!m_path_to_hash_hook->create()) {
         spdlog::error("[LooseFileLoader] Failed to hook path_to_hash");
@@ -322,28 +307,8 @@ void LooseFileLoader::hook() {
     m_hook_success = true;
 }
 
-static thread_local std::chrono::steady_clock::time_point g_last_time_logged_safe_exists{};
-
-bool safe_exists(const wchar_t* path) try {
-    return std::filesystem::exists(path);
-} catch (const std::filesystem::filesystem_error& e) {
-    if (std::chrono::steady_clock::now() - g_last_time_logged_safe_exists > std::chrono::seconds(1)) {
-        spdlog::error("[LooseFileLoader] Filesystem error in safe_exists: {}", e.what());
-        g_last_time_logged_safe_exists = std::chrono::steady_clock::now();
-    }
-    return false;
-} catch (const std::exception& e) {
-    if (std::chrono::steady_clock::now() - g_last_time_logged_safe_exists > std::chrono::seconds(1)) {
-        spdlog::error("[LooseFileLoader] Exception in safe_exists: {}", e.what());
-        g_last_time_logged_safe_exists = std::chrono::steady_clock::now();
-    }
-    return false;
-} catch (...) {
-    if (std::chrono::steady_clock::now() - g_last_time_logged_safe_exists > std::chrono::seconds(1)) {
-        spdlog::error("[LooseFileLoader] Unknown exception in safe_exists!");
-        g_last_time_logged_safe_exists = std::chrono::steady_clock::now();
-    }
-    return false;
+bool safe_exists(const wchar_t* path) {
+    return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
 }
 
 bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
@@ -377,11 +342,24 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
             // Intended to get rid of mutex usage which can be a bottleneck
             static thread_local std::unordered_set<size_t> files_on_disk_local{};
             static thread_local std::unordered_set<size_t> seen_files_local{};
+            static constexpr size_t kLocalCacheMaxSize = 4096;
 
             {
                 // No need to lock a mutex as these are thread_local
                 exists_on_disk = files_on_disk_local.contains(hash);
                 exists_in_cache = exists_on_disk || seen_files_local.contains(hash);
+            }
+
+            // Once the thread-local caches saturate they can no longer absorb new
+            // hashes, which would otherwise force every subsequent unknown hash down
+            // the expensive unique-lock + disk path forever. Fall back to a cheap
+            // shared-lock read of the global caches first; only genuinely new files
+            // then need the unique lock.
+            if (!exists_in_cache &&
+                (files_on_disk_local.size() >= kLocalCacheMaxSize || seen_files_local.size() >= kLocalCacheMaxSize)) {
+                std::shared_lock _{m_files_on_disk_mutex};
+                exists_on_disk = m_files_on_disk.contains(hash);
+                exists_in_cache = exists_on_disk || m_seen_files.contains(hash);
             }
 
             if (!exists_in_cache) {
@@ -392,7 +370,9 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
                 // Purpose of this is to only hit the disk once per unique file
                 if (m_files_on_disk.contains(hash) || safe_exists(path)) {
                     m_files_on_disk.insert(hash); // Global
-                    files_on_disk_local.insert(hash); // Thread local
+                    if (files_on_disk_local.size() < kLocalCacheMaxSize) {
+                        files_on_disk_local.insert(hash); // Thread local
+                    }
                     exists_on_disk = true;
                 }
 
@@ -405,7 +385,9 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
                 }
 
                 m_seen_files.insert(hash); // Global
-                seen_files_local.insert(hash); // Thread local
+                if (seen_files_local.size() < kLocalCacheMaxSize) {
+                    seen_files_local.insert(hash); // Thread local
+                }
                 ++m_uncached_hits;
             } else {
                 ++m_cache_hits;
@@ -435,49 +417,27 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
     return false;
 }
 
+#if TDB_VER > 67
 uint64_t LooseFileLoader::path_to_hash_hook(const wchar_t* path) {
+#else
+uint64_t LooseFileLoader::path_to_hash_hook(void* This, const wchar_t* path) {
+#endif
     const auto og = g_loose_file_loader->m_path_to_hash_hook->get_original<decltype(path_to_hash_hook)>();
+
+#if TDB_VER > 67
     const auto result = og(path);
-
-    if (g_loose_file_loader->handle_path(path, result)) {
-        return 4294967296;
-    }
-
-    return result;
-}
-
-uint64_t LooseFileLoader::path_to_hash_hook_legacy(void* This, const wchar_t* path) {
-    const auto og = g_loose_file_loader->m_path_to_hash_hook->get_original<decltype(path_to_hash_hook_legacy)>();
+#else
     const auto result = og(This, path);
+#endif
 
+    // true to skip.
     if (g_loose_file_loader->handle_path(path, result)) {
+#if TDB_VER > 67
+        return 4294967296;
+#else
         return 0xFFFFFFFF;
+#endif
     }
 
     return result;
-}
-
-bool LooseFileLoader::can_loosely_load_file(const wchar_t* path) {
-    if (!m_enabled->value()) {
-        return false;
-    }
-
-    if (path == nullptr || path[0] == L'\0') {
-        return false;
-    }
-
-    // DMC5 (TDB 67) uses the legacy calling convention (extra `this` pointer).
-    if (sdk::GameIdentity::get().tdb_ver() <= 67) {
-        return safe_exists(path);
-    }
-    auto hash = m_path_to_hash_hook->get_original<decltype(path_to_hash_hook)>()(path);
-    return handle_path(path, hash);
-}
-
-void LooseFileLoader::early_initialize() {
-    // LooseTextureLoader only supports TDB >= 81 (MHWILDS+).
-    if (sdk::GameIdentity::get().tdb_ver() >= 81) {
-        hook();
-        m_texture_loader.early_initialize();
-    }
 }

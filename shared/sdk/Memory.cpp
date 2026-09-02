@@ -36,6 +36,15 @@ void* allocate(size_t size, bool zero_memory) {
         return fn;
     }();
 
+    if (allocate_fn == nullptr) {
+        spdlog::error("[via::memory::allocate] allocate function not found, falling back to malloc");
+        auto* result = std::malloc(size);
+        if (zero_memory && result != nullptr) {
+            memset(result, 0, size);
+        }
+        return result;
+    }
+
     auto result = allocate_fn(size);
 
     if (zero_memory && result != nullptr) {
@@ -87,6 +96,12 @@ void deallocate(void* ptr) {
 
         return fn;
     }();
+
+    if (deallocate_fn == nullptr) {
+        spdlog::error("[via::memory::deallocate] deallocate function not found, falling back to free");
+        std::free(ptr);
+        return;
+    }
 
     deallocate_fn(ptr);
 }
