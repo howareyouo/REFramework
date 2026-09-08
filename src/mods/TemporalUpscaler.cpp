@@ -262,18 +262,39 @@ void TemporalUpscaler::on_early_present() {
             m_cached_render_size[0].store(0, std::memory_order_relaxed);
             m_cached_render_size[1].store(0, std::memory_order_relaxed);
 
-            if (m_first_frame_retry_count >= 6000) { // ~100s at 60fps of throttled retries
-                spdlog::error("[TemporalUpscaler] First frame init kept failing, giving up");
+            // Give up after a wall-clock budget, not a frame count: at low
+            // fps (loading screens) a frame-based threshold can stretch the
+            // retry phase to many minutes.
+            const auto now = std::chrono::steady_clock::now();
+
+            if (m_first_frame_failure_start == std::chrono::steady_clock::time_point{}) {
+                m_first_frame_failure_start = now;
+            }
+
+            if (now - m_first_frame_failure_start >= FIRST_FRAME_RETRY_TIMEOUT) {
+                spdlog::error("[TemporalUpscaler] First frame init kept failing for {}s, giving up",
+                    std::chrono::duration_cast<std::chrono::seconds>(FIRST_FRAME_RETRY_TIMEOUT).count());
                 m_backend_loaded = false;
             }
 
             return;
         }
+
+        // Init succeeded — reset the failure timer so a later reinit failure
+        // gets a fresh give-up budget.
+        m_first_frame_failure_start = std::chrono::steady_clock::time_point{};
     }
 
     if (m_wants_reinitialize) {
         release_upscale_features();
         m_wants_reinitialize = false;
+
+        // release_upscale_features() early-returns when the textures are
+        // already released and then skips zeroing this cache — zero it
+        // unconditionally so the render size is always re-queried after a
+        // reinit, regardless of which path release took.
+        m_cached_render_size[0].store(0, std::memory_order_relaxed);
+        m_cached_render_size[1].store(0, std::memory_order_relaxed);
 
         if (init_upscale_features()) {
             return;
@@ -287,8 +308,6 @@ void TemporalUpscaler::on_early_present() {
         m_initialized = false;
         m_first_frame_finished = false;
         m_set_view.store(false, std::memory_order_relaxed);
-        m_cached_render_size[0].store(0, std::memory_order_relaxed);
-        m_cached_render_size[1].store(0, std::memory_order_relaxed);
         return;
     }
 
@@ -317,7 +336,7 @@ void TemporalUpscaler::on_early_present() {
         auto backbuffer = get_backbuffer_d3d12(bb_index);
 
         if (backbuffer == nullptr) {
-            if (m_missing_input_warn_counter++ % 600 == 0) {
+            if (m_missing_input_warn_counters[WARN_BACKBUFFER]++ % 600 == 0) {
                 spdlog::error("[TemporalUpscaler] Failed to get backbuffer (D3D12)");
             }
 
@@ -337,15 +356,15 @@ void TemporalUpscaler::on_early_present() {
         auto& state = m_eye_states[0];
 
         if (state.depth == nullptr) {
-            if (m_missing_input_warn_counter++ % 600 == 0) {
+            if (m_missing_input_warn_counters[WARN_DEPTH]++ % 600 == 0) {
                 spdlog::error("[TemporalUpscaler] Failed to get depth stencil (D3D12)");
             }
         } else if (state.motion_vectors == nullptr) {
-            if (m_missing_input_warn_counter++ % 600 == 0) {
+            if (m_missing_input_warn_counters[WARN_MOTION_VECTORS]++ % 600 == 0) {
                 spdlog::error("[TemporalUpscaler] Failed to get motion vectors (D3D12)");
             }
         } else if (state.color == nullptr) {
-            if (m_missing_input_warn_counter++ % 600 == 0) {
+            if (m_missing_input_warn_counters[WARN_COLOR]++ % 600 == 0) {
                 spdlog::error("[TemporalUpscaler] Failed to get color buffer (D3D12)");
             }
         } else {
@@ -434,18 +453,33 @@ void TemporalUpscaler::on_early_present() {
 bool TemporalUpscaler::on_first_frame() {
     spdlog::info("[TemporalUpscaler] Initializing first frame...");
 
-    m_is_d3d12 = g_framework->is_dx12();
+    // Plugin-global setup runs once per session (see m_directx_setup_done in
+    // the header). Only init_upscale_features() below is safe to retry.
+    if (!m_directx_setup_done) {
+        m_is_d3d12 = g_framework->is_dx12();
 
-    InitLogDelegate([](char* msg, int size) {
-        spdlog::info("[TemporalUpscaler] {}", msg);
-    });
+        InitLogDelegate([](char* msg, int size) {
+            spdlog::info("[TemporalUpscaler] {}", msg);
+        });
 
-    if (m_is_d3d12) {
-        auto& hook = g_framework->get_d3d12_hook();
-        SetupDirectX(hook->get_command_queue(), PDGraphicsAPI::D3D12);
-    } else {
-        auto& hook = g_framework->get_d3d11_hook();
-        SetupDirectX(hook->get_device(), PDGraphicsAPI::D3D11);
+        bool setup_ok = false;
+
+        if (m_is_d3d12) {
+            auto& hook = g_framework->get_d3d12_hook();
+            setup_ok = SetupDirectX(hook->get_command_queue(), PDGraphicsAPI::D3D12);
+        } else {
+            auto& hook = g_framework->get_d3d11_hook();
+            setup_ok = SetupDirectX(hook->get_device(), PDGraphicsAPI::D3D11);
+        }
+
+        if (!setup_ok) {
+            // Return false without setting the guard so the throttled retry
+            // path re-attempts SetupDirectX as well.
+            spdlog::error("[TemporalUpscaler] SetupDirectX failed");
+            return false;
+        }
+
+        m_directx_setup_done = true;
     }
 
     if (!init_upscale_features()) {
@@ -908,33 +942,31 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
         }
 
         if (root_layer != nullptr) {
-    // Resolve the Output layer via find_layer_recursive (cached REType*, cheap
-    // pointer walk) from the persistent root layer, then re-scan scene layers
-    // EVERY frame. The engine can destroy/recreate the scene layer tree between
-    // frames (scene transitions, loading) without changing the Output layer
-    // pointer, so caching a Scene* across frames is a use-after-free hazard
-    // (this exact pattern was reverted once in bab6cd9a). The scan itself is
-    // allocation-free (m_valid_scene_layers is reused across frames), the
-    // resulting Scene* is pinned into an intrusive_ptr below, and D3D12
-    // resources are still only re-fetched when the selected scene layer
-    // actually changes.
-    static auto output_layer_type = sdk::find_type_definition("via.render.layer.Output")->get_type();
-    auto [output_parent, output_layer] = root_layer->find_layer_recursive(output_layer_type);
+            // Resolve the Output layer via find_layer_recursive (cached REType*, cheap
+            // pointer walk) from the persistent root layer, then re-scan scene layers
+            // EVERY frame. The engine can destroy/recreate the scene layer tree between
+            // frames (scene transitions, loading) without changing the Output layer
+            // pointer, so caching a Scene* across frames is a use-after-free hazard
+            // (this exact pattern was reverted once in bab6cd9a). The scan itself is
+            // allocation-free (m_valid_scene_layers is reused across frames), the
+            // resulting Scene* is pinned into an intrusive_ptr below, and D3D12
+            // resources are still only re-fetched when the selected scene layer
+            // actually changes.
+            static auto output_layer_type = sdk::find_type_definition("via.render.layer.Output")->get_type();
+            auto [output_parent, output_layer] = root_layer->find_layer_recursive(output_layer_type);
 
-    auto* current_output_layer = (output_layer != nullptr && *output_layer != nullptr) ? *output_layer : nullptr;
+            auto* current_output_layer = (output_layer != nullptr && *output_layer != nullptr) ? *output_layer : nullptr;
 
-    if (current_output_layer != nullptr) {
-        m_output_layer = (decltype(m_output_layer))current_output_layer;
-        // Allocation-free variant: reuses the member buffer across frames
-        // (render thread only) instead of allocating a fresh vector per frame.
-        current_output_layer->find_fully_rendered_scene_layers(m_valid_scene_layers);
-    } else {
-        m_valid_scene_layers.clear();
-    }
+            if (current_output_layer != nullptr) {
+                m_output_layer = (decltype(m_output_layer))current_output_layer;
+                // Allocation-free variant: reuses the member buffer across frames
+                // (render thread only) instead of allocating a fresh vector per frame.
+                current_output_layer->find_fully_rendered_scene_layers(m_valid_scene_layers);
+            } else {
+                m_valid_scene_layers.clear();
+            }
 
-    auto& valid_scene_layers = m_valid_scene_layers;
-
-            if (valid_scene_layers.empty()) {
+            if (m_valid_scene_layers.empty()) {
                 m_eye_states[0].scene_layer = nullptr;
                 m_eye_states[1].scene_layer = nullptr;
                 return;
@@ -943,16 +975,16 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
             // Track if the scene layer changed so we know whether to re-fetch D3D12 resources
             auto* prev_scene_layer = m_eye_states[0].scene_layer.get();
 
-            if (valid_scene_layers.size() > 1) {
+            if (m_valid_scene_layers.size() > 1) {
                 if (m_displayed_scene == 0) {
-                    m_eye_states[0].scene_layer = valid_scene_layers[0];
+                    m_eye_states[0].scene_layer = m_valid_scene_layers[0];
                 } else {
-                    m_eye_states[0].scene_layer = valid_scene_layers[1];
+                    m_eye_states[0].scene_layer = m_valid_scene_layers[1];
                 }
 
                 m_eye_states[1].scene_layer = nullptr;
             } else {
-                m_eye_states[0].scene_layer = valid_scene_layers[0];
+                m_eye_states[0].scene_layer = m_valid_scene_layers[0];
                 m_eye_states[1].scene_layer = nullptr;
             }
 
@@ -1170,7 +1202,7 @@ ID3D12Resource* TemporalUpscaler::get_backbuffer_d3d12(uint32_t index) {
 
         const auto desc = backbuffer->GetDesc();
         m_backbuffer_size[0].store((uint32_t)desc.Width, std::memory_order_relaxed);
-        m_backbuffer_size[1].store(desc.Height, std::memory_order_relaxed);
+        m_backbuffer_size[1].store((uint32_t)desc.Height, std::memory_order_relaxed);
     }
 
     return backbuffer.Get();
