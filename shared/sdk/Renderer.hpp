@@ -242,7 +242,10 @@ public:
     std::vector<RenderLayer*> find_layers(::REType* layer_type);
     std::vector<layer::Scene*> find_all_scene_layers();
     std::vector<layer::Scene*> find_fully_rendered_scene_layers();
-    
+    // Allocation-free variant: fills the caller's vector (cleared first) so
+    // per-frame callers can reuse the buffer instead of allocating a new one.
+    void find_fully_rendered_scene_layers(std::vector<layer::Scene*>& out);
+
     RenderLayer* get_parent();
     void set_parent(RenderLayer* layer);
     RenderLayer* find_parent(::REType* layer_type);
