@@ -112,6 +112,7 @@ private:
     std::atomic<bool> m_has_queued_release_resources{false}; // P5: lock-free fast path for finish_release_resources
 
     bool m_first_frame_finished{false};
+    uint32_t m_first_frame_retry_count{0}; // throttled retry counter for first-frame/reinit failures
     bool m_initialized{false};
     bool m_is_d3d12{false};
     bool m_backend_loaded{false};

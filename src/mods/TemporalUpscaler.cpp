@@ -232,17 +232,54 @@ void TemporalUpscaler::on_early_present() {
     }
 
     if (!m_first_frame_finished) {
+        // First-frame init can fail transiently during startup (swapchain or
+        // backbuffer not ready yet). Retry on a throttle instead of permanently
+        // disabling the module: a permanent disable left the engine's spoofed
+        // SceneView size inconsistent with reality, misaligning the UI.
+        const bool first_attempt = m_first_frame_retry_count == 0;
+        ++m_first_frame_retry_count;
+
+        if (!first_attempt && (m_first_frame_retry_count % 60) != 0) {
+            return;
+        }
+
         if (!on_first_frame()) {
-            m_backend_loaded = false;
             m_initialized = false;
+
+            // Lift the resolution spoof immediately so the engine renders at
+            // its real size while we retry — otherwise on_view_get_size keeps
+            // feeding it the dead backend's cached render size.
+            m_set_view.store(false, std::memory_order_relaxed);
+            m_cached_render_size[0].store(0, std::memory_order_relaxed);
+            m_cached_render_size[1].store(0, std::memory_order_relaxed);
+
+            if (m_first_frame_retry_count >= 6000) { // ~100s at 60fps of throttled retries
+                spdlog::error("[TemporalUpscaler] First frame init kept failing, giving up");
+                m_backend_loaded = false;
+            }
+
             return;
         }
     }
 
     if (m_wants_reinitialize) {
         release_upscale_features();
-        init_upscale_features();
         m_wants_reinitialize = false;
+
+        if (init_upscale_features()) {
+            return;
+        }
+
+        // Reinit failed — the original code ignored the return value here and
+        // kept ready() true with a dead backend, leaving the engine stuck at
+        // the spoofed low resolution. Drop to the throttled first-frame retry
+        // path above instead.
+        spdlog::error("[TemporalUpscaler] Reinit failed, scheduling retry");
+        m_initialized = false;
+        m_first_frame_finished = false;
+        m_set_view.store(false, std::memory_order_relaxed);
+        m_cached_render_size[0].store(0, std::memory_order_relaxed);
+        m_cached_render_size[1].store(0, std::memory_order_relaxed);
         return;
     }
 
@@ -380,7 +417,6 @@ void TemporalUpscaler::on_early_present() {
 bool TemporalUpscaler::on_first_frame() {
     spdlog::info("[TemporalUpscaler] Initializing first frame...");
 
-    m_first_frame_finished = true;
     m_is_d3d12 = g_framework->is_dx12();
 
     InitLogDelegate([](char* msg, int size) {
@@ -400,6 +436,7 @@ bool TemporalUpscaler::on_first_frame() {
     }
 
     m_initialized = true;
+    m_first_frame_finished = true;
 
     return true;
 }
