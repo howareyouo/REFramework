@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <utility/FunctionHook.hpp>
 #include <sdk/intrusive_ptr.hpp>
 
@@ -117,9 +118,29 @@ private:
 
     bool m_first_frame_finished{false};
     uint32_t m_first_frame_retry_count{0}; // throttled retry counter for first-frame/reinit failures
-    uint32_t m_missing_input_warn_counter{0}; // throttles per-frame "missing depth/MV/color" error logs
+    // Time-based give-up budget for first-frame/reinit retries (frame counts
+    // don't map to wall time — loading screens can run at single-digit fps).
+    // Default-constructed (epoch) means "no failure in progress"; reset on
+    // every successful init so a later reinit failure gets a fresh budget.
+    // 5s is generous: transient startup failures (swapchain/backbuffer not
+    // ready) resolve within the first few frames, so anything longer is a
+    // permanent problem and just spams SetupDirectX retries + logs.
+    static constexpr auto FIRST_FRAME_RETRY_TIMEOUT{std::chrono::seconds{5}};
+    std::chrono::steady_clock::time_point m_first_frame_failure_start{};
+    // Per-message throttles for the per-frame "missing backbuffer/depth/MV/color"
+    // error logs — one counter each so a frequently-failing input can't starve
+    // the other messages. Indexed by WarnSource.
+    enum WarnSource : size_t { WARN_BACKBUFFER = 0, WARN_DEPTH, WARN_MOTION_VECTORS, WARN_COLOR, WARN_COUNT };
+    std::array<uint32_t, WARN_COUNT> m_missing_input_warn_counters{};
     bool m_initialized{false};
     bool m_is_d3d12{false};
+    // SetupDirectX/InitLogDelegate are once-per-session plugin-global setup
+    // (the original code ran on_first_frame exactly once, and even device
+    // resets never re-called SetupDirectX). The retry path can invoke
+    // on_first_frame many times, so these are guarded by this flag and only
+    // init_upscale_features() is retried. Set only after SetupDirectX
+    // succeeds, so a failed setup is itself retried.
+    bool m_directx_setup_done{false};
     bool m_backend_loaded{false};
     bool m_backbuffer_inconsistency{false};
     bool m_upscale{true};
