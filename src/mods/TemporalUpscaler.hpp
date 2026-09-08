@@ -102,6 +102,10 @@ private:
     uint32_t get_render_width() const;
     uint32_t get_render_height() const;
     void update_motion_scale();
+    // Returns the cached swapchain backbuffer for the given index, filling the
+    // cache (and m_backbuffer_size) on first access. Avoids a per-frame
+    // GetBuffer COM round-trip on the present thread.
+    ID3D12Resource* get_backbuffer_d3d12(uint32_t index);
 
     void on_render_resource_release(sdk::renderer::RenderResource* resource);
     void finish_release_resources();
@@ -113,6 +117,7 @@ private:
 
     bool m_first_frame_finished{false};
     uint32_t m_first_frame_retry_count{0}; // throttled retry counter for first-frame/reinit failures
+    uint32_t m_missing_input_warn_counter{0}; // throttles per-frame "missing depth/MV/color" error logs
     bool m_initialized{false};
     bool m_is_d3d12{false};
     bool m_backend_loaded{false};
@@ -136,9 +141,15 @@ private:
     // Scene layers are still re-resolved every frame (engine can destroy/recreate them)
     uint32_t m_frame_counter{0};
 
-    // P1: throttle camera/render-config queries
-    static constexpr uint32_t CAMERA_SAMPLE_INTERVAL{5};
+    // P1: throttle camera/render-config queries. Reflection calls through the
+    // engine's type system are an order of magnitude more expensive than normal
+    // calls, so both are sampled at separate intervals: camera near/far/FOV
+    // rarely change (only on zoom), and the render-config AA/image-quality
+    // assertion almost never needs re-applying mid-session.
+    static constexpr uint32_t CAMERA_SAMPLE_INTERVAL{15};
+    static constexpr uint32_t RENDER_CONFIG_SAMPLE_INTERVAL{120};
     bool m_camera_params_cached{false};
+    bool m_render_config_cached{false};
 
     // P2: dedup fix_output_layer
     bool m_output_layer_fixed_this_frame{false};
@@ -200,6 +211,10 @@ private:
 
     std::array<EyeState, 2> m_eye_states{};
 
+    // Reused buffer for the per-frame find_fully_rendered_scene_layers scan
+    // (avoids a vector allocation every frame on the render thread).
+    std::vector<sdk::renderer::layer::Scene*> m_valid_scene_layers{};
+
     // 3 giant textures to encapsulate the motion vectors, depth, and color buffers
     // because the upscaler needs them all in one texture
     // well... it doesn't necessarily need them
@@ -226,6 +241,12 @@ private:
 
     std::array<d3d12::CommandContext, 3> m_copiers{};
     ComPtr<ID3D12Resource> m_old_backbuffer{};
+
+    // Cached swapchain backbuffers, indexed by GetCurrentBackBufferIndex().
+    // Swapchain buffers are stable until ResizeBuffers, which always routes
+    // through REFramework's on_resize_buffers -> on_reset -> on_device_reset,
+    // where this cache is invalidated. 16 covers DXGI's maximum BufferCount.
+    std::array<ComPtr<ID3D12Resource>, 16> m_backbuffers{};
 
     std::array<std::array<Matrix4x4f, 6>, 2> m_old_projection_matrix{};
     std::array<std::array<Matrix4x4f, 6>, 2> m_old_view_matrix{};

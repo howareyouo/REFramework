@@ -2,6 +2,8 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+#include <algorithm>
+
 #include <utility/Module.hpp>
 #include <utility/Scan.hpp>
 #include <utility/ScopeGuard.hpp>
@@ -75,7 +77,10 @@ std::optional<std::string> TemporalUpscaler::on_initialize() {
             spdlog::info("[TemporalUpscaler] No upscale methods are available, TemporalUpscaler will not work");
             m_backend_loaded = false;
         } else {
-            m_upscale_type = (PDUpscaleType)m_available_upscale_methods[m_available_upscale_method_names[m_available_upscale_type]];
+            // Clamp the saved index — it may exceed the available method count
+            // if the config was written on a machine with more upscalers (e.g. XeSS).
+            const auto index = std::min<size_t>(m_available_upscale_type, m_available_upscale_method_names.size() - 1);
+            m_upscale_type = (PDUpscaleType)m_available_upscale_methods[m_available_upscale_method_names[index]];
         }
     }
 
@@ -204,7 +209,11 @@ void TemporalUpscaler::on_draw_ui() {
     if (ImGui::TreeNode("Debug Options")) {
         ImGui::Checkbox("Upscale", &m_upscale);
         ImGui::Checkbox("Jitter", &m_jitter);
-        ImGui::Checkbox("Allow Engine TAA", &m_allow_taa);
+
+        if (ImGui::Checkbox("Allow Engine TAA", &m_allow_taa)) {
+            // Don't wait for the next throttled render-config sample to apply.
+            m_render_config_cached = false;
+        }
 
         ImGui::SliderInt("Displayed Scene", &m_displayed_scene, 0, 1);
         ImGui::DragFloat("Jitter Scale X", &m_jitter_scale[0], 0.01f, -5.0f, 5.0f);
@@ -291,8 +300,9 @@ void TemporalUpscaler::on_early_present() {
         return;
     }
 
-    // P4: Cache render size — only re-query PDPerfPlugin when reinit flag is set
-    if (m_wants_reinitialize || m_cached_render_size[0].load(std::memory_order_relaxed) == 0) {
+    // P4: Cache render size — only re-queried when invalidated (reinit/device
+    // reset zeroes the cache; get_backbuffer_d3d12 refreshes it when refilled).
+    if (m_cached_render_size[0].load(std::memory_order_relaxed) == 0) {
         m_cached_render_size[0].store(get_render_width(), std::memory_order_relaxed);
         m_cached_render_size[1].store(get_render_height(), std::memory_order_relaxed);
     }
@@ -300,20 +310,21 @@ void TemporalUpscaler::on_early_present() {
     if (m_is_d3d12) {
         auto& hook = g_framework->get_d3d12_hook();
         auto swapchain = hook->get_swap_chain();
-        ComPtr<ID3D12Resource> backbuffer{};
 
-        if (FAILED(swapchain->GetBuffer(swapchain->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer)))) {
-            spdlog::error("[TemporalUpscaler] Failed to get backbuffer (D3D12)");
+        // Cached backbuffer fetch (see get_backbuffer_d3d12) — replaces the
+        // per-frame GetBuffer + GetDesc COM round-trips.
+        const auto bb_index = swapchain->GetCurrentBackBufferIndex();
+        auto backbuffer = get_backbuffer_d3d12(bb_index);
+
+        if (backbuffer == nullptr) {
+            if (m_missing_input_warn_counter++ % 600 == 0) {
+                spdlog::error("[TemporalUpscaler] Failed to get backbuffer (D3D12)");
+            }
+
             return;
         }
 
-        // P5: Removed unused device variable (was fetched but never referenced).
-        auto bb_desc = backbuffer->GetDesc();
-
-        m_backbuffer_size[0].store(bb_desc.Width, std::memory_order_relaxed);
-        m_backbuffer_size[1].store(bb_desc.Height, std::memory_order_relaxed);
-
-        auto& copier = m_copiers[swapchain->GetCurrentBackBufferIndex() % m_copiers.size()];
+        auto& copier = m_copiers[bb_index % m_copiers.size()];
         // Batch1: bounded wait — INFINITE would deadlock the present thread forever
         // on a GPU hang or device removal; timing out just skips one frame's reclaim
         // and the next wait() retries (waiting_for_fence stays set).
@@ -326,11 +337,17 @@ void TemporalUpscaler::on_early_present() {
         auto& state = m_eye_states[0];
 
         if (state.depth == nullptr) {
-            spdlog::error("[TemporalUpscaler] Failed to get depth stencil (D3D12)");
+            if (m_missing_input_warn_counter++ % 600 == 0) {
+                spdlog::error("[TemporalUpscaler] Failed to get depth stencil (D3D12)");
+            }
         } else if (state.motion_vectors == nullptr) {
-            spdlog::error("[TemporalUpscaler] Failed to get motion vectors (D3D12)");
+            if (m_missing_input_warn_counter++ % 600 == 0) {
+                spdlog::error("[TemporalUpscaler] Failed to get motion vectors (D3D12)");
+            }
         } else if (state.color == nullptr) {
-            spdlog::error("[TemporalUpscaler] Failed to get color buffer (D3D12)");
+            if (m_missing_input_warn_counter++ % 600 == 0) {
+                spdlog::error("[TemporalUpscaler] Failed to get color buffer (D3D12)");
+            }
         } else {
             const auto evaluate_id = get_evaluate_id(0);
             const auto evaluate_index = evaluate_id - 1;
@@ -363,14 +380,14 @@ void TemporalUpscaler::on_early_present() {
             const bool direct_output = m_direct_output->value() && !hook->is_framegen_swapchain();
 
             if (direct_output) {
-                params.destination = backbuffer.Get();
+                params.destination = backbuffer;
 
                 // Transition from the ACTUAL last-known state (not a hardcoded
                 // PRESENT): if a previous frame's post-barrier was dropped
                 // (fence-wait timeout -> closed list), the buffer is still in
                 // UAV and this becomes a no-op, letting the state machine
                 // self-heal within one frame instead of freezing forever.
-                copier.transition(backbuffer.Get(), m_bb_output_state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                copier.transition(backbuffer, m_bb_output_state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                 m_bb_output_state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
                 copier.execute();
 
@@ -383,18 +400,18 @@ void TemporalUpscaler::on_early_present() {
             EvaluateUpscaler(&params);
 
             if (direct_output) {
-                copier.transition(backbuffer.Get(), m_bb_output_state, D3D12_RESOURCE_STATE_PRESENT);
+                copier.transition(backbuffer, m_bb_output_state, D3D12_RESOURCE_STATE_PRESENT);
                 m_bb_output_state = D3D12_RESOURCE_STATE_PRESENT;
             } else {
                 // Restore any stale state left by a dropped direct-output
                 // barrier before copying, so the copy path always starts from
                 // the canonical PRESENT.
                 if (m_bb_output_state != D3D12_RESOURCE_STATE_PRESENT) {
-                    copier.transition(backbuffer.Get(), m_bb_output_state, D3D12_RESOURCE_STATE_PRESENT);
+                    copier.transition(backbuffer, m_bb_output_state, D3D12_RESOURCE_STATE_PRESENT);
                     m_bb_output_state = D3D12_RESOURCE_STATE_PRESENT;
                 }
 
-                copier.copy((ID3D12Resource*)m_upscaled_textures[evaluate_index], backbuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PRESENT);
+                copier.copy((ID3D12Resource*)m_upscaled_textures[evaluate_index], backbuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PRESENT);
             }
         }
 
@@ -452,18 +469,16 @@ bool TemporalUpscaler::init_upscale_features() {
         auto& hook = g_framework->get_d3d12_hook();
 
         auto swapchain = hook->get_swap_chain();
-        ComPtr<ID3D12Resource> backbuffer{};
 
-        if (FAILED(swapchain->GetBuffer(swapchain->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer)))) {
+        // Fills the backbuffer cache (and m_backbuffer_size) if not yet populated.
+        auto backbuffer = get_backbuffer_d3d12(swapchain->GetCurrentBackBufferIndex());
+
+        if (backbuffer == nullptr) {
             spdlog::error("[TemporalUpscaler] Failed to get backbuffer (D3D12)");
             return false;
         }
 
-        // Get bb desc
         const auto bb_desc = backbuffer->GetDesc();
-
-        m_backbuffer_size[0].store(bb_desc.Width, std::memory_order_relaxed);
-        m_backbuffer_size[1].store(bb_desc.Height, std::memory_order_relaxed);
         m_bb_output_state = D3D12_RESOURCE_STATE_PRESENT;
 
         out_w = bb_desc.Width;
@@ -560,9 +575,14 @@ void TemporalUpscaler::release_upscale_features() {
 
     m_wants_reinitialize = true;
     m_camera_params_cached = false; // Force camera re-query after reinit
+    m_render_config_cached = false; // Force render-config re-query after reinit
     m_output_layer = nullptr; // Force Output layer re-resolve after reinit
     m_cached_render_size[0].store(0, std::memory_order_relaxed); // Force render size re-query after reinit
     m_cached_render_size[1].store(0, std::memory_order_relaxed);
+
+    for (auto& backbuffer : m_backbuffers) {
+        backbuffer.Reset(); // Swapchain buffers may be stale after reinit/device reset
+    }
     
     for (auto& state : m_eye_states) {
         state.color.Reset();
@@ -594,6 +614,12 @@ void TemporalUpscaler::on_device_reset() {
     // P6: Invalidate cached root layer — engine may rebuild the render pipeline
     m_cached_root_layer = nullptr;
     m_layer_rescan_counter = 0;
+    // Resize/device reset recreates the swapchain buffers. This must run even
+    // when release_upscale_features early-returned (textures already released),
+    // or the cache would hold dangling pointers to the old swapchain's buffers.
+    for (auto& backbuffer : m_backbuffers) {
+        backbuffer.Reset();
+    }
 }
 
 void TemporalUpscaler::on_view_get_size(REManagedObject* scene_view, float* result) {
@@ -887,22 +913,26 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
     // EVERY frame. The engine can destroy/recreate the scene layer tree between
     // frames (scene transitions, loading) without changing the Output layer
     // pointer, so caching a Scene* across frames is a use-after-free hazard
-    // (this exact pattern was reverted once in bab6cd9a). find_fully_rendered_
-    // scene_layers allocates a small vector per frame, which is cheap next to
-    // the per-frame D3D12 work; the resulting Scene* is pinned into an
-    // intrusive_ptr below, and D3D12 resources are still only re-fetched when
-    // the selected scene layer actually changes.
+    // (this exact pattern was reverted once in bab6cd9a). The scan itself is
+    // allocation-free (m_valid_scene_layers is reused across frames), the
+    // resulting Scene* is pinned into an intrusive_ptr below, and D3D12
+    // resources are still only re-fetched when the selected scene layer
+    // actually changes.
     static auto output_layer_type = sdk::find_type_definition("via.render.layer.Output")->get_type();
     auto [output_parent, output_layer] = root_layer->find_layer_recursive(output_layer_type);
 
     auto* current_output_layer = (output_layer != nullptr && *output_layer != nullptr) ? *output_layer : nullptr;
 
-    std::vector<sdk::renderer::layer::Scene*> valid_scene_layers;
-
     if (current_output_layer != nullptr) {
         m_output_layer = (decltype(m_output_layer))current_output_layer;
-        valid_scene_layers = current_output_layer->find_fully_rendered_scene_layers();
+        // Allocation-free variant: reuses the member buffer across frames
+        // (render thread only) instead of allocating a fresh vector per frame.
+        current_output_layer->find_fully_rendered_scene_layers(m_valid_scene_layers);
+    } else {
+        m_valid_scene_layers.clear();
     }
+
+    auto& valid_scene_layers = m_valid_scene_layers;
 
             if (valid_scene_layers.empty()) {
                 m_eye_states[0].scene_layer = nullptr;
@@ -992,32 +1022,41 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
         m_eye_states[1].motion_vectors.Reset();
         m_eye_states[1].color.Reset();
 
-        // P1: Throttle camera/render-config queries to every N frames
-        bool need_camera_update = !m_camera_params_cached || (m_frame_counter % CAMERA_SAMPLE_INTERVAL == 0);
+        // P1: Throttle camera/render-config queries to every N frames — the
+        // engine reflection calls (get_primary_camera, method->call) are an
+        // order of magnitude more expensive than normal code. Camera near/far/
+        // FOV and the render config are independent, so they are sampled at
+        // separate intervals: the camera block needs fresh-ish values (zoom),
+        // while the render config (AA mode, image quality) is a set-and-forget
+        // assertion that the game almost never changes mid-session.
+        const bool need_camera_update = !m_camera_params_cached || (m_frame_counter % CAMERA_SAMPLE_INTERVAL == 0);
+        const bool need_render_config_update = !m_render_config_cached || (m_frame_counter % RENDER_CONFIG_SAMPLE_INTERVAL == 0);
         m_frame_counter++;
 
         if (need_camera_update) {
-            m_camera_params_cached = true;
-
             auto camera = sdk::get_primary_camera();
 
-            if (camera == nullptr) {
+            if (camera != nullptr) {
+                static auto via_camera = sdk::find_type_definition("via.Camera");
+                static auto get_near_clip_plane_method = via_camera->get_method("get_NearClipPlane");
+                static auto get_far_clip_plane_method = via_camera->get_method("get_FarClipPlane");
+                static auto get_projection_matrix_method = via_camera->get_method("get_ProjectionMatrix");
+
+                auto context = sdk::get_thread_context();
+                m_nearz = get_near_clip_plane_method->call<float>(context, camera);
+                m_farz = get_far_clip_plane_method->call<float>(context, camera);
+
+                Matrix4x4f projection_matrix{};
+                get_projection_matrix_method->call<void>(&projection_matrix, context, camera);
+                m_fov = 2.0f * std::atan(1.0f / projection_matrix[1][1]);
+
+                m_camera_params_cached = true;
+            } else {
                 m_camera_params_cached = false;
-                return;
             }
+        }
 
-            static auto via_camera = sdk::find_type_definition("via.Camera");
-            static auto get_near_clip_plane_method = via_camera->get_method("get_NearClipPlane");
-            static auto get_far_clip_plane_method = via_camera->get_method("get_FarClipPlane");
-            static auto get_projection_matrix_method = via_camera->get_method("get_ProjectionMatrix");
-
-            auto context = sdk::get_thread_context();
-            m_nearz = get_near_clip_plane_method->call<float>(context, camera);
-            m_farz = get_far_clip_plane_method->call<float>(context, camera);
-
-            Matrix4x4f projection_matrix{};
-            get_projection_matrix_method->call<void>(&projection_matrix, context, camera);
-            m_fov = 2.0f * std::atan(1.0f / projection_matrix[1][1]);
+        if (need_render_config_update) {
 
             static auto renderer_t = sdk::find_type_definition("via.render.Renderer");
             static auto render_config_t = sdk::find_type_definition("via.render.RenderConfig");
@@ -1029,6 +1068,7 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
             static auto get_image_quality_rate_method = render_config_t->get_method("get_ImageQualityRate");
             static auto set_image_quality_rate_method = render_config_t->get_method("set_ImageQualityRate");
 
+            auto context = sdk::get_thread_context();
             auto renderer = renderer_t->get_instance();
             auto render_config = get_render_config_method->call<::REManagedObject*>(context, renderer);
             const auto antialiasing = get_antialiasing_method->call<via::render::RenderConfig::AntiAliasingType>(context, render_config);
@@ -1070,6 +1110,8 @@ void TemporalUpscaler::on_pre_application_entry(void* entry, const char* name, s
                     spdlog::info("[TemporalUpscaler] Image quality rate set to 1.0");
                 }
             }
+
+            m_render_config_cached = true;
         }
     }
 }
@@ -1108,6 +1150,30 @@ void TemporalUpscaler::fix_output_layer() {
 
 void TemporalUpscaler::update_extra_scene_layer() {
     return;
+}
+
+ID3D12Resource* TemporalUpscaler::get_backbuffer_d3d12(uint32_t index) {
+    if (index >= m_backbuffers.size()) {
+        return nullptr;
+    }
+
+    auto& backbuffer = m_backbuffers[index];
+
+    if (backbuffer == nullptr) {
+        auto& hook = g_framework->get_d3d12_hook();
+        auto swapchain = hook->get_swap_chain();
+
+        if (FAILED(swapchain->GetBuffer(index, IID_PPV_ARGS(&backbuffer)))) {
+            backbuffer.Reset();
+            return nullptr;
+        }
+
+        const auto desc = backbuffer->GetDesc();
+        m_backbuffer_size[0].store((uint32_t)desc.Width, std::memory_order_relaxed);
+        m_backbuffer_size[1].store(desc.Height, std::memory_order_relaxed);
+    }
+
+    return backbuffer.Get();
 }
 
 uint32_t TemporalUpscaler::get_render_width() const {

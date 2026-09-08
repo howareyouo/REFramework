@@ -308,6 +308,42 @@ std::vector<layer::Scene*> RenderLayer::find_fully_rendered_scene_layers() {
     return layers;
 }
 
+void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& out) {
+    out.clear();
+
+    static auto scene_type = sdk::find_type_definition("via.render.layer.Scene")->get_type();
+
+    if (scene_type == nullptr) {
+        return;
+    }
+
+    // Single pass straight into the caller's buffer: no intermediate vectors,
+    // no allocations, unlike the by-value overload above.
+    const auto& layers = get_layers();
+
+    for (auto& layer : layers) {
+        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
+            continue;
+        }
+
+        if (utility::re_managed_object::get_type(layer) == scene_type) {
+            out.push_back((layer::Scene*)layer);
+        }
+    }
+
+    if (out.empty()) {
+        return;
+    }
+
+    std::erase_if(out, [](auto& layer) {
+        return !layer->is_fully_rendered();
+    });
+
+    std::sort(out.begin(), out.end(), [](auto& a, auto& b) {
+        return a->get_view_id() < b->get_view_id();
+    });
+}
+
 RenderLayer* RenderLayer::get_parent() {
     return sdk::call_object_func<RenderLayer*>(this, "get_Parent", sdk::get_thread_context(), this);
 }
