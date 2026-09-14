@@ -11,7 +11,6 @@
 #include "sdk/RETypeDB.hpp"
 #include "sdk/SceneManager.hpp"
 #include "sdk/REMath.hpp"
-#include "sdk/SF6Utility.hpp"
 
 #include "utility/String.hpp"
 #include <utility/ScopeGuard.hpp>
@@ -967,13 +966,6 @@ void ScriptRunner::on_frame() {
     std::scoped_lock _{m_access_mutex};
 
     hook_battle_rule();
-
-    if (m_last_battle_type.has_value()) {
-        sdk::sf6::set_network_game_mode((sdk::sf6::EGameMode)*m_last_battle_type);
-        m_last_battle_type = std::nullopt;
-    }
-
-    m_last_online_match_state = sdk::sf6::is_online_match();
 
     if (m_needs_first_reset) {
         spdlog::info("[ScriptRunner] Initializing Lua state for the first time...");
