@@ -7,10 +7,13 @@ REM ============================================================
 
 setlocal EnableDelayedExpansion
 
+set "BUILD_TOOLS=F:\Program Files\BuildTools"
+set "CMAKE=%BUILD_TOOLS%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 set "BUILD_JOBS=8"
 
+
 echo [1/4] Loading MSVC environment...
-call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
+call "%BUILD_TOOLS%\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to load MSVC environment.
     pause
@@ -28,7 +31,7 @@ if %ERRORLEVEL%==0 (
 )
 
 echo [2/4] CMake configure (3.31.6)...
-"%~dp0.temp\cmake331\cmake-3.31.6-windows-x86_64\bin\cmake.exe" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREF_BUILD_FRAMEWORK=ON -DREF_BUILD_RE4_SDK=ON %SCCACHE_ARGS%
+"%CMAKE%" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREF_BUILD_FRAMEWORK=ON -DREF_BUILD_RE4_SDK=ON %SCCACHE_ARGS%
 if %ERRORLEVEL% neq 0 (
     echo ERROR: CMake configure failed!
     pause
