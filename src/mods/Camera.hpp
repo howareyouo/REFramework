@@ -2,21 +2,7 @@
 
 #include "Mod.hpp"
 
-class RenderToneMappingInternal {
-public:
-	char pad_0000[336]; //0x0000
-	bool update_vignette; //0x0150
-	char pad_0151[135]; //0x0151
-	float vignetting_brightness; //0x01D8
-	char pad_01DC[8]; //0x01DC
-	int32_t vignetting_mode; //0x01E4
-};
-
-class RenderToneMapping : public REComponent {
-public:
-    RenderToneMappingInternal* toneMappingInternal;
-};
-
+// RE8 camera configuration chain
 class AppPlayerCameraParameter {
 public:
     char pad_0000[56]; // 0x0000
@@ -72,14 +58,10 @@ public:
     void on_pre_application_entry(void* entry, const char* name, size_t hash) override;
     void on_application_entry(void* entry, const char* name, size_t hash) override;
 
-    bool is_disable_vignette() const {
-        return m_enabled->value() && m_disable_vignette->value();
-    }
-
 private:
     const ModToggle::Ptr m_enabled{ ModToggle::create(generate_name("Enabled"), false) };
     const ModToggle::Ptr m_disable_vignette{ ModToggle::create(generate_name("DisableVignette"), true) };
-    const ModSlider::Ptr m_vignette_brightness{ ModSlider::create(generate_name("VignetteBrightness"), -1.0, 1.0, 0.0f ) };
+    const ModSlider::Ptr m_vignette_brightness{ ModSlider::create(generate_name("VignetteBrightness"), -1.0, 1.0, 0.0f) };
 
     const ModToggle::Ptr m_use_custom_global_fov{ ModToggle::create(generate_name("GlobalFOVEnabled"), false) };
     const ModSlider::Ptr m_global_fov{ ModSlider::create(generate_name("GlobalFOV"), 0.0f, 180.0f, 81.0f) };
@@ -104,34 +86,28 @@ private:
 
 #ifdef RE8
     AppPropsManager* m_props_manager{ nullptr };
+    AppPlayerConfigure* m_player_configure{ nullptr };
+    AppPlayerCameraParameter* m_player_camera_params{ nullptr };
 #endif
     RECamera* m_camera{ nullptr };
     REGameObject* m_player{ nullptr };
-    RenderToneMapping* m_tone_map{ nullptr };
-    RenderToneMappingInternal* m_tone_map_internal{ nullptr };
-    AppPlayerConfigure* m_player_configure{ nullptr };
-    AppPlayerCameraParameter* m_player_camera_params{ nullptr };
+    REComponent* m_tone_map{ nullptr }; // via.render.ToneMapping
 
+    // Cache a pointer, invoking on_change() when it switches (used to drop dependent caches).
     template<class T, typename F>
-    inline bool reset_ptr(T* &m, T* ptr, const F& on_change) {
-        if (m != ptr) {
-            m = ptr;
-            on_change(m != nullptr);
+    inline bool reset_ptr(T*& dst, T* src, const F& on_change) {
+        if (dst != src) {
+            dst = src;
+            on_change();
         }
-        return m != nullptr;
-    }
-
-    template<class T>
-    inline bool reset_ptr(T* &m, T* ptr) {
-        if (m != ptr) {
-            m = ptr;
-        }
-        return m != nullptr;
+        return dst != nullptr;
     }
 
     void update_vignetting() noexcept;
-    void on_player_transform(RETransform* transform) noexcept;
     void on_disabled() noexcept;
+#ifdef RE8
+    void on_player_transform(RETransform* transform) noexcept;
+#endif
 
     void set_vignette_type(via::render::ToneMapping::Vignetting value) noexcept;
     void set_vignette_brightness(float value) noexcept;
