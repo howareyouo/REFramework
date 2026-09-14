@@ -3,11 +3,13 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <utility/FunctionHook.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <sdk/intrusive_ptr.hpp>
 
 #include "utility/d3d12/CommandContext.hpp"
-#include "utility/d3d12/TextureContext.hpp"
 #include "Mod.hpp"
 
 namespace sdk {
@@ -20,6 +22,15 @@ class Scene;
 }
 }
 
+// Upscales the game's render output through PDPerfPlugin.dll (UpscalerBasePlugin) with
+// DLSS / FSR2 / XeSS.
+//
+// Scope of this module:
+//   * DirectX 12 only. There is no D3D11 path: the D3D11 branch never produced output,
+//     it only queried the backbuffer description for a log line.
+//   * A single view. There is no VR here, so the plugin's evaluate id and every piece
+//     of per-view state are single values (VIEW_ID / m_view) instead of arrays indexed
+//     by a computed eye index.
 class TemporalUpscaler : public Mod {
 public:
     static std::shared_ptr<TemporalUpscaler>& get();
@@ -37,19 +48,14 @@ public:
     void on_device_reset() override;
 
     void on_pre_application_entry(void* entry, const char* name, size_t hash) override;
-    void on_application_entry(void* entry, const char* name, size_t hash) override;
 
     void on_view_get_size(REManagedObject* scene_view, float* result) override;
 
     void on_scene_layer_update(sdk::renderer::layer::Scene* scene_layer, void* render_context) override;
-    
-    void on_overlay_layer_draw(sdk::renderer::layer::Overlay* overlay_layer, void* render_context) override;
-    
-    void on_prepare_output_layer_draw(sdk::renderer::layer::PrepareOutput* layer, void* render_context) override;
 
-    bool on_pre_output_layer_draw(sdk::renderer::layer::Output* layer, void* render_context) override;
-    bool on_pre_output_layer_update(sdk::renderer::layer::Output* layer, void* render_context) override;
-    void on_output_layer_draw(sdk::renderer::layer::Output* layer, void* render_context) override;
+    void on_overlay_layer_draw(sdk::renderer::layer::Overlay* overlay_layer, void* render_context) override;
+
+    void on_prepare_output_layer_draw(sdk::renderer::layer::PrepareOutput* layer, void* render_context) override;
 
     bool ready() const {
         return m_initialized && m_backend_loaded && m_enabled->value() && !m_wants_reinitialize;
@@ -59,23 +65,11 @@ public:
         return m_initialized && m_backend_loaded && m_enabled->value();
     }
 
-    uint32_t get_evaluate_id(uint32_t counter) const {
-        return (counter % 2) + 1;
-    }
-
-    template<typename T>
-    T* get_upscaled_texture(int32_t index) {
-        if (index < 0 || index >= m_upscaled_textures.size()) {
-            return nullptr;
-        }
-
-        return (T*)m_upscaled_textures[index];
-    }
-
+    // Graphics API ids expected by PDPerfPlugin. Only D3D12 is ever used here; D3D11 is
+    // spelled out to keep the value of D3D12 correct.
     enum PDGraphicsAPI {
-        D3D11,
-        D3D12,
-        VULKAN
+        D3D11 = 0,
+        D3D12 = 1,
     };
 
     enum PDUpscaleType {
@@ -91,186 +85,196 @@ public:
         UltraPerformance
     };
 
-
 private:
     template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-    bool on_first_frame();
-    bool init_upscale_features();
-    void release_upscale_features();
-    void fix_output_layer();
-    void update_extra_scene_layer();
-    uint32_t get_render_width() const;
-    uint32_t get_render_height() const;
-    void update_motion_scale();
-    // Returns the cached swapchain backbuffer for the given index, filling the
-    // cache (and m_backbuffer_size) on first access. Avoids a per-frame
-    // GetBuffer COM round-trip on the present thread.
-    ID3D12Resource* get_backbuffer_d3d12(uint32_t index);
+    // The single view this module upscales. VIEW_ID is the id the plugin keys its own
+    // state (jitter phase, motion scale, upscaled texture) by.
+    static constexpr uint32_t VIEW_ID{1};
 
-    void on_render_resource_release(sdk::renderer::RenderResource* resource);
-    void finish_release_resources();
-    static void render_resource_release_hook(sdk::renderer::RenderResource* resource);
-    std::unique_ptr<FunctionHook> m_render_resource_release_hook{};
-    std::vector<sdk::renderer::RenderResource*> m_queued_release_resources{};
-    std::recursive_mutex m_queued_release_resources_mutex{};
-    std::atomic<bool> m_has_queued_release_resources{false}; // P5: lock-free fast path for finish_release_resources
-
-    bool m_first_frame_finished{false};
-    uint32_t m_first_frame_retry_count{0}; // throttled retry counter for first-frame/reinit failures
-    // Time-based give-up budget for first-frame/reinit retries (frame counts
-    // don't map to wall time — loading screens can run at single-digit fps).
-    // Default-constructed (epoch) means "no failure in progress"; reset on
-    // every successful init so a later reinit failure gets a fresh budget.
-    // 5s is generous: transient startup failures (swapchain/backbuffer not
-    // ready) resolve within the first few frames, so anything longer is a
-    // permanent problem and just spams SetupDirectX retries + logs.
     static constexpr auto FIRST_FRAME_RETRY_TIMEOUT{std::chrono::seconds{5}};
-    std::chrono::steady_clock::time_point m_first_frame_failure_start{};
-    // Per-message throttles for the per-frame "missing backbuffer/depth/MV/color"
-    // error logs — one counter each so a frequently-failing input can't starve
-    // the other messages. Indexed by WarnSource.
-    enum WarnSource : size_t { WARN_BACKBUFFER = 0, WARN_DEPTH, WARN_MOTION_VECTORS, WARN_COLOR, WARN_COUNT };
-    std::array<uint32_t, WARN_COUNT> m_missing_input_warn_counters{};
-    bool m_initialized{false};
-    bool m_is_d3d12{false};
-    // SetupDirectX/InitLogDelegate are once-per-session plugin-global setup
-    // (the original code ran on_first_frame exactly once, and even device
-    // resets never re-called SetupDirectX). The retry path can invoke
-    // on_first_frame many times, so these are guarded by this flag and only
-    // init_upscale_features() is retried. Set only after SetupDirectX
-    // succeeds, so a failed setup is itself retried.
-    bool m_directx_setup_done{false};
-    bool m_backend_loaded{false};
-    bool m_backbuffer_inconsistency{false};
-    bool m_upscale{true};
-    // Batch1: written by the present thread (on_early_present/on_post_present),
-    // read/written by the render thread (on_view_get_size) — plain bools were
-    // a cross-thread data race (UB). relaxed ordering suffices: no other data
-    // is published through these flags, only their own values are consumed.
-    std::atomic<bool> m_rendering{false};
-    std::atomic<bool> m_set_view{false};
-    bool m_jitter{true};
-    bool m_allow_taa{false}; // the engine has its own TAA implementation, it can't be used with the upscaler
-    bool m_taa_disabled{false}; // true after we've set AntiAliasing to NONE
-    via::render::RenderConfig::AntiAliasingType m_original_antialiasing{via::render::RenderConfig::AntiAliasingType::NONE};
-    bool m_wants_reinitialize{false};
-    bool m_made_extra_scene_layer{false};
-    bool m_hooked_resource_release{false};
-
-    // P0: cache for Output layer to avoid per-frame recursive traversal
-    // Scene layers are still re-resolved every frame (engine can destroy/recreate them)
-    uint32_t m_frame_counter{0};
-
-    // P1: throttle camera/render-config queries. Reflection calls through the
-    // engine's type system are an order of magnitude more expensive than normal
-    // calls, so both are sampled at separate intervals: camera near/far/FOV
-    // rarely change (only on zoom), and the render-config AA/image-quality
-    // assertion almost never needs re-applying mid-session.
+    static constexpr uint32_t FIRST_FRAME_RETRY_INTERVAL{60};
     static constexpr uint32_t CAMERA_SAMPLE_INTERVAL{15};
     static constexpr uint32_t RENDER_CONFIG_SAMPLE_INTERVAL{120};
-    bool m_camera_params_cached{false};
-    bool m_render_config_cached{false};
+    static constexpr uint32_t LAYER_RESCAN_INTERVAL{60};
+    static constexpr uint32_t WARN_INTERVAL{600};
+    static constexpr uint32_t COMMAND_CONTEXT_WAIT_MS{2000};
 
-    // P2: dedup fix_output_layer
-    bool m_output_layer_fixed_this_frame{false};
+    // SceneInfo objects that receive jitter. The enumerators are used directly as indices
+    // into ViewState's old_*_matrix arrays, so they also define their size.
+    //
+    // jitter_disable_scene_info and jitter_disable_post_scene_info are deliberately NOT
+    // included: those passes must not be jittered, and injecting jitter into them costs
+    // extra matrix inversions and can produce artifacts.
+    enum SceneInfoSlot : size_t {
+        SLOT_SCENE_INFO = 0,
+        SLOT_DEPTH_DISTORTION,
+        SLOT_FILTER,
+        SLOT_Z_PREPASS,
+        SLOT_COUNT
+    };
 
-    // P6: cache root layer to avoid per-frame get_native_singleton
-    // (hashmap lookup + shared_lock + vtable call). Re-resolve every 60 frames.
-    // Only the root layer (owned by the persistent renderer singleton) is cached;
-    // the Output layer and scene layers are re-resolved every frame because the
-    // engine can destroy/recreate them between frames.
-    sdk::renderer::RenderLayer* m_cached_root_layer{nullptr};
-    uint32_t m_layer_rescan_counter{0};
+    // Everything belonging to the view being upscaled.
+    struct ViewState {
+        ViewState() {
+            // glm matrices are not initialized by their default constructor, and the first
+            // jittered frame adds to the old matrices before it overwrites them, so start
+            // them at identity instead of reading uninitialized memory once.
+            old_projection_matrix.fill(Matrix4x4f{1.0f});
+            old_view_matrix.fill(Matrix4x4f{1.0f});
+        }
 
-    // P4: cache render size to avoid per-frame PDPerfPlugin DLL calls.
-    // Batch1: written by present thread, read/written by render thread — atomic.
-    std::array<std::atomic<uint32_t>, 2> m_cached_render_size{};
-
-    std::unordered_map<std::string, size_t> m_available_upscale_methods{};
-    std::vector<std::string> m_available_upscale_method_names{};
-    std::vector<const char*> m_imgui_combo_names{};
-    std::array<uint32_t, 2> m_jitter_indices{0, 0};
-
-    uint32_t m_available_upscale_type{0};
-    PDUpscaleType m_upscale_type{PDUpscaleType::FSR2};
-
-    uint32_t m_backbuffer_inconsistency_start{};
-    // Batch1: written by present thread, read by UI/render threads — atomic.
-    std::array<std::atomic<uint32_t>, 2> m_backbuffer_size{};
-
-    // Batch2: tracks the resource state we last left the backbuffer in, so a
-    // dropped post-barrier (e.g. after a fence-wait timeout closed the command
-    // list) can't permanently desync the barrier state machine — the next
-    // frame always transitions from the real state and self-heals.
-    D3D12_RESOURCE_STATES m_bb_output_state{D3D12_RESOURCE_STATE_PRESENT};
-
-    std::array<void*, 2> m_upscaled_textures{nullptr, nullptr};
-
-    sdk::renderer::layer::Scene* m_cloned_scene_layer{nullptr};
-    sdk::renderer::layer::Output* m_output_layer{nullptr};
-    sdk::renderer::layer::Output* m_original_output_layer{nullptr};
-    sdk::renderer::layer::Output* m_cloned_output_layer{nullptr};
-    sdk::renderer::layer::Output* m_last_output_layer{nullptr};
-    sdk::renderer::TargetState* m_last_output_state{nullptr};
-    sdk::renderer::ConstantBuffer* m_original_scene_info_buffer{};
-    sdk::renderer::ConstantBuffer* m_cloned_scene_info_buffer{};
-
-    sdk::renderer::TargetState* m_new_target_state{nullptr};
-
-
-    struct EyeState {
         sdk::intrusive_ptr<sdk::renderer::layer::Scene> scene_layer{};
+
+        // D3D12 resources of the current scene layer, re-fetched only when missing.
         ComPtr<ID3D12Resource> motion_vectors{};
         ComPtr<ID3D12Resource> depth{};
         ComPtr<ID3D12Resource> color{};
 
+        // Engine-owned copies of those inputs, created by the engine's render context.
         sdk::intrusive_ptr<sdk::renderer::Texture> color_copy{};
         sdk::intrusive_ptr<sdk::renderer::Texture> motion_vectors_copy{};
         sdk::intrusive_ptr<sdk::renderer::Texture> depth_copy{};
+
+        uint32_t jitter_index{};
+        std::array<float, 2> jitter_offset{0.0f, 0.0f}; // last offset handed to the plugin
+
+        std::array<Matrix4x4f, SLOT_COUNT> old_projection_matrix{};
+        std::array<Matrix4x4f, SLOT_COUNT> old_view_matrix{};
+
+        // Drops the cached D3D12 inputs so the next frame re-fetches them.
+        void reset_inputs() {
+            motion_vectors.Reset();
+            depth.Reset();
+            color.Reset();
+        }
+
+        void reset() {
+            reset_inputs();
+            scene_layer.reset();
+            color_copy.reset();
+            motion_vectors_copy.reset();
+            depth_copy.reset();
+        }
     };
 
-    std::array<EyeState, 2> m_eye_states{};
+    // Warnings for missing upscaler inputs, indexed by WarnSource.
+    enum WarnSource : size_t { WARN_BACKBUFFER = 0, WARN_DEPTH, WARN_MOTION_VECTORS, WARN_COLOR, WARN_COUNT };
+    void warn_missing_input(WarnSource source);
 
-    // Reused buffer for the per-frame find_fully_rendered_scene_layers scan
-    // (avoids a vector allocation every frame on the render thread).
+    // Frame flow.
+    bool on_first_frame();
+    // Returns true once the first frame has been initialized, retrying on a throttle and
+    // giving up after FIRST_FRAME_RETRY_TIMEOUT of wall-clock failures.
+    bool ensure_first_frame();
+    bool init_upscale_features();
+    void release_upscale_features();
+
+    // Per-frame queries, all from on_pre_application_entry(EndRendering).
+    // Re-resolves the fully rendered scene layer and its D3D12 inputs. Returns false when
+    // the engine has no usable layer this frame, in which case the caller must skip the
+    // rest of the frame's work.
+    bool resolve_scene_layer();
+    void ensure_d3d12_inputs();
+    void update_camera_params();
+    void sync_render_config();
+
+    // Caches.
+    // Single invalidation point for everything that survives across frames. Must be
+    // called after anything that can change the swapchain, the render size, the layer
+    // tree or the upscaler's inputs.
+    void invalidate_caches();
+    void invalidate_render_size();
+    void refresh_cached_render_size();
+    // Cached swapchain backbuffer for the given index, filling the cache (and
+    // m_backbuffer_size) on first access.
+    ID3D12Resource* get_backbuffer_d3d12(uint32_t index);
+    uint32_t get_render_width() const;
+    uint32_t get_render_height() const;
+    void update_motion_scale();
+
+    // UI.
+    // Applies whatever the user changed in on_draw_ui, in one place.
+    void apply_setting_changes();
+    void restore_engine_aa();
+
+    bool m_initialized{false};
+    bool m_backend_loaded{false};
+    // SetupDirectX/InitLogDelegate are once-per-session plugin-global setup; the retry
+    // path can invoke on_first_frame many times, so they are guarded by this flag. Set
+    // only after SetupDirectX succeeds, so a failed setup is itself retried.
+    bool m_directx_setup_done{false};
+    bool m_first_frame_finished{false};
+    uint32_t m_first_frame_retry_count{0};
+    // Time-based give-up budget for first-frame/reinit retries: frame counts do not map to
+    // wall time (loading screens can run at single-digit fps). Default-constructed (epoch)
+    // means "no failure in progress"; reset on every successful init so a later reinit
+    // failure gets a fresh budget.
+    std::chrono::steady_clock::time_point m_first_frame_failure_start{};
+
+    bool m_upscale{true};
+    bool m_jitter{true};
+    bool m_allow_taa{false}; // the engine's own TAA can't be used together with the upscaler
+    bool m_taa_disabled{false};
+    via::render::RenderConfig::AntiAliasingType m_original_antialiasing{via::render::RenderConfig::AntiAliasingType::NONE};
+    bool m_wants_reinitialize{false};
+    bool m_logged_first_evaluate{false};
+
+    // Written by the present thread (on_early_present/on_post_present) and read/written by
+    // the render thread (on_view_get_size). relaxed ordering suffices: nothing is
+    // published through these flags, only their own values are consumed.
+    std::atomic<bool> m_rendering{false};
+    std::atomic<bool> m_set_view{false};
+    // Render size, cached to avoid per-call PDPerfPlugin queries. Zero means "re-query".
+    std::array<std::atomic<uint32_t>, 2> m_cached_render_size{};
+    std::array<std::atomic<uint32_t>, 2> m_backbuffer_size{};
+
+    std::array<uint32_t, WARN_COUNT> m_missing_input_warn_counters{};
+
+    uint32_t m_frame_counter{0};
+    bool m_camera_params_cached{false};
+    bool m_render_config_cached{false};
+    sdk::renderer::RenderLayer* m_cached_root_layer{nullptr};
+    uint32_t m_layer_rescan_counter{0};
+
+    // Available upscalers in plugin-enum order; m_available_upscale_type is the index the
+    // UI combo shows. m_combo_labels holds ImGui-facing c_str() pointers and is built once
+    // after m_methods is final (it is never modified afterwards, so they stay valid).
+    std::vector<std::pair<std::string, PDUpscaleType>> m_methods{};
+    std::vector<const char*> m_combo_labels{};
+    uint32_t m_available_upscale_type{0};
+    PDUpscaleType m_upscale_type{PDUpscaleType::FSR2};
+
+    // Tracks the resource state the backbuffer was last left in, so a dropped barrier
+    // (fence-wait timeout -> closed command list) cannot permanently desync the state
+    // machine: the next frame always transitions from the real state and self-heals.
+    D3D12_RESOURCE_STATES m_bb_output_state{D3D12_RESOURCE_STATE_PRESENT};
+
+    // Owned by PDPerfPlugin, never Release()d — which is why this is a raw pointer.
+    ID3D12Resource* m_upscaled_texture{nullptr};
+
+    ViewState m_view{};
+
+    // Reused buffer for the per-frame find_fully_rendered_scene_layers scan (avoids a
+    // vector allocation every frame on the render thread).
     std::vector<sdk::renderer::layer::Scene*> m_valid_scene_layers{};
 
-    // 3 giant textures to encapsulate the motion vectors, depth, and color buffers
-    // because the upscaler needs them all in one texture
-    // well... it doesn't necessarily need them
-    // but it causes some insane lag if using multiple features to evaluate multiple textures
-    // so this is the best solution for now
-    ComPtr<ID3D12Resource> m_big_motion_vectors{};
-    ComPtr<ID3D12Resource> m_big_depth{};
-    ComPtr<ID3D12Resource> m_big_color{};
-
-    ComPtr<ID3D12Resource> m_blank_big_motion_vectors{};
-    ComPtr<ID3D12Resource> m_blank_big_depth{};
-    ComPtr<ID3D12Resource> m_blank_big_color{};
-
-    int32_t m_displayed_scene{0}; // 0 = original, 1 = cloned
+    int32_t m_displayed_scene{0}; // 0 = first fully rendered scene layer, 1 = second
 
     float m_nearz{0.0f};
     float m_farz{0.0f};
     float m_fov{90.0f};
 
-    float m_jitter_offsets[2][2]{0.0f, 0.0f};
     float m_jitter_scale[2]{2.0f, -2.0f};
     float m_motion_scale[2]{-1.0f, 1.0f};
-    float m_jitter_evaluate_scale{1.0f};
 
     std::array<d3d12::CommandContext, 3> m_copiers{};
-    ComPtr<ID3D12Resource> m_old_backbuffer{};
 
-    // Cached swapchain backbuffers, indexed by GetCurrentBackBufferIndex().
-    // Swapchain buffers are stable until ResizeBuffers, which always routes
-    // through REFramework's on_resize_buffers -> on_reset -> on_device_reset,
-    // where this cache is invalidated. 16 covers DXGI's maximum BufferCount.
+    // Cached swapchain backbuffers, indexed by GetCurrentBackBufferIndex(). Swapchain
+    // buffers are stable until ResizeBuffers, which always routes through REFramework's
+    // on_resize_buffers -> on_reset -> on_device_reset, where this cache is invalidated.
+    // 16 covers DXGI's maximum BufferCount.
     std::array<ComPtr<ID3D12Resource>, 16> m_backbuffers{};
-
-    std::array<std::array<Matrix4x4f, 6>, 2> m_old_projection_matrix{};
-    std::array<std::array<Matrix4x4f, 6>, 2> m_old_view_matrix{};
 
     const ModToggle::Ptr m_enabled{
         ModToggle::create(generate_name("Enabled"), true)
@@ -298,20 +302,18 @@ private:
         }, (int32_t)PDPerfQualityLevel::Balanced) 
     };
 
-    // Batch2 (experimental): pass the swapchain backbuffer as the upscaler's
-    // destination, eliminating the fullscreen CopyResource. Default OFF —
-    // see on_early_present for the safety guards.
+    // Hands the swapchain backbuffer to the plugin as its destination, skipping the
+    // fullscreen CopyResource. Default OFF — see on_early_present for the safety guards.
     const ModToggle::Ptr m_direct_output{
         ModToggle::create(generate_name("DirectOutput"), false)
     };
 
-
-     ValueList m_options{
+    ValueList m_options{
         *m_enabled,
         *m_sharpness,
         *m_sharpness_amount,
         *m_use_native_resolution,
         *m_upscale_quality,
         *m_direct_output
-     };
+    };
 };
