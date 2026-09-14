@@ -102,7 +102,7 @@ public:
     static void hook_streamline(HMODULE dlssg_module = nullptr);
 
 protected:
-    void hook_impl();
+    bool hook_impl();
     
     Microsoft::WRL::ComPtr<ID3D12Device4> m_device{ nullptr };
     IDXGISwapChain3* m_swap_chain{ nullptr };
@@ -123,6 +123,7 @@ protected:
     bool m_is_phase_1{ true };
     bool m_inside_present{false};
     bool m_ignore_next_present{false};
+    bool m_device_query_failed{false};
 
     std::unique_ptr<PointerHook> m_present_hook{};
     std::unique_ptr<VtableHook> m_swapchain_hook{};
@@ -131,8 +132,6 @@ protected:
         static void* link_swapchain_to_cmd_queue(void* rcx, void* rdx, void* r8, void* r9);
 
         std::unique_ptr<FunctionHook> link_swapchain_to_cmd_queue_hook{};
-        std::mutex hook_mutex{};
-        bool setup{ false };
     };
 
     static inline Streamline s_streamline{};
@@ -151,6 +150,6 @@ protected:
     static HRESULT WINAPI present(IDXGISwapChain3* swap_chain, uint64_t sync_interval, uint64_t flags, void* r9);
     static HRESULT WINAPI resize_buffers(IDXGISwapChain3* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags);
     static HRESULT WINAPI resize_target(IDXGISwapChain3* swap_chain, const DXGI_MODE_DESC* new_target_parameters);
-    static HRESULT WINAPI create_swapchain(IDXGIFactory4* factory, IUnknown* device, HWND hwnd, const DXGI_SWAP_CHAIN_DESC* desc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* p_fullscreen_desc, IDXGIOutput* p_restrict_to_output, IDXGISwapChain** swap_chain);
+    static HRESULT WINAPI create_swapchain(IDXGIFactory4* factory, IUnknown* device, HWND hwnd, const DXGI_SWAP_CHAIN_DESC1* desc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* p_fullscreen_desc, IDXGIOutput* p_restrict_to_output, IDXGISwapChain1** swap_chain);
 };
 
