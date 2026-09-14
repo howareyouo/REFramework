@@ -1,3 +1,12 @@
+#include <shared_mutex>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <spdlog/spdlog.h>
+
 #include "utility/FunctionHookMinHook.hpp"
 #include "utility/String.hpp"
 
@@ -5,154 +14,6 @@
 
 #include "PluginLoader.hpp"
 #include "APIProxy.hpp"
-
-std::shared_ptr<APIProxy>& APIProxy::get() {
-    static auto instance = std::make_shared<APIProxy>();
-    return instance;
-}
-
-bool APIProxy::add_on_lua_state_created(APIProxy::REFLuaStateCreatedCb cb) {
-    {
-        std::unique_lock _{m_api_cb_mtx};
-        m_on_lua_state_created_cbs.push_back(cb);
-    }
-
-    // Call the callback outside the lock to prevent potential deadlock
-    // if the callback tries to access other APIProxy methods.
-    auto& state = ScriptRunner::get()->get_state();
-
-    if (state != nullptr && state->lua().lua_state() != nullptr) {
-        cb(state->lua());
-    }
-
-    return true;
-}
-
-bool APIProxy::add_on_lua_state_destroyed(APIProxy::REFLuaStateDestroyedCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_lua_state_destroyed_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_present(APIProxy::REFOnPresentCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_present_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_pre_application_entry(std::string_view name, REFOnPreApplicationEntryCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    if (name.empty()) {
-        return false;
-    }
-
-    const auto name_hash = utility::hash(name);
-
-    m_on_pre_application_entry_cbs[name_hash].push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_post_application_entry(std::string_view name, REFOnPostApplicationEntryCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    if (name.empty()) {
-        return false;
-    }
-
-    const auto name_hash = utility::hash(name);
-
-    m_on_post_application_entry_cbs[name_hash].push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_device_reset(REFOnDeviceResetCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_device_reset_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_message(REFOnMessageCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_message_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_imgui_frame(REFOnImGuiFrameCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_imgui_frame_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_imgui_draw_ui(REFOnImGuiDrawUICb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_imgui_draw_ui_cbs.push_back(cb);
-    return true;
-}
-
-bool APIProxy::add_on_pre_gui_draw_element(REFOnPreGuiDrawElementCb cb) {
-    std::unique_lock _{m_api_cb_mtx};
-
-    m_on_pre_gui_draw_element_cbs.push_back(cb);
-    return true;
-}
-
-void APIProxy::on_lua_state_created(sol::state& state) {
-    std::shared_lock _{m_api_cb_mtx};
-
-    for (auto& cb : m_on_lua_state_created_cbs) {
-        try {
-            cb(state.lua_state());
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_lua_state_created callback; one of the plugins has an error.");
-        }
-    }
-}
-
-void APIProxy::on_lua_state_destroyed(sol::state& state) {
-    std::shared_lock _{m_api_cb_mtx};
-
-    for (auto& cb : m_on_lua_state_destroyed_cbs) {
-        try {
-            cb(state.lua_state());
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_lua_state_destroyed callback; one of the plugins has an error.");
-        }
-    }
-}
-
-void APIProxy::on_present() {
-    std::shared_lock _{m_api_cb_mtx};
-
-    reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
-    
-    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
-        auto& d3d11 = g_framework->get_d3d11_hook();
-
-        reframework::g_renderer_data.device = d3d11->get_device();
-        reframework::g_renderer_data.swapchain = d3d11->get_swap_chain();
-    } else if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
-        auto& d3d12 = g_framework->get_d3d12_hook();
-
-        reframework::g_renderer_data.device = d3d12->get_device();
-        reframework::g_renderer_data.swapchain = d3d12->get_swap_chain();
-        reframework::g_renderer_data.command_queue = d3d12->get_command_queue();
-    }
-
-    for (auto&& cb : m_on_present_cbs) {
-        try {
-            cb();
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_present callback; one of the plugins has an error.");
-        }
-    }
-}
 
 // For cimgui redirection when on_imgui_frame is called.
 namespace cimgui {
@@ -184,7 +45,7 @@ void setup_hook() {
             spdlog::info("[REFramework] Hooking LoadLibraryExW for cimgui.dll redirection");
 
             cimgui::g_load_library_ex_w_hook = std::make_unique<FunctionHookMinHook>(LoadLibraryExW, cimgui::load_library_ex_w_hook);
-            
+
             if (!cimgui::g_load_library_ex_w_hook->create()) {
                 spdlog::error("[REFramework] Failed to hook LoadLibraryExW for cimgui.dll redirection");
                 return;
@@ -214,116 +75,225 @@ static REFImGuiFrameCbData get_cached_imgui_cb_data() {
     return data;
 }
 
-// imgui frame.
-void APIProxy::on_frame() {
-    std::shared_lock _{m_api_cb_mtx};
+namespace {
 
-    if (!m_on_imgui_frame_cbs.empty()) {
-        cimgui::setup_hook();
-
-        auto data = get_cached_imgui_cb_data();
-
-        for (auto&& cb : m_on_imgui_frame_cbs) {
-            try {
-                cb(&data);
-            } catch(...) {
-                spdlog::error("[APIProxy] Exception occurred in on_imgui_frame callback; one of the plugins has an error.");
-            }
-        }
+void log_cb_exception(std::string_view event, const char* name = nullptr) {
+    if (name != nullptr) {
+        spdlog::error("[APIProxy] Exception occurred in {} callback ({}); one of the plugins has an error.", event, name);
+    } else {
+        spdlog::error("[APIProxy] Exception occurred in {} callback; one of the plugins has an error.", event);
     }
 }
 
-// imgui draw ui.
-void APIProxy::on_draw_ui() {
-    std::shared_lock _{m_api_cb_mtx};
-
-    if (!m_on_imgui_draw_ui_cbs.empty()) {
-        cimgui::setup_hook();
-
-        auto data = get_cached_imgui_cb_data();
-
-        for (auto&& cb : m_on_imgui_draw_ui_cbs) {
-            try {
-                cb(&data);
-            } catch(...) {
-                spdlog::error("[APIProxy] Exception occurred in on_imgui_draw_ui callback; one of the plugins has an error.");
-            }
-        }
-    }
+// Register one callback under the shared mutex.
+template <typename Fn>
+bool add_cb(std::shared_mutex& mtx, std::vector<Fn>& cbs, Fn cb) {
+    std::unique_lock _{mtx};
+    cbs.push_back(cb);
+    return true;
 }
 
-void APIProxy::on_pre_application_entry(void* entry, const char* name, size_t hash) {
-    std::shared_lock _{m_api_cb_mtx};
-
-    if (auto it = m_on_pre_application_entry_cbs.find(hash); it != m_on_pre_application_entry_cbs.end()) {
-        for (auto&& cb : it->second) {
-            try {
-                cb();
-            } catch(...) {
-                spdlog::error("[APIProxy] Exception occurred in on_pre_application_entry callback ({}); one of the plugins has an error.", name);
-            }
-        }
-    }
+// Register an entry-keyed callback (pre/post application entry) under the shared mutex.
+template <typename Fn>
+bool add_cb(std::shared_mutex& mtx, std::unordered_map<size_t, std::vector<Fn>>& cbs, size_t key, Fn cb) {
+    std::unique_lock _{mtx};
+    cbs[key].push_back(cb);
+    return true;
 }
 
-void APIProxy::on_application_entry(void* entry, const char* name, size_t hash) {
-    std::shared_lock _{m_api_cb_mtx};
+// Run every callback under a shared lock, isolating plugin exceptions.
+// Void callbacks are fire-and-forget; bool callbacks aggregate (any false => false).
+template <typename Fn, typename... Args>
+bool invoke_cbs(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::string_view event, Args&&... args) {
+    std::shared_lock _{mtx};
+    bool ok = true;
 
-    if (auto it = m_on_post_application_entry_cbs.find(hash); it != m_on_post_application_entry_cbs.end()) {
-        for (auto&& cb : it->second) {
-            try {
-                cb();
-            } catch(...) {
-                spdlog::error("[APIProxy] Exception occurred in on_post_application_entry callback ({}); one of the plugins has an error.", name);
-            }
-        }
-    }
-}
-
-void APIProxy::on_device_reset() {
-    std::shared_lock _{m_api_cb_mtx};
-
-    for (auto&& cb : m_on_device_reset_cbs) {
+    for (auto cb : cbs) {
         try {
-            cb();
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_device_reset callback; one of the plugins has an error.");
+            if constexpr (std::is_void_v<std::invoke_result_t<Fn&, Args...>>) {
+                cb(std::forward<Args>(args)...);
+            } else if (!cb(std::forward<Args>(args)...)) {
+                ok = false;
+            }
+        } catch (...) {
+            log_cb_exception(event);
         }
     }
+
+    return ok;
 }
 
-bool APIProxy::on_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    std::shared_lock _{m_api_cb_mtx};
+// Same, but stop at the first callback returning false (on_message semantics).
+template <typename Fn, typename... Args>
+bool invoke_cbs_until(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::string_view event, Args&&... args) {
+    std::shared_lock _{mtx};
 
-    for (auto&& cb : m_on_message_cbs) {
+    for (auto cb : cbs) {
         try {
-            if (!cb(hwnd, msg, wparam, lparam)) {
+            if (!cb(std::forward<Args>(args)...)) {
                 return false;
             }
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_message callback; one of the plugins has an error.");
-            continue;
+        } catch (...) {
+            log_cb_exception(event);
         }
     }
 
     return true;
 }
 
-bool APIProxy::on_pre_gui_draw_element(REComponent* gui_element, void* primitive_context) {
-    std::shared_lock _{m_api_cb_mtx};
+// Application-entry callbacks: lookup by fnv hash, fire all in the group.
+template <typename Fn>
+void invoke_app_entry(std::shared_mutex& mtx, const std::unordered_map<size_t, std::vector<Fn>>& map, std::string_view event, size_t hash, const char* name) {
+    std::shared_lock _{mtx};
 
-    bool any_false = false;
-
-    for (auto&& cb : m_on_pre_gui_draw_element_cbs) {
-        try {
-            if (!cb(gui_element, primitive_context)) {
-                any_false = true;
+    if (auto it = map.find(hash); it != map.end()) {
+        for (auto cb : it->second) {
+            try {
+                cb();
+            } catch (...) {
+                log_cb_exception(event, name);
             }
-        } catch(...) {
-            spdlog::error("[APIProxy] Exception occurred in on_pre_gui_draw_element callback; one of the plugins has an error.");
-            continue;
         }
     }
+}
 
-    return !any_false;
+// imgui callbacks: only touch the cimgui hook and allocator cache when listeners exist.
+template <typename Fn>
+void invoke_imgui(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::string_view event) {
+    std::shared_lock _{mtx};
+
+    if (cbs.empty()) {
+        return;
+    }
+
+    cimgui::setup_hook();
+    auto data = get_cached_imgui_cb_data();
+
+    for (auto cb : cbs) {
+        try {
+            cb(&data);
+        } catch (...) {
+            log_cb_exception(event);
+        }
+    }
+}
+
+} // namespace
+
+std::shared_ptr<APIProxy>& APIProxy::get() {
+    static auto instance = std::make_shared<APIProxy>();
+    return instance;
+}
+
+bool APIProxy::add_on_lua_state_created(REFLuaStateCreatedCb cb) {
+    add_cb(m_api_cb_mtx, m_on_lua_state_created_cbs, cb);
+
+    // Call the callback outside the lock to prevent potential deadlock
+    // if the callback tries to access other APIProxy methods.
+    auto& state = ScriptRunner::get()->get_state();
+
+    if (state != nullptr && state->lua().lua_state() != nullptr) {
+        cb(state->lua());
+    }
+
+    return true;
+}
+
+bool APIProxy::add_on_lua_state_destroyed(REFLuaStateDestroyedCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_lua_state_destroyed_cbs, cb);
+}
+
+bool APIProxy::add_on_present(REFOnPresentCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_present_cbs, cb);
+}
+
+bool APIProxy::add_on_pre_application_entry(std::string_view name, REFOnPreApplicationEntryCb cb) {
+    if (name.empty()) {
+        return false;
+    }
+
+    return add_cb(m_api_cb_mtx, m_on_pre_application_entry_cbs, utility::hash(name), cb);
+}
+
+bool APIProxy::add_on_post_application_entry(std::string_view name, REFOnPostApplicationEntryCb cb) {
+    if (name.empty()) {
+        return false;
+    }
+
+    return add_cb(m_api_cb_mtx, m_on_post_application_entry_cbs, utility::hash(name), cb);
+}
+
+bool APIProxy::add_on_device_reset(REFOnDeviceResetCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_device_reset_cbs, cb);
+}
+
+bool APIProxy::add_on_message(REFOnMessageCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_message_cbs, cb);
+}
+
+bool APIProxy::add_on_imgui_frame(REFOnImGuiFrameCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_imgui_frame_cbs, cb);
+}
+
+bool APIProxy::add_on_imgui_draw_ui(REFOnImGuiDrawUICb cb) {
+    return add_cb(m_api_cb_mtx, m_on_imgui_draw_ui_cbs, cb);
+}
+
+bool APIProxy::add_on_pre_gui_draw_element(REFOnPreGuiDrawElementCb cb) {
+    return add_cb(m_api_cb_mtx, m_on_pre_gui_draw_element_cbs, cb);
+}
+
+void APIProxy::on_lua_state_created(sol::state& state) {
+    invoke_cbs(m_api_cb_mtx, m_on_lua_state_created_cbs, "on_lua_state_created", state.lua_state());
+}
+
+void APIProxy::on_lua_state_destroyed(sol::state& state) {
+    invoke_cbs(m_api_cb_mtx, m_on_lua_state_destroyed_cbs, "on_lua_state_destroyed", state.lua_state());
+}
+
+void APIProxy::on_present() {
+    reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
+
+    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
+        auto& d3d11 = g_framework->get_d3d11_hook();
+
+        reframework::g_renderer_data.device = d3d11->get_device();
+        reframework::g_renderer_data.swapchain = d3d11->get_swap_chain();
+    } else if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
+        auto& d3d12 = g_framework->get_d3d12_hook();
+
+        reframework::g_renderer_data.device = d3d12->get_device();
+        reframework::g_renderer_data.swapchain = d3d12->get_swap_chain();
+        reframework::g_renderer_data.command_queue = d3d12->get_command_queue();
+    }
+
+    invoke_cbs(m_api_cb_mtx, m_on_present_cbs, "on_present");
+}
+
+void APIProxy::on_frame() {
+    invoke_imgui(m_api_cb_mtx, m_on_imgui_frame_cbs, "on_imgui_frame");
+}
+
+void APIProxy::on_draw_ui() {
+    invoke_imgui(m_api_cb_mtx, m_on_imgui_draw_ui_cbs, "on_imgui_draw_ui");
+}
+
+void APIProxy::on_pre_application_entry(void* entry, const char* name, size_t hash) {
+    invoke_app_entry(m_api_cb_mtx, m_on_pre_application_entry_cbs, "on_pre_application_entry", hash, name);
+}
+
+void APIProxy::on_application_entry(void* entry, const char* name, size_t hash) {
+    invoke_app_entry(m_api_cb_mtx, m_on_post_application_entry_cbs, "on_post_application_entry", hash, name);
+}
+
+void APIProxy::on_device_reset() {
+    invoke_cbs(m_api_cb_mtx, m_on_device_reset_cbs, "on_device_reset");
+}
+
+bool APIProxy::on_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    return invoke_cbs_until(m_api_cb_mtx, m_on_message_cbs, "on_message", hwnd, msg, wparam, lparam);
+}
+
+bool APIProxy::on_pre_gui_draw_element(REComponent* gui_element, void* primitive_context) {
+    return invoke_cbs(m_api_cb_mtx, m_on_pre_gui_draw_element_cbs, "on_pre_gui_draw_element", gui_element, primitive_context);
 }
