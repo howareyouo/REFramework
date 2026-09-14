@@ -1,11 +1,11 @@
 #pragma once
 
-#include <chrono>
-
 #include <../directxtk12-src/Inc/SimpleMath.h>
 #include <../directxtk12-src/Inc/CommonStates.h>
 #include <../directxtk12-src/Inc/Effects.h>
 #include <../directxtk12-src/Inc/GeometricPrimitive.h>
+
+#include <dxgi1_4.h>
 
 #include "utility/d3d12/CommandContext.hpp"
 #include "utility/d3d12/TextureContext.hpp"
@@ -66,6 +66,10 @@ private:
     void render_d3d12();
     void render_d3d11();
 
+    void ensure_command_contexts();
+    bool ensure_swapchain();
+    d3d12::TextureContext* ensure_backbuffer(UINT index);
+
     struct {
         std::array<std::unique_ptr<d3d12::CommandContext>, 3> command_contexts{};
         std::array<std::unique_ptr<d3d12::TextureContext>, 3> backbuffers{}; // For the RTV
@@ -78,5 +82,6 @@ private:
 
         ID3D12Device* device{nullptr};
         IDXGISwapChain* swapchain{nullptr};
+        d3d12::ComPtr<IDXGISwapChain3> swapchain3{};
     } m_d3d12;
 };
