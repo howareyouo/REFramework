@@ -2,7 +2,6 @@
 
 #include <array>
 #include <atomic>
-#include <bit>
 #include <thread>
 #include <unordered_set>
 #include <filesystem>
@@ -28,6 +27,28 @@ class RETypes;
 class REFramework {
 private:
     void hook_monitor();
+    void reset_chance_times();
+
+    // on_message helpers
+    bool set_key_state(UINT vk, bool down);
+    bool should_block_message(UINT message, WPARAM w_param, bool is_mouse_moving);
+
+    // Construction-phase helpers (extracted from the constructor for readability).
+    void setup_logging();
+    void detect_game_path();
+    void preallocate_minhook_buffer();
+    void detect_os_version();
+    void copy_storage_files();
+    void register_ldr_notification();
+    void wait_for_d3d_if_packed();
+    void load_vr_dlls();
+    void setup_re8_crash_fix();
+    void setup_mhwilds_early_init();
+    void setup_integrity_bypass();
+    void plugin_early_init();
+    void wait_for_vm_and_renderer();
+    void start_monitor_thread();
+
     std::atomic<uint32_t> m_do_not_hook_d3d_count{0};
 
 public:
@@ -209,28 +230,12 @@ public:
     bool hook_d3d11();
     bool hook_d3d12();
 
-private: // 启动流水线（构造函数各阶段辅助函数，按调用顺序排列）
-    void init_logging();
-    void log_system_info();
-    void log_os_version();
-    void preallocate_hook_buffer();
-    void register_dll_notification();
-    void backup_game_dlls_to_storage();
-    void platform_early_setup();
-    void early_init_file_loader();
-    bool wait_for_renderer(); // 返回 true 表示首帧已渲染，可立即 hook D3D12
-
-    // hook_d3d11/hook_d3d12 的公共流程：重建 hook 对象 → 注册回调 → hook → 失败回滚
-    template <typename HookT, typename RegisterCallbacks>
-    bool hook_d3d_impl(std::unique_ptr<HookT>& hook_slot, bool& hooked_flag, bool other_hooked, const char* api_name, RegisterCallbacks&& register_callbacks);
-
-    // on_frame_d3d11/on_frame_d3d12 的公共序言：设 renderer 类型 → prelude(后端前置检查) →
-    // 首次初始化 → message hook → device 校验 → on_frame_common_init → 首帧引导。
-    // 调用方必须已持有 m_imgui_mtx，并且要保持到函数结束：序言与绘制路径都要与游戏线程的 run_imgui_frame 互斥。
-    // 返回 false 时调用方应直接 return；is_init_ok 输出 common_init 结果。
-    // prelude/device_provider 语义见实现。
-    template <typename Prelude, typename DeviceFn>
-    bool frame_prologue(RendererType type, Prelude&& prelude, DeviceFn&& device_provider, bool& is_init_ok);
+private:
+    // Shared "try hook → unhook on failure" helper for D3D11/D3D12.
+    template <typename HookType>
+    bool try_hook_renderer(std::unique_ptr<HookType>& hook,
+                           bool& is_current, bool& is_other,
+                           const char* api_name);
 
 private:
     bool initialize();
@@ -375,16 +380,21 @@ private: // D3D12 members
         };
 
         enum class SRV : int {
+            IMGUI_FONT_BACKBUFFER,
+            IMGUI_FONT_VR,
             IMGUI_VR,
             BLANK,
-            // ImGui 后端纹理（字体等动态纹理）槽位从 DYNAMIC_BEGIN 起，由 srv_alloc 统一分配
-            DYNAMIC_BEGIN,
-            COUNT = DYNAMIC_BEGIN + 16 // 预留 16 个动态槽位给 ImGui 纹理
+            COUNT
         };
 
         ComPtr<ID3D12DescriptorHeap> rtv_desc_heap{};
         ComPtr<ID3D12DescriptorHeap> srv_desc_heap{};
         ComPtr<ID3D12Resource> rts[(int)RTV::COUNT]{};
+
+        // Precomputed CPU descriptor handles — avoids calling the virtual
+        // GetDescriptorHandleIncrementSize() on every frame in the hot path.
+        std::array<D3D12_CPU_DESCRIPTOR_HANDLE, (int)RTV::COUNT> cpu_rtvs{};
+        std::array<D3D12_CPU_DESCRIPTOR_HANDLE, (int)SRV::COUNT> cpu_srvs{};
 
         auto& get_rt(RTV rtv) { return rts[(int)rtv]; }
 
@@ -402,34 +412,6 @@ private: // D3D12 members
             return {srv_desc_heap->GetGPUDescriptorHandleForHeapStart().ptr +
                     (SIZE_T)srv * (SIZE_T)device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)};
         }
-
-        // ImGui 两个 DX12 后端（backbuffer / VR）共享同一 SRV 堆，描述符必须统一分配，
-        // 否则各自从槽位 0 开始会互相覆盖字体纹理。1.92 动态字体 bake 会反复创建/销毁
-        // 纹理，因此用位图空闲表支持真正的 free，槽位随堆重建时 reset。
-        struct SrvAllocator {
-            static constexpr int DYNAMIC_COUNT = (int)SRV::COUNT - (int)SRV::DYNAMIC_BEGIN;
-
-            // 返回堆内槽位索引，耗尽返回 -1
-            int alloc() {
-                if (free_mask == 0) {
-                    return -1;
-                }
-                const auto bit = std::countr_zero(free_mask);
-                free_mask &= ~(1u << bit);
-                return (int)SRV::DYNAMIC_BEGIN + bit;
-            }
-
-            void free(int index) {
-                const auto bit = index - (int)SRV::DYNAMIC_BEGIN;
-                if (bit >= 0 && bit < DYNAMIC_COUNT) {
-                    free_mask |= (1u << bit);
-                }
-            }
-
-            void reset() { free_mask = (1u << DYNAMIC_COUNT) - 1; }
-
-            uint32_t free_mask{0};
-        } srv_alloc{};
 
         uint32_t rt_width{};
         uint32_t rt_height{};
