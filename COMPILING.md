@@ -37,10 +37,10 @@ cmake --build ./build --config Release
 
 Keep in mind that not supplying a target will build multiple targets, when you may only need one of them.
 
-For example, to build only the RE2 target, you can use the following command:
+For example, to build the RE4 target, you can use the following command:
 
 ```
-cmake --build ./build --config Release --target RE2
+cmake --build ./build --config Release --target RE4
 ```
 
 #### VSCode
