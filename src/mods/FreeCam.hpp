@@ -20,7 +20,30 @@ public:
     void on_pre_application_entry(void* entry, const char* name, size_t hash) override;
 
 private:
+    // Movement + speed sampled for one camera update.
+    struct FrameInput {
+        Vector4f dir{};
+        float speed_multiplier{1.0f};
+    };
+
     bool update_pointers();
+    bool is_camera_transform(const RETransform* transform) const noexcept;
+
+    void update_camera(RETransform* transform);
+    void update_camera_pose(RETransform* transform);
+
+    void sample_gamepad(Vector4f& dir, float rotation_speed, float delta, float timescale_mult);
+    FrameInput sample_input(float delta, float timescale_mult);
+
+#ifdef RE8
+    bool update_props_manager();
+    void update_player_transform(RETransform* transform);
+#endif
+
+#ifdef RE4
+    void update_re4_body();
+    void setup_re4_hooks();
+#endif
 
     const ModToggle::Ptr m_enabled{              ModToggle::create(generate_name("Enabled"), false) };
     const ModToggle::Ptr m_lock_camera{          ModToggle::create(generate_name("LockPosition"), false) };

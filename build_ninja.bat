@@ -55,9 +55,8 @@ echo ============================================================
 REM --- 4. Deploy to game directory ---
 echo [4/4] Deploying dinput8.dll...
 set "SRC=build\bin\RE4\dinput8.dll"
-set "DST=D:\Games\Resident Evil 4\dinput8.dll"
-set "BAK=D:\Games\Resident Evil 4\dinput8_bak.dll"
-set "GAME_PROC=re4.exe"
+set "GAME_DIR=D:\Games\Resident Evil 4"
+set "DST=%GAME_DIR%\dinput8.dll"
 
 if not exist "%SRC%" (
     echo ERROR: build output not found: %SRC%
@@ -65,32 +64,15 @@ if not exist "%SRC%" (
     exit /b 1
 )
 
-REM If the game is running, dinput8.dll is likely locked — ask before killing.
-tasklist /FI "IMAGENAME eq %GAME_PROC%" 2>nul | findstr /I "%GAME_PROC%" >nul
-if %ERRORLEVEL%==0 (
-    echo [warn] %GAME_PROC% is running — dinput8.dll may be in use.
-    set /P "KILL=Close %GAME_PROC% and continue deploy? (Y/N): "
-    if /I "!KILL!"=="Y" (
-        echo Killing %GAME_PROC%...
-        taskkill /F /IM %GAME_PROC% >nul 2>&1
-        timeout /T 2 >nul
-    ) else (
-        echo Deploy skipped by user.
-        pause
-        exit /b 0
-    )
+REM Timestamp suffix for renamed old dll: MMDD_HHMMSS
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format 'MMdd_HHmmss'"') do set "STAMP=%%i"
+
+REM If an old dll exists, rename it with a timestamp suffix to keep history.
+if exist "%DST%" (
+    echo [info] Existing dinput8.dll found, renaming to dinput8_!STAMP!.dll...
+    move /Y "%DST%" "%GAME_DIR%\dinput8_!STAMP!.dll" >nul
 )
 
-if exist "%DST%" (
-    echo [info] Existing dinput8.dll found, backing up to dinput8_bak.dll...
-    move /Y "%DST%" "%BAK%" >nul
-)
 copy /Y "%SRC%" "%DST%" >nul
-if exist "%DST%" (
-    echo Deployed: %DST%
-) else (
-    echo ERROR: Deploy failed!
-    pause
-    exit /b 1
-)
+echo Deployed: %DST%
 pause
