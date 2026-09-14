@@ -2,7 +2,6 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <algorithm>
 
 #include <windows.h>
 #include <ShlObj.h>
@@ -47,31 +46,44 @@ extern "C" {
 namespace fs = std::filesystem;
 using namespace std::literals;
 
+// ---------------------------------------------------------------------------
+// Named timeouts / limits — replace magic numbers scattered through the file.
+// ---------------------------------------------------------------------------
+static constexpr auto PRESENT_TIMEOUT     = std::chrono::seconds{5};
+static constexpr auto CHANCE_TIMEOUT      = std::chrono::seconds{1};
+static constexpr auto MESSAGE_TIMEOUT     = std::chrono::seconds{5};
+static constexpr auto SENDMESSAGE_TIMEOUT = std::chrono::seconds{1};
+static constexpr auto INIT_FRAME_DELAY    = 60;
+static constexpr auto MAX_SCAN_RETRIES    = 10;
+static constexpr auto VM_INIT_TIMEOUT     = std::chrono::seconds{30};
+static constexpr auto NUM_COMMAND_CONTEXTS = 3;
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 DEFINE_GUID(GUID_DEVINTERFACE_HID, 0x4D1E55B2L, 0xF16F, 0x11CF, 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30);
 DEFINE_GUID(XUSB_INTERFACE_CLASS_GUID, 0xEC87F1E3, 0xC13B, 0x4100, 0xB5, 0xF7, 0x8B, 0x84, 0xD5, 0x42, 0x60, 0xCB);
 
 std::unique_ptr<REFramework> g_framework{};
 
+void REFramework::reset_chance_times() {
+    const auto now = std::chrono::steady_clock::now();
+    m_last_present_time.store(now + PRESENT_TIMEOUT);
+    m_last_chance_time.store(now + CHANCE_TIMEOUT);
+    m_has_last_chance.store(true);
+}
+
 void REFramework::hook_monitor() {
+    // Bail out early if a higher-priority operation is in progress.
     if (m_do_not_hook_d3d_count.load() > 0) {
-        // Wait until nothing important is happening
-        m_last_present_time.store(std::chrono::steady_clock::now() + std::chrono::seconds(5));
-        m_last_chance_time.store(std::chrono::steady_clock::now() + std::chrono::seconds(1));
-        m_has_last_chance.store(true);
+        reset_chance_times();
         return;
     }
 
+    // If another thread is already running hook_monitor, assume everything is
+    // fine and just reset the timers so we don't trigger a spurious rehook.
     if (!m_hook_monitor_mutex.try_lock()) {
-        // If this happens then we can assume execution is going as planned
-        // so we can just reset the times so we dont break something
-        m_last_present_time.store(std::chrono::steady_clock::now() + std::chrono::seconds(5));
-        m_last_chance_time.store(std::chrono::steady_clock::now() + std::chrono::seconds(1));
-        m_has_last_chance.store(true);
+        reset_chance_times();
         return;
     }
-
-    // Take ownership of the mutex with adopt_lock
     std::lock_guard _{ m_hook_monitor_mutex, std::adopt_lock };
 
     if (g_framework == nullptr) {
@@ -82,86 +94,82 @@ void REFramework::hook_monitor() {
 
     auto& d3d11 = get_d3d11_hook();
     auto& d3d12 = get_d3d12_hook();
-
     const auto renderer_type = get_renderer_type();
 
-    if (d3d11 == nullptr || d3d12 == nullptr 
-        || (renderer_type == REFramework::RendererType::D3D11 && d3d11 != nullptr && !d3d11->is_inside_present()) 
-        || (renderer_type == REFramework::RendererType::D3D12 && d3d12 != nullptr && !d3d12->is_inside_present())) 
-    {
-        // check if present time is more than 5 seconds ago
-        if (now - m_last_present_time.load() > std::chrono::seconds(5)) {
-            if (m_has_last_chance.load()) {
-                // the purpose of this is to make sure that the game is not frozen
-                // e.g. if we are debugging the game, so we don't rehook anything on accident
-                m_has_last_chance.store(false);
-                m_last_chance_time.store(now);
+    // Are the D3D hooks in a usable state?
+    const bool hooks_unusable = d3d11 == nullptr || d3d12 == nullptr
+        || (renderer_type == RendererType::D3D11 && d3d11 != nullptr && !d3d11->is_inside_present())
+        || (renderer_type == RendererType::D3D12 && d3d12 != nullptr && !d3d12->is_inside_present());
 
-                spdlog::info("Last chance encountered for hooking");
+    if (!hooks_unusable) {
+        return;
+    }
+
+    // --- D3D rehook logic ------------------------------------------------
+    if (now - m_last_present_time.load() > PRESENT_TIMEOUT) {
+        if (m_has_last_chance.load()) {
+            // The purpose is to make sure the game is not frozen (e.g. while
+            // debugging), so we don't rehook on accident.
+            m_has_last_chance.store(false);
+            m_last_chance_time.store(now);
+            spdlog::info("Last chance encountered for hooking");
+        }
+
+        if (!m_has_last_chance.load() && now - m_last_chance_time.load() > CHANCE_TIMEOUT) {
+            spdlog::info("Sending rehook request for D3D");
+
+            // hook_d3d12 always gets called first.
+            if (m_is_d3d11) {
+                hook_d3d11();
+            } else {
+                hook_d3d12();
             }
 
-            if (!m_has_last_chance.load() && now - m_last_chance_time.load() > std::chrono::seconds(1)) {
-                spdlog::info("Sending rehook request for D3D");
-
-                // hook_d3d12 always gets called first.
-                if (m_is_d3d11) {
-                    hook_d3d11();
-                } else {
-                    hook_d3d12();
-                }
-
-                // so we don't immediately go and hook it again
-                // add some additional time to it to give it some leeway
-                const auto future5 = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-                const auto future1 = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-                m_last_present_time.store(future5);
-                m_last_message_time.store(future5);
-                m_last_chance_time.store(future1);
-                m_has_last_chance.store(true);
-            }
-        } else {
-            m_last_chance_time.store(std::chrono::steady_clock::now());
+            // Pad the timers so we don't immediately rehook.
+            const auto future5 = now + PRESENT_TIMEOUT;
+            const auto future1 = now + CHANCE_TIMEOUT;
+            m_last_present_time.store(future5);
+            m_last_message_time.store(future5);
+            m_last_chance_time.store(future1);
             m_has_last_chance.store(true);
         }
+    } else {
+        m_last_chance_time.store(now);
+        m_has_last_chance.store(true);
+    }
 
-        if (m_initialized && m_wnd != 0 && now - m_last_message_time.load() > std::chrono::seconds(5)) {
-            if (m_windows_message_hook != nullptr && m_windows_message_hook->is_hook_intact()) {
-                spdlog::info("Windows message hook is still intact, ignoring...");
-                m_last_message_time.store(now);
-                m_last_sendmessage_time.store(now);
-                m_sent_message.store(false);
-                return;
+    // --- Windows message hook liveness check ------------------------------
+    if (m_initialized && m_wnd != 0 && now - m_last_message_time.load() > MESSAGE_TIMEOUT) {
+        if (m_windows_message_hook != nullptr && m_windows_message_hook->is_hook_intact()) {
+            spdlog::info("Windows message hook is still intact, ignoring...");
+            m_last_message_time.store(now);
+            m_last_sendmessage_time.store(now);
+            m_sent_message.store(false);
+            return;
+        }
+
+        // Send a dummy message to check if our hook is still intact.
+        if (!m_sent_message.load()) {
+            spdlog::info("Sending initial message hook test");
+
+            auto proc = (WNDPROC)GetWindowLongPtr(m_wnd, GWLP_WNDPROC);
+            if (proc != nullptr) {
+                CallWindowProc(proc, m_wnd, WM_NULL, 0, 0);
+                spdlog::info("Hook test message sent");
             }
 
-            // send dummy message to window to check if our hook is still intact
-            if (!m_sent_message.load()) {
-                spdlog::info("Sending initial message hook test");
-
-                auto proc = (WNDPROC)GetWindowLongPtr(m_wnd, GWLP_WNDPROC);
-
-                if (proc != nullptr) {
-                    const auto ret = CallWindowProc(proc, m_wnd, WM_NULL, 0, 0);
-
-                    spdlog::info("Hook test message sent");
-                }
-
-                m_last_sendmessage_time.store(std::chrono::steady_clock::now());
-                m_sent_message.store(true);
-            } else if (now - m_last_sendmessage_time.load() > std::chrono::seconds(1)) {
-                spdlog::info("Sending reinitialization request for message hook");
-
-                // if we don't get a message for 5 seconds, assume the hook is broken
-                //m_initialized = false; // causes the hook to be re-initialized next frame
-                m_message_hook_requested.store(true);
-                const auto future5 = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-                m_last_message_time.store(future5);
-                m_last_present_time.store(future5);
-
-                m_sent_message.store(false);
-            }
-        } else {
+            m_last_sendmessage_time.store(std::chrono::steady_clock::now());
+            m_sent_message.store(true);
+        } else if (now - m_last_sendmessage_time.load() > SENDMESSAGE_TIMEOUT) {
+            spdlog::info("Sending reinitialization request for message hook");
+            m_message_hook_requested.store(true);
+            const auto future5 = now + MESSAGE_TIMEOUT;
+            m_last_message_time.store(future5);
+            m_last_present_time.store(future5);
             m_sent_message.store(false);
         }
+    } else {
+        m_sent_message.store(false);
     }
 }
 
@@ -248,117 +256,37 @@ try {
     spdlog::error("ldr_notification_callback: Unknown exception occurred");
 }
 
-namespace {
-
-using steady_time_point = std::chrono::steady_clock::time_point;
-
-// 仅当 new_value 比当前值更晚时才更新 deadline（"取最大/心跳pet"语义）。
-// 用于 present 路径刷新看门狗时间戳时，不覆盖 hook_monitor 预支的更晚抑制期限。
-void store_latest(std::atomic<steady_time_point>& deadline, steady_time_point new_value) {
-    auto cur = deadline.load(std::memory_order_relaxed);
-    while (new_value > cur) {
-        if (deadline.compare_exchange_weak(cur, new_value, std::memory_order_relaxed)) {
-            break;
-        }
-    }
-}
-
-// 统一轮询等待原语：每 interval 评估一次 pred，直到其返回 true 或到达 deadline。
-// pred 抛异常视为“尚未就绪”（游戏解包/初始化早期访问 SDK 是常态），吞掉后继续等。
-template <typename Pred>
-bool wait_until(std::string_view name, std::chrono::steady_clock::time_point deadline, std::chrono::milliseconds interval, Pred&& pred) {
-    while (true) {
-        try {
-            if (pred()) {
-                return true;
-            }
-        } catch(...) {
-        }
-
-        if (std::chrono::steady_clock::now() >= deadline) {
-            spdlog::error("Timed out waiting for {}.", name);
-            return false;
-        }
-
-        std::this_thread::sleep_for(interval);
-    }
-}
-
-} // namespace
-
 REFramework::REFramework(HMODULE reframework_module)
     : m_game_module{GetModuleHandle(0)}
     , m_logger{spdlog::basic_logger_mt("REFramework", (get_persistent_dir("reframework_log.txt")).string(), true)}
-    {
-
+{
     s_reframework_module = reframework_module;
-
     std::scoped_lock __{m_startup_mutex};
 
-    init_logging();
-    log_system_info();
-    preallocate_hook_buffer();
-
-    IntegrityCheckBypass::fix_virtual_protect();
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-#ifdef DEBUG
-    spdlog::set_level(spdlog::level::debug);
-#else
-    // 可以在这里设置 release 模式的日志级别
-    // spdlog::level::trace    - 最详细，包含所有信息
-    // spdlog::level::debug    - 调试信息
-    // spdlog::level::info     - 一般信息（默认）
-    // spdlog::level::warn     - 警告信息
-    // spdlog::level::error    - 错误信息
-    // spdlog::level::critical - 严重错误
-    // spdlog::level::off      - 关闭日志
-    spdlog::set_level(spdlog::level::warn);  // 当前设置为 info
-#endif
-
-    log_os_version();
-    register_dll_notification();
-
-    platform_early_setup();
-
-    // Load the plugins early right after executable unpacking
-    PluginLoader::get()->early_init();
-
-    // Wait for TDB and render device to be initialized before allowing D3D hooking
-    if (!wait_until("VM", std::chrono::steady_clock::now() + 30s, 1ms, [] { return sdk::VM::get() != nullptr; })) {
-        throw std::runtime_error("Timed out waiting for VM to initialize.");
-    }
-
-    spdlog::info("VM initialized, waiting for renderer to initialize...");
-
-    early_init_file_loader();
-
-    // If all is good, we can immediately hook D3D12 very early
-    // else, defer to the hook monitor if anything in the chain failed
-    if (wait_for_renderer()) {
-        // We can guaranteed hook at this point
-        std::scoped_lock _{m_hook_monitor_mutex};
-        hook_d3d12();
-    }
-
-    std::scoped_lock _{m_hook_monitor_mutex};
-
-    m_last_present_time.store(std::chrono::steady_clock::now());
-    m_last_message_time.store(std::chrono::steady_clock::now());
-    m_d3d_monitor_thread = std::make_unique<std::jthread>([this](std::stop_token stop_token) {
-        while (!stop_token.stop_requested() && !m_terminating) {
-            this->hook_monitor();
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-    });
-}
-
-void REFramework::init_logging() {
     spdlog::set_default_logger(m_logger);
     spdlog::flush_on(spdlog::level::info);
 
+    setup_logging();
+    detect_game_path();
+    preallocate_minhook_buffer();
+    detect_os_version();
+    copy_storage_files();
+    register_ldr_notification();
+    wait_for_d3d_if_packed();
+    load_vr_dlls();
+    setup_re8_crash_fix();
+    setup_mhwilds_early_init();
+    setup_integrity_bypass();
+    plugin_early_init();
+    wait_for_vm_and_renderer();
+    start_monitor_thread();
+}
+
+// ---------------------------------------------------------------------------
+// Private construction helpers — each one encapsulates one phase of startup.
+// ---------------------------------------------------------------------------
+
+void REFramework::setup_logging() {
     if (s_fallback_appdata) {
         spdlog::warn("Failed to write to current directory, falling back to appdata folder");
     }
@@ -373,10 +301,18 @@ void REFramework::init_logging() {
     spdlog::info("Build date: {}", REF_BUILD_DATE);
     spdlog::info("Build time: {}", REF_BUILD_TIME);
     spdlog::info("Game name: {}", REFramework::get_game_name());
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+#ifdef DEBUG
+    spdlog::set_level(spdlog::level::debug);
+#else
+    spdlog::set_level(spdlog::level::warn);
+#endif
 }
 
-// 顺带初始化 g_current_game_path（后续 DLL 备份、模块路径伪装都依赖它）
-void REFramework::log_system_info() {
+void REFramework::detect_game_path() {
     const auto module_size = *utility::get_module_size(m_game_module);
 
     spdlog::info("Game Module Addr: {:x}", (uintptr_t)m_game_module);
@@ -389,20 +325,26 @@ void REFramework::log_system_info() {
     }
 }
 
-void REFramework::log_os_version() {
-    // Create the typedef for RtlGetVersion
+void REFramework::preallocate_minhook_buffer() {
+    // Preallocate some memory for minhook to mitigate failures.
+    // TODO: modify minhook to use absolute jumps when failing to allocate memory nearby.
+    const auto halfway_module = (uintptr_t)m_game_module + (*utility::get_module_size(m_game_module) / 2);
+    const auto pre_allocated_buffer = (uintptr_t)AllocateBuffer((LPVOID)halfway_module);
+    spdlog::info("Preallocated buffer: {:x}", pre_allocated_buffer);
+
+    IntegrityCheckBypass::fix_virtual_protect();
+}
+
+void REFramework::detect_os_version() {
     typedef LONG (*RtlGetVersionFunc)(PRTL_OSVERSIONINFOW);
 
     const auto ntdll = GetModuleHandle("ntdll.dll");
-
     if (ntdll == nullptr) {
         spdlog::info("ntdll.dll not found");
         return;
     }
 
-    // Manually get RtlGetVersion
     auto rtl_get_version = (RtlGetVersionFunc)GetProcAddress(ntdll, "RtlGetVersion");
-
     if (rtl_get_version == nullptr) {
         spdlog::info("RtlGetVersion() not found");
         return;
@@ -410,21 +352,13 @@ void REFramework::log_os_version() {
 
     spdlog::info("Getting OS version information...");
 
-    // Create an initial log that prints out the user's Windows OS version information
-    // With the major and minor version numbers
-    // Using RtlGetVersion()
     OSVERSIONINFOW os_version_info{};
     ZeroMemory(&os_version_info, sizeof(OSVERSIONINFOW));
     os_version_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
-    os_version_info.dwMajorVersion = 0;
-    os_version_info.dwMinorVersion = 0;
-    os_version_info.dwBuildNumber = 0;
-    os_version_info.dwPlatformId = 0;
 
     if (rtl_get_version(&os_version_info) != 0) {
         spdlog::info("RtlGetVersion() failed");
     } else {
-        // Log the Windows version information
         spdlog::info("OS Version Information");
         spdlog::info("\tMajor Version: {}", os_version_info.dwMajorVersion);
         spdlog::info("\tMinor Version: {}", os_version_info.dwMinorVersion);
@@ -436,103 +370,68 @@ void REFramework::log_os_version() {
     }
 }
 
-void REFramework::preallocate_hook_buffer() {
-    // preallocate some memory for minhook to mitigate failures (temporarily at least... this should in theory fail when too many hooks are made)
-    // but, 64 slots should be enough for now.
-    // so... TODO: modify minhook to use absolute jumps when failing to allocate memory nearby
-    const auto module_size = *utility::get_module_size(m_game_module);
-    const auto halfway_module = (uintptr_t)m_game_module + (module_size / 2);
-    const auto pre_allocated_buffer = (uintptr_t)AllocateBuffer((LPVOID)halfway_module); // minhook function
-    spdlog::info("Preallocated buffer: {:x}", pre_allocated_buffer);
-}
-
-void REFramework::backup_game_dlls_to_storage() {
-    // Do this at least once before setting up our callback.
+void REFramework::copy_storage_files() {
 #if defined(DD2) || defined(MHRISE) || TDB_VER >= 74
-    // Pre-emptively copy all DLL files in the current game directory into our _storage_ directory.
-    if (g_current_game_path.has_value()) {
-        const auto dest_path = *g_current_game_path / "_storage_";
-        fs::create_directories(dest_path);
+    if (!g_current_game_path.has_value()) return;
 
-        if (std::filesystem::exists(dest_path)) try {
-            std::error_code directory_ec{};
-            // Locate all DLL files in the current game directory
-            for (const auto& entry : fs::directory_iterator(*g_current_game_path, directory_ec)) try {
-                const auto entry_path = entry.path();
+    const auto dest_path = *g_current_game_path / "_storage_";
+    fs::create_directories(dest_path);
 
-                if (entry.is_regular_file() && entry_path.extension() == ".dll") {
-                    spdlog::info("Copying DLL file: {}", entry_path.filename().string());
-                    spdlog::info(" Full path: {}", entry_path.string());
-                    const auto final_dest = dest_path / entry_path.filename().string();
-                    spdlog::info(" Destination: {}", final_dest.string());
-                    std::error_code ec{};
-                    fs::copy_file(entry_path, final_dest, fs::copy_options::overwrite_existing, ec);
+    if (!std::filesystem::exists(dest_path)) {
+        spdlog::error("Failed to create storage directory");
+        return;
+    }
 
-                    // check if error occurred
-                    if (ec) {
-                        spdlog::error("Failed to copy DLL file: {}", ec.message());
-                    }
-
-                    ec.clear();
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-                spdlog::error("Failed to copy DLL file: {}", e.what());
-            } catch (const std::exception& e) {
-                spdlog::error("Failed to copy DLL file: {}", e.what());
-            } catch(...) {
-                spdlog::error("Failed to copy DLL file: unknown exception occurred");
-            }
-
-            if (directory_ec) {
-                spdlog::error("An error occurred while traversing the game directory: {}", directory_ec.message());
-            }
-
-            // Copy the D3D12/D3D12Core.dll file from the current game directory into our _storage_ directory with the same subdirectory structure.
-            const auto d3d12_path = *g_current_game_path / "D3D12" / "D3D12Core.dll";
-
-            if (std::filesystem::exists(d3d12_path)) try {
-                spdlog::info("Copying D3D12Core.dll file");
-                fs::create_directories(dest_path / "D3D12");
-
-                std::error_code ec{};
-                fs::copy_file(d3d12_path, dest_path / "D3D12" / "D3D12Core.dll", fs::copy_options::overwrite_existing, ec);
-
-                if (ec) {
-                    spdlog::error("Failed to copy D3D12Core.dll file: {}", ec.message());
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-                spdlog::error("Failed to copy D3D12Core.dll file: {}", e.what());
-            } catch (const std::exception& e) {
-                spdlog::error("Failed to copy D3D12Core.dll file: {}", e.what());
-            } catch(...) {
-                spdlog::error("Failed to copy D3D12Core.dll file: unknown exception occurred");
+    // Helper: copy a single file with error reporting.
+    auto copy_file_safe = [](const fs::path& src, const fs::path& dst, const char* label) {
+        try {
+            std::error_code ec{};
+            fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
+            if (ec) {
+                spdlog::error("Failed to copy {}: {}", label, ec.message());
             }
         } catch (const std::filesystem::filesystem_error& e) {
-            spdlog::error("An error occurred while copying DLL files: {}", e.what());
+            spdlog::error("Failed to copy {}: {}", label, e.what());
         } catch (const std::exception& e) {
-            spdlog::error("An error occurred while copying DLL files: {}", e.what());
+            spdlog::error("Failed to copy {}: {}", label, e.what());
         } catch(...) {
-            spdlog::error("An error occurred while copying DLL files: unknown exception occurred");
+            spdlog::error("Failed to copy {}: unknown exception", label);
         }
-    } else {
-        spdlog::error("Failed to create storage directory");
+    };
+
+    // Copy all DLLs from the game directory.
+    std::error_code directory_ec{};
+    for (const auto& entry : fs::directory_iterator(*g_current_game_path, directory_ec)) {
+        const auto entry_path = entry.path();
+        if (entry.is_regular_file() && entry_path.extension() == ".dll") {
+            spdlog::info("Copying DLL file: {}", entry_path.filename().string());
+            copy_file_safe(entry_path, dest_path / entry_path.filename().string(), "DLL file");
+        }
+    }
+
+    if (directory_ec) {
+        spdlog::error("An error occurred while traversing the game directory: {}", directory_ec.message());
+    }
+
+    // Copy D3D12Core.dll preserving subdirectory structure.
+    const auto d3d12_path = *g_current_game_path / "D3D12" / "D3D12Core.dll";
+    if (std::filesystem::exists(d3d12_path)) {
+        spdlog::info("Copying D3D12Core.dll file");
+        fs::create_directories(dest_path / "D3D12");
+        copy_file_safe(d3d12_path, dest_path / "D3D12" / "D3D12Core.dll", "D3D12Core.dll");
     }
 
     utility::spoof_module_paths_in_exe_dir();
 #endif
 }
 
-void REFramework::register_dll_notification() {
+void REFramework::register_ldr_notification() {
     const auto ntdll = GetModuleHandle("ntdll.dll");
-
     if (ntdll == nullptr) {
         spdlog::info("ntdll.dll not found");
         return;
     }
 
-    backup_game_dlls_to_storage();
-
-    // Register our LdrRegisterDllNotification callback
     spdlog::info("Registering LdrRegisterDllNotification callback...");
     const auto ldr_register_dll_notification = (LdrRegisterDllNotification_t)GetProcAddress(ntdll, "LdrRegisterDllNotification");
 
@@ -550,11 +449,8 @@ void REFramework::register_dll_notification() {
     }
 }
 
-// 各游戏特化的早期处理：解包等待、强制加载图形 DLL、启动崩溃补丁、完整性检查绕过
-void REFramework::platform_early_setup() {
-    // wait for the game to load (WTF MHRISE??)
-    // once this is done, we can assume the process is unpacked.
-#if defined (REENGINE_PACKED)
+void REFramework::wait_for_d3d_if_packed() {
+#if defined(REENGINE_PACKED)
     auto now = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point next_log = now;
 
@@ -576,9 +472,10 @@ void REFramework::platform_early_setup() {
 
     spdlog::info("D3D12 loaded");
 #endif
+}
 
+void REFramework::load_vr_dlls() {
 #if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-    // VR DLLs removed - VR support disabled
     LoadLibraryA("dxgi.dll");
     LoadLibraryA("d3d11.dll");
 
@@ -586,12 +483,11 @@ void REFramework::platform_early_setup() {
         utility::spoof_module_paths_in_exe_dir();
     }
 #endif
+}
 
+void REFramework::setup_re8_crash_fix() {
 #if defined(RE8)
     auto startup_lookup_thread = std::make_unique<std::thread>([this]() {
-        // Fixes a crash on some machines when starting the game
-        // This one has nothing to do with integrity checks
-        // it has something to do with the Agility SDK and pipeline state.
         uint32_t times_searched = 0;
 
         auto startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
@@ -599,7 +495,7 @@ void REFramework::platform_early_setup() {
         while (!startup_patch_addr) {
             startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
 
-            if (times_searched++ > 10) {
+            if (times_searched++ > MAX_SCAN_RETRIES) {
                 spdlog::error("Failed to find startup patch address");
                 return;
             }
@@ -614,87 +510,99 @@ void REFramework::platform_early_setup() {
     });
     startup_lookup_thread->detach();
 #endif
+}
 
+void REFramework::setup_mhwilds_early_init() {
 #if defined(MHWILDS)
     FaultyFileDetector::early_init();
 #endif
+}
 
+void REFramework::setup_integrity_bypass() {
 #if defined(REENGINE_AT)
     utility::ThreadSuspender suspender{};
     IntegrityCheckBypass::ignore_application_entries();
 
 #if defined(RE8) || defined(RE4) || defined(SF6)
-    // Also done on RE4 because some of the scans are the same.
     IntegrityCheckBypass::immediate_patch_re8();
 #endif
 
 #if defined(RE4) || defined(SF6)
-    // Fixes new code added in RE4 only.
     IntegrityCheckBypass::immediate_patch_re4();
 #endif
 
 #if defined(DD2) || TDB_VER >= 74
-    // Fixes new code added in DD2 only. Maybe >= TDB73 too. Probably will change.
     IntegrityCheckBypass::immediate_patch_dd2();
 #endif
 
 #if TDB_VER >= 82
-    // Fixes new code added in RE9 only. Maybe >= TDB83 too. Probably will change.
-    // Addendum: Found to be present in MHSTORIES3 (TDB 82) as well, so this is not RE9 exclusive.
     IntegrityCheckBypass::immediate_patch_re9();
 #endif
 
-    // Seen in SF6
     IntegrityCheckBypass::remove_stack_destroyer();
     suspender.resume();
 #endif
 }
 
-void REFramework::early_init_file_loader() {
-    if (sdk::RETypeDB::get() == nullptr) {
-        return;
-    }
-
-    auto& loader = LooseFileLoader::get(); // Initialize this really early
-    auto &integrity_bypass = IntegrityCheckBypass::get_shared_instance();
-
-#if defined(MHWILDS)
-    auto& faulty_file_detector = FaultyFileDetector::get();
-#endif
-
-    const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string();
-    if (fs::exists(utility::widen(config_path))) {
-        utility::Config cfg{ config_path };
-        loader->on_config_load(cfg);
-
-#if defined(MHWILDS)
-        faulty_file_detector->on_config_load(cfg);
-#endif
-        integrity_bypass->on_config_load(cfg);
-    }
-
-    if (loader->is_enabled()) {
-        loader->hook();
-    }
+void REFramework::plugin_early_init() {
+    PluginLoader::get()->early_init();
 }
 
-// 等待 via.render.Renderer 实例就绪并完成首帧渲染。
-// 返回 true 表示可以立即 hook D3D12；返回 false 表示链路中断，交由 hook_monitor 兜底。
-bool REFramework::wait_for_renderer() {
+void REFramework::wait_for_vm_and_renderer() {
+    // Wait for TDB and render device to be initialized before allowing D3D hooking.
+    const auto start_time = std::chrono::high_resolution_clock::now();
+
+    while (true) {
+        try {
+            if (sdk::VM::get() != nullptr) break;
+        } catch(...) {}
+
+        if (std::chrono::high_resolution_clock::now() - start_time > VM_INIT_TIMEOUT) {
+            spdlog::error("Timed out waiting for VM to initialize.");
+            throw std::runtime_error("Timed out waiting for VM to initialize.");
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    spdlog::info("VM initialized, waiting for renderer to initialize...");
     sdk::RETypeDefinition* renderer_t = nullptr;
     sdk::renderer::Renderer* renderer = nullptr;
+    bool found_renderer = false;
     bool renderer_has_render_frame_fn = false;
+
+    if (sdk::RETypeDB::get() != nullptr) {
+        auto& loader = LooseFileLoader::get();
+        auto& integrity_bypass = IntegrityCheckBypass::get_shared_instance();
+
+#if defined(MHWILDS)
+        auto& faulty_file_detector = FaultyFileDetector::get();
+#endif
+
+        const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string();
+        if (fs::exists(utility::widen(config_path))) {
+            utility::Config cfg{ config_path };
+            loader->on_config_load(cfg);
+
+#if defined(MHWILDS)
+            faulty_file_detector->on_config_load(cfg);
+#endif
+            integrity_bypass->on_config_load(cfg);
+        }
+
+        if (loader->is_enabled()) {
+            loader->hook();
+        }
+    }
 
     while (true) try {
         const auto tdb = sdk::RETypeDB::get();
 
         if (tdb == nullptr) {
             spdlog::error("TypeDB not found");
-            return false;
+            break;
         }
 
-        // We have to manually look through the types because get_FullName
-        // will crash if we call it this early, which is used in get_type(name)
         if (renderer_t == nullptr) {
             for (auto i = 0; i < tdb->get_num_types(); ++i) {
                 const auto t = tdb->get_type(i);
@@ -703,7 +611,8 @@ bool REFramework::wait_for_renderer() {
                     continue;
                 }
 
-                if (std::string_view{t->get_name()} == "Renderer" && std::string_view{t->get_namespace()} == "via.render") {
+                if (std::string_view{t->get_name()} == "Renderer" &&
+                    std::string_view{t->get_namespace()} == "via.render") {
                     spdlog::info("Renderer type found manually @ {:x}", (uintptr_t)t);
                     renderer_t = t;
                     break;
@@ -713,32 +622,31 @@ bool REFramework::wait_for_renderer() {
 
         if (renderer_t == nullptr) {
             spdlog::error("Renderer type not found");
-            return false;
+            break;
         }
 
         renderer_has_render_frame_fn = renderer_t->get_method("get_RenderFrame") != nullptr;
 
         const auto renderer_has_instance = renderer_t->get_method("hasInstance");
-
         if (renderer_has_instance == nullptr) {
             spdlog::error("Renderer::hasInstance not found");
-            return false;
+            break;
         }
 
         if (renderer_has_instance->get_function() == nullptr) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 
-        const auto has_instance = renderer_has_instance->call<bool>(nullptr, nullptr); // static
-
+        const auto has_instance = renderer_has_instance->call<bool>(nullptr, nullptr);
         if (!has_instance) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 
         renderer = sdk::renderer::get_renderer();
-
         if (renderer != nullptr) {
+            found_renderer = true;
             break;
         }
 
@@ -749,7 +657,10 @@ bool REFramework::wait_for_renderer() {
         continue;
     }
 
-    spdlog::info("Found renderer @ {:x} (type: {:x}), waiting for first frame...", (uintptr_t)renderer, (uintptr_t)renderer_t);
+    spdlog::info("Found renderer @ {:x} (type: {:x}), waiting for first frame...",
+                 (uintptr_t)renderer, (uintptr_t)renderer_t);
+
+    bool valid_render_frame = false;
 
     if (renderer_has_render_frame_fn) {
         spdlog::info("Renderer has get_RenderFrame function");
@@ -758,93 +669,106 @@ bool REFramework::wait_for_renderer() {
     }
 
     while (renderer_has_render_frame_fn) try {
-        // This function is static so its fine if renderer is null.
         const auto render_frame = renderer->get_render_frame();
 
         if (!render_frame.has_value()) {
             spdlog::warn("Render frame property not found");
-            return false;
+            break;
         }
 
         if (*render_frame > 0) {
             spdlog::info("Render frame: {}", *render_frame);
-            return true;
+            valid_render_frame = true;
+            break;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } catch(...) {
-        //spdlog::warn("Exception occurred while waiting for render frame");
         continue;
     }
 
-    return false;
+    if (valid_render_frame) {
+        std::scoped_lock _{m_hook_monitor_mutex};
+        hook_d3d12();
+    }
 }
 
-// hook_d3d11/hook_d3d12 的公共流程：重建 hook 对象 → 注册回调 → hook → 失败回滚。
-// 锁由调用方持有（hook_monitor / 构造函数的 m_hook_monitor_mutex）。
-template <typename HookT, typename RegisterCallbacks>
-bool REFramework::hook_d3d_impl(std::unique_ptr<HookT>& hook_slot, bool& hooked_flag, bool other_hooked, const char* api_name, RegisterCallbacks&& register_callbacks) {
-    hook_slot.reset();
-    hook_slot = std::make_unique<HookT>();
-    register_callbacks(*hook_slot);
+void REFramework::start_monitor_thread() {
+    std::scoped_lock _{m_hook_monitor_mutex};
 
-    // 确保另一个后端没有被 hook
-    if (other_hooked) {
+    m_last_present_time.store(std::chrono::steady_clock::now());
+    m_last_message_time.store(std::chrono::steady_clock::now());
+    m_d3d_monitor_thread = std::make_unique<std::jthread>([this](std::stop_token stop_token) {
+        while (!stop_token.stop_requested() && !m_terminating) {
+            this->hook_monitor();
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    });
+}
+
+// Shared "try hook → unhook on failure" logic for both D3D11 and D3D12.
+// Returns true on success, false if the other API is already active or the hook failed.
+template <typename HookType>
+bool REFramework::try_hook_renderer(std::unique_ptr<HookType>& hook,
+                                     bool& is_current, bool& is_other,
+                                     const char* api_name) {
+    if (is_other) {
         return false;
     }
 
-    if (hook_slot->hook()) {
-        spdlog::info("Hooked DirectX {}", api_name);
+    if (hook->hook()) {
+        spdlog::info("Hooked {}", api_name);
         m_valid = true;
-        hooked_flag = true;
+        is_current = true;
         return true;
     }
 
-    // hook 失败时确保不残留不完整的 hook
-    if (hook_slot->unhook()) {
-        spdlog::info("D3D{} unhooked!", api_name);
+    if (hook->unhook()) {
+        spdlog::info("{} unhooked!", api_name);
     } else {
-        spdlog::info("Cannot unhook D3D{}, this might crash.", api_name);
+        spdlog::info("Cannot unhook {}, this might crash.", api_name);
     }
 
     m_valid = false;
-    hooked_flag = false;
+    is_current = false;
     return false;
 }
 
 bool REFramework::hook_d3d11() {
-    return hook_d3d_impl(m_d3d11_hook, m_is_d3d11, m_is_d3d12, "11", [this](D3D11Hook& hook) {
-        hook.on_present([this](D3D11Hook&) { on_frame_d3d11(); });
-        hook.on_post_present([this](D3D11Hook&) { on_post_present_d3d11(); });
-        hook.on_resize_buffers([this](D3D11Hook&) { on_reset(); });
-    });
+    m_d3d11_hook.reset();
+    m_d3d11_hook = std::make_unique<D3D11Hook>();
+    m_d3d11_hook->on_present([this](D3D11Hook& hook) { on_frame_d3d11(); });
+    m_d3d11_hook->on_post_present([this](D3D11Hook& hook) { on_post_present_d3d11(); });
+    m_d3d11_hook->on_resize_buffers([this](D3D11Hook& hook) { on_reset(); });
+
+    return try_hook_renderer(m_d3d11_hook, m_is_d3d11, m_is_d3d12, "DirectX 11");
 }
 
 bool REFramework::hook_d3d12() {
-    // windows 7?
     if (LoadLibraryA("d3d12.dll") == nullptr) {
         spdlog::info("d3d12.dll not found, user is probably running Windows 7.");
         spdlog::info("Falling back to hooking D3D11.");
-
         m_is_d3d12 = false;
         return hook_d3d11();
     }
 
-    if (hook_d3d_impl(m_d3d12_hook, m_is_d3d12, m_is_d3d11, "12", [this](D3D12Hook& hook) {
-        hook.on_present([this](D3D12Hook&) { on_frame_d3d12(); });
-        hook.on_post_present([this](D3D12Hook&) { on_post_present_d3d12(); });
-        hook.on_resize_buffers([this](D3D12Hook&) { on_reset(); });
-        hook.on_resize_target([this](D3D12Hook&) { on_reset(); });
-    })) {
-        return true;
+    m_d3d12_hook.reset();
+    m_d3d12_hook = std::make_unique<D3D12Hook>();
+    m_d3d12_hook->on_present([this](D3D12Hook& hook) { on_frame_d3d12(); });
+    m_d3d12_hook->on_post_present([this](D3D12Hook& hook) { on_post_present_d3d12(); });
+    m_d3d12_hook->on_resize_buffers([this](D3D12Hook& hook) { on_reset(); });
+    m_d3d12_hook->on_resize_target([this](D3D12Hook& hook) { on_reset(); });
+
+    // D3D11 is already hooked, leave it alone.
+    if (m_is_d3d11) {
+        return false;
     }
 
-    // d3d12 hook 失败且 d3d11 未占用时，回退 d3d11
-    if (!m_is_d3d11) {
+    if (!try_hook_renderer(m_d3d12_hook, m_is_d3d12, m_is_d3d11, "DirectX 12")) {
+        // The D3D12 hook failed, try D3D11 as fallback.
         return hook_d3d11();
     }
-
-    return false;
+    return true;
 }
 
 REFramework::~REFramework() {
@@ -935,43 +859,42 @@ bool REFramework::on_frame_common_init() {
     return is_init_ok;
 }
 
-// on_frame_d3d11/on_frame_d3d12 的公共序言。返回 false 表示调用方应直接 return。
-// 调用方必须已持有 m_imgui_mtx，并保持到函数结束：序言与绘制路径都要与游戏线程的 run_imgui_frame 互斥。
-// prelude() 最先执行，用于后端前置检查（如 d3d12 的 command_queue 判空），返回 false 即中止；
-// device_provider() 在 message hook 之后执行，检查 device 是否有效，内部负责记录错误并复位 m_initialized。
-template <typename Prelude, typename DeviceFn>
-bool REFramework::frame_prologue(RendererType type, Prelude&& prelude, DeviceFn&& device_provider, bool& is_init_ok) {
-    m_renderer_type = type;
+void REFramework::on_frame_d3d11() {
+    std::scoped_lock _{ m_imgui_mtx };
 
-    if (!prelude()) {
-        return false;
-    }
+    spdlog::debug("on_frame (D3D11)");
+
+    m_renderer_type = RendererType::D3D11;
 
     if (!m_initialized) {
         if (!initialize()) {
-            return false;
+            return;
         }
 
         spdlog::info("REFramework initialized");
         m_initialized = true;
-        return false;
+        return;
     }
 
     if (m_message_hook_requested.load()) {
         initialize_windows_message_hook();
     }
 
-    if (!device_provider()) {
-        return false;
+    auto device = m_d3d11_hook->get_device();
+    
+    if (device == nullptr) {
+        spdlog::error("D3D11 device was null when it shouldn't be, returning...");
+        m_initialized = false;
+        return;
     }
 
-    is_init_ok = on_frame_common_init();
+    const auto is_init_ok = on_frame_common_init();
 
     // UI frames are normally built by the BeginRendering hook on the game thread.
     // If initialization finished but its first frame hasn't arrived yet, skip
     // this present and let that path take over.
     if (!m_has_frame && is_init_ok) {
-        return false;
+        return;
     }
 
     if (!m_has_frame) {
@@ -979,36 +902,6 @@ bool REFramework::frame_prologue(RendererType type, Prelude&& prelude, DeviceFn&
         // always gets valid draw data. from_present=true skips mod callbacks since
         // hooks don't run until after initialization.
         init_fonts();
-    }
-
-    return true;
-}
-
-void REFramework::on_frame_d3d11() {
-    // 必须覆盖整个函数（含下面的 RenderDrawData）：游戏线程的 run_imgui_frame 会并发
-    // 把 DrawData 置为 invalid，只锁 frame_prologue 会让 GetDrawData() 返回空。
-    std::scoped_lock _{ m_imgui_mtx };
-
-    bool is_init_ok = false;
-
-    if (!frame_prologue(RendererType::D3D11,
-        [this] {
-            spdlog::debug("on_frame (D3D11)");
-            return true;
-        },
-        [this] {
-            auto device = m_d3d11_hook->get_device();
-
-            if (device == nullptr) {
-                spdlog::error("D3D11 device was null when it shouldn't be, returning...");
-                m_initialized = false;
-                return false;
-            }
-
-            return true;
-        },
-        is_init_ok)) {
-        return;
     }
 
     invalidate_device_objects();
@@ -1030,11 +923,7 @@ void REFramework::on_frame_d3d11() {
 
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-
-    // NewFrame() 与 Render() 之间 DrawData 不 Valid，GetDrawData() 会返回空。
-    if (auto* draw_data = ImGui::GetDrawData()) {
-        ImGui_ImplDX11_RenderDrawData(draw_data);
-    }
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     if (is_init_ok) {
         m_mods->on_post_frame();
@@ -1042,8 +931,12 @@ void REFramework::on_frame_d3d11() {
 }
 
 void REFramework::on_post_present_d3d11() {
+    const auto now = std::chrono::steady_clock::now();
+
     if (!m_error.empty() || !m_initialized || !m_game_data_initialized) {
-        store_latest(m_last_present_time, std::chrono::steady_clock::now());
+        if (m_last_present_time.load() <= now) {
+            m_last_present_time.store(now);
+        }
 
         return;
     }
@@ -1052,43 +945,48 @@ void REFramework::on_post_present_d3d11() {
         mod->on_post_present();
     }
 
-    if (m_last_present_time.load() <= std::chrono::steady_clock::now()){
-        m_last_present_time.store(std::chrono::steady_clock::now());
+    if (m_last_present_time.load() <= now) {
+        m_last_present_time.store(now);
     }
 }
 
 // D3D12 Draw funciton
 void REFramework::on_frame_d3d12() {
-    // 同上：锁必须覆盖到下面的 RenderDrawData。
     std::scoped_lock _{ m_imgui_mtx };
 
-    bool is_init_ok = false;
+    m_renderer_type = RendererType::D3D12;
+
+    auto command_queue = m_d3d12_hook->get_command_queue();
+    //spdlog::debug("on_frame (D3D12)");
+    
+    if (!m_initialized) {
+        if (!initialize()) {
+            return;
+        }
+
+        spdlog::info("REFramework initialized");
+        m_initialized = true;
+        return;
+    }
+
+    if (command_queue == nullptr) {
+        spdlog::error("Null Command Queue");
+        return;
+    }
+
+    if (m_message_hook_requested.load()) {
+        initialize_windows_message_hook();
+    }
 
     auto device = m_d3d12_hook->get_device();
 
-    if (!frame_prologue(RendererType::D3D12,
-        [this] {
-            auto command_queue = m_d3d12_hook->get_command_queue();
-
-            if (command_queue == nullptr) {
-                spdlog::error("Null Command Queue");
-                return false;
-            }
-
-            return true;
-        },
-        [this, device] {
-            if (device == nullptr) {
-                spdlog::error("D3D12 Device was null when it shouldn't be, returning...");
-                m_initialized = false;
-                return false;
-            }
-
-            return true;
-        },
-        is_init_ok)) {
+    if (device == nullptr) {
+        spdlog::error("D3D12 Device was null when it shouldn't be, returning...");
+        m_initialized = false;
         return;
     }
+
+    const auto is_init_ok = on_frame_common_init();
 
     auto do_per_frame_thing = [&]() {
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
@@ -1101,6 +999,17 @@ void REFramework::on_frame_d3d12() {
         invalidate_device_objects();
         ImGui_ImplDX12_NewFrame();
     };
+
+    // is_init_ok already set by on_frame_common_init() above
+
+    // See on_frame_d3d11 for the bootstrap/wait rationale.
+    if (!m_has_frame && is_init_ok) {
+        return;
+    }
+
+    if (!m_has_frame) {
+        init_fonts();
+    }
 
     do_per_frame_thing();
 
@@ -1154,16 +1063,13 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
 
         float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-        cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI), clear_color, 0, nullptr);
-        rts[0] = m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI);
+        cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI], clear_color, 0, nullptr);
+        rts[0] = m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI];
         cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-
-        if (auto* draw_data = ImGui::GetDrawData()) {
-            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
-        }
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
         
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -1174,15 +1080,12 @@ void REFramework::on_frame_d3d12() {
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-        rts[0] = m_d3d12.get_cpu_rtv(device, (D3D12::RTV)bb_index);
+        rts[0] = m_d3d12.cpu_rtvs[bb_index];
         cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-
-        if (auto* draw_data = ImGui::GetDrawData()) {
-            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
-        }
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
 
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -1197,8 +1100,12 @@ void REFramework::on_frame_d3d12() {
 }
 
 void REFramework::on_post_present_d3d12() {
+    const auto now = std::chrono::steady_clock::now();
+
     if (!m_error.empty() || !m_initialized || !m_game_data_initialized) {
-        store_latest(m_last_present_time, std::chrono::steady_clock::now());
+        if (m_last_present_time.load() <= now) {
+            m_last_present_time.store(now);
+        }
 
         return;
     }
@@ -1209,13 +1116,13 @@ void REFramework::on_post_present_d3d12() {
 
         m_d3d12.graphics_memory->Commit(command_queue);
     }
-    
+
     for (auto& mod : m_mods->get_mods()) {
         mod->on_post_present();
     }
 
-    if (m_last_present_time.load() <= std::chrono::steady_clock::now()){
-        m_last_present_time.store(std::chrono::steady_clock::now());
+    if (m_last_present_time.load() <= now) {
+        m_last_present_time.store(now);
     }
 }
 
@@ -1287,6 +1194,47 @@ bool is_device_controller(PDEV_BROADCAST_HDR hdr, WPARAM w_param) {
     return false;
 }
 
+// Bounds-checked key state setter. Returns true if the key code was valid.
+bool REFramework::set_key_state(UINT vk, bool down) {
+    if (vk >= m_last_keys.size()) {
+        return false;
+    }
+    m_last_keys[vk] = down;
+    return true;
+}
+
+// Decide whether a message should be blocked from reaching the game when the
+// UI is visible. Centralises the RIM_INPUTSINK fix and the allow-list logic.
+bool REFramework::should_block_message(UINT message, WPARAM w_param, bool is_mouse_moving) {
+    const auto& io = ImGui::GetIO();
+
+    if (message == WM_INPUT && GET_RAWINPUT_CODE_WPARAM(w_param) == RIM_INPUTSINK) {
+        return true;
+    }
+
+    // Allow these messages through even when the UI is capturing input.
+    switch (message) {
+        case WM_DEVICECHANGE:
+        case WM_SHOWWINDOW:
+        case WM_ACTIVATE:
+        case WM_ACTIVATEAPP:
+        case WM_CLOSE:
+        case WM_DPICHANGED:
+        case WM_SIZING:
+        case WM_MOUSEACTIVATE:
+            return false;
+        default:
+            break;
+    }
+
+    if (m_is_ui_focused) {
+        return io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput;
+    }
+
+    return !is_mouse_moving &&
+           (io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput);
+}
+
 bool REFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param) {
     m_last_message_time.store(std::chrono::steady_clock::now());
 
@@ -1295,105 +1243,82 @@ bool REFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_pa
     }
 
     bool is_mouse_moving{false};
+
     switch (message) {
-    case WM_LBUTTONDOWN:
-        m_last_keys[VK_LBUTTON] = true;
-        break;
-    case WM_LBUTTONUP:
-        m_last_keys[VK_LBUTTON] = false;
-        break;
-    case WM_RBUTTONDOWN:
-        m_last_keys[VK_RBUTTON] = true;
-        break;
-    case WM_RBUTTONUP:
-        m_last_keys[VK_RBUTTON] = false;
-        break;
-    case WM_MBUTTONDOWN:
-        m_last_keys[VK_MBUTTON] = true;
-        break;
-    case WM_MBUTTONUP:
-        m_last_keys[VK_MBUTTON] = false;
-        break;
+    case WM_LBUTTONDOWN:  set_key_state(VK_LBUTTON, true);  break;
+    case WM_LBUTTONUP:    set_key_state(VK_LBUTTON, false); break;
+    case WM_RBUTTONDOWN:  set_key_state(VK_RBUTTON, true);  break;
+    case WM_RBUTTONUP:    set_key_state(VK_RBUTTON, false); break;
+    case WM_MBUTTONDOWN:  set_key_state(VK_MBUTTON, true);  break;
+    case WM_MBUTTONUP:    set_key_state(VK_MBUTTON, false); break;
+
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
-        // w_param is a VK code (<= 254) for real key messages, but guard anyway
-        // so a malformed/injected message can't index m_last_keys out of bounds.
         if (w_param >= m_last_keys.size()) {
             break;
         }
 
         const auto menu_key = REFrameworkConfig::get()->get_menu_key()->value();
+        const bool was_down = m_last_keys[(UINT)w_param] != 0;
 
-        if (w_param == menu_key && !m_last_keys[w_param]) {
+        set_key_state((UINT)w_param, true);
+
+        if ((UINT)w_param == menu_key && !was_down) {
             std::lock_guard _{m_input_mutex};
-
             set_draw_ui(!m_draw_ui);
         }
-
-        m_last_keys[w_param] = true;
-        
         break;
     }
+
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        if (w_param >= m_last_keys.size()) {
-            break;
-        }
-
-        m_last_keys[w_param] = false;
+        set_key_state((UINT)w_param, false);
         break;
+
     case WM_KILLFOCUS:
         std::fill(std::begin(m_last_keys), std::end(m_last_keys), false);
         break;
+
     case WM_INPUT: {
-        // RIM_INPUT means the window has focus
         if (GET_RAWINPUT_CODE_WPARAM(w_param) == RIM_INPUT) {
             uint32_t size = sizeof(RAWINPUT);
             RAWINPUT raw{};
-            
-            // obtain size
             GetRawInputData((HRAWINPUT)l_param, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
-
-            auto result = GetRawInputData((HRAWINPUT)l_param, RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER));
+            GetRawInputData((HRAWINPUT)l_param, RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER));
 
             if (raw.header.dwType == RIM_TYPEMOUSE) {
                 m_accumulated_mouse_delta[0] += (float)raw.data.mouse.lLastX;
                 m_accumulated_mouse_delta[1] += (float)raw.data.mouse.lLastY;
-
-                // Allowing camera movement when the UI is hovered while not focused
                 if (raw.data.mouse.lLastX || raw.data.mouse.lLastY) {
                     is_mouse_moving = true;
                 }
             }
         }
-    } break;
+        break;
+    }
 
-    // Fixes for stuttering when USB devices are removed/inserted
-    // Causes all sorts of random things to happen like DXGI ResizeTarget to get called...
-    // Maybe they forgot to add a break statement for WM_DEVICECHANGE and it falls through to some window resizing case?
+    // Fixes stuttering when USB devices are removed/inserted.
     // https://github.com/PGGB/DeviceStutterFix
     case WM_DEVICECHANGE:
         switch (w_param) {
-            case DBT_DEVICEARRIVAL:
-            case DBT_DEVICEREMOVECOMPLETE:
-                return is_device_controller((PDEV_BROADCAST_HDR)l_param, w_param);
-            default:
-                spdlog::info("Event {:x}: skipping", w_param);
-                return false;
+        case DBT_DEVICEARRIVAL:
+        case DBT_DEVICEREMOVECOMPLETE:
+            return is_device_controller((PDEV_BROADCAST_HDR)l_param, w_param);
+        default:
+            spdlog::info("Event {:x}: skipping", w_param);
+            return false;
         }
-        
-        break;
+
     case RE_TOGGLE_CURSOR: {
         const auto is_internal_message = l_param != 0;
         const auto return_value = is_internal_message || !m_draw_ui;
-
         if (!is_internal_message) {
             m_cursor_state = (bool)w_param;
             m_cursor_state_changed = true;
         }
-
         return return_value;
-    } break;
+    }
+
     default:
         break;
     }
@@ -1403,36 +1328,9 @@ bool REFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_pa
     {
         // If the user is interacting with the UI we block the message from going to the game.
         const auto& io = ImGui::GetIO();
-        if (m_draw_ui && !m_ui_passthrough) {
-            // Fix of a bug that makes the input key down register but the key up will never register
-            // when clicking on the ui while the game is not focused
-            if (message == WM_INPUT && GET_RAWINPUT_CODE_WPARAM(w_param) == RIM_INPUTSINK)
-                return false;
-
-            // 少数消息即使 UI 捕获输入也始终放行（closer/激活等系统消息）。
-            // 用小数组线性查找，避免每次消息泵都构造哈希 set。
-            static constexpr UINT forcefully_allowed_messages[] = {
-                WM_DEVICECHANGE,
-                WM_SHOWWINDOW,
-                WM_ACTIVATE,
-                WM_ACTIVATEAPP,
-                WM_CLOSE,
-                WM_DPICHANGED,
-                WM_SIZING,
-                WM_MOUSEACTIVATE
-            };
-
-            const auto allowed = std::find(std::cbegin(forcefully_allowed_messages), std::cend(forcefully_allowed_messages), message) != std::cend(forcefully_allowed_messages);
-
-            if (!allowed) {
-                if (m_is_ui_focused) {
-                    if (io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput)
-                        return false;
-                } else {
-                    if (!is_mouse_moving && (io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput))
-                        return false;
-                }
-            }
+        if (m_draw_ui && !m_ui_passthrough &&
+            should_block_message(message, w_param, is_mouse_moving)) {
+            return false;
         }
     }
 
@@ -1463,52 +1361,44 @@ void REFramework::on_direct_input_keys(const std::array<uint8_t, 256>& keys) {
 }
 
 std::filesystem::path REFramework::get_persistent_dir() {
-    auto return_appdata_dir = []() -> std::filesystem::path {
-        char app_data_path[MAX_PATH]{};
-        SHGetSpecialFolderPathA(0, app_data_path, CSIDL_APPDATA, false);
+    // Determine the persistent directory once, thread-safely, and cache it.
+    static const auto cached_dir = []() -> std::filesystem::path {
+        // Helper: build the per-user appdata path for REFramework.
+        auto return_appdata_dir = []() -> std::filesystem::path {
+            char app_data_path[MAX_PATH]{};
+            SHGetSpecialFolderPathA(0, app_data_path, CSIDL_APPDATA, false);
 
-        static const auto exe_name = [&]() {
-            const auto result = std::filesystem::path(*utility::get_module_path(utility::get_executable())).stem().string();
-            const auto dir = std::filesystem::path(app_data_path) / "REFramework" / result;
+            const auto exe_name = std::filesystem::path(
+                *utility::get_module_path(utility::get_executable())).stem().string();
+            const auto dir = std::filesystem::path(app_data_path) / "REFramework" / exe_name;
             std::filesystem::create_directories(dir);
 
-            return result;
-        }();
+            return dir;
+        };
 
-        return std::filesystem::path(app_data_path) / "REFramework" / exe_name;
-    };
+        // Test write permission in the executable's directory.
+        try {
+            const auto dir = std::filesystem::path(
+                *utility::get_module_path(utility::get_executable())).parent_path();
+            const auto test_file = dir / "test.txt";
+            std::ofstream test_stream{test_file};
+            test_stream << "test";
+            test_stream.close();
 
-    if (s_fallback_appdata) {
-        return return_appdata_dir();
-    }
+            std::filesystem::create_directories(dir / "test_dir");
+            std::filesystem::remove(test_file);
+            std::filesystem::remove(dir / "test_dir");
 
-    if (s_checked_file_permissions) {
-        static const auto result = std::filesystem::path(*utility::get_module_path(utility::get_executable())).parent_path();
-        return result;
-    }
+            s_fallback_appdata = false;
+            return dir;
+        } catch(...) {
+            s_fallback_appdata = true;
+            return return_appdata_dir();
+        }
+    }();
 
-    // Do some tests on the file creation/writing permissions of the current directory
-    // If we can't write to the current directory, we fallback to the appdata folder
-    try {
-        const auto dir = std::filesystem::path(*utility::get_module_path(utility::get_executable())).parent_path();
-        const auto test_file = dir / "test.txt";
-        std::ofstream test_stream{test_file};
-        test_stream << "test";
-        test_stream.close();
-
-        std::filesystem::create_directories(dir / "test_dir");
-        std::filesystem::remove(test_file);
-        std::filesystem::remove(dir / "test_dir");
-
-        s_checked_file_permissions = true;
-        s_fallback_appdata = false;
-    } catch(...) {
-        s_fallback_appdata = true;
-        s_checked_file_permissions = true;
-        return return_appdata_dir();
-    }
-    
-    return std::filesystem::path(*utility::get_module_path(utility::get_executable())).parent_path();
+    s_checked_file_permissions = true;
+    return cached_dir;
 }
 
 void REFramework::save_config() {
@@ -1900,7 +1790,6 @@ bool REFramework::initialize() {
         auto device = m_d3d11_hook->get_device();
         auto swap_chain = m_d3d11_hook->get_swap_chain();
 
-        // Wait.
         if (device == nullptr || swap_chain == nullptr) {
             m_first_initialize = true;
 
@@ -2059,16 +1948,38 @@ bool REFramework::initialize_game_data() {
             reframework::initialize_sdk();
 
 #if TDB_VER >= 71
-            // 两次等待共享同一个 30s 总预算（原代码行为：共用 start_time）
-            const auto deadline = std::chrono::steady_clock::now() + 30s;
+            const auto start_time = std::chrono::high_resolution_clock::now();
 
-            if (!wait_until("VM", deadline, 100ms, [] { return sdk::VM::get() != nullptr; })) {
-                throw std::runtime_error("Timed out waiting for VM to initialize.");
+            while (true) {
+                try {
+                    if (sdk::VM::get() != nullptr) {
+                        break;
+                    }
+                } catch(...) {
+                }
+
+                if (std::chrono::high_resolution_clock::now() - start_time > std::chrono::seconds(30)) {
+                    spdlog::error("Timed out waiting for VM to initialize.");
+                    throw std::runtime_error("Timed out waiting for VM to initialize.");
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
-            // Wait for sdk::Application::get() to return a valid pointer.
-            if (!wait_until("Application", deadline, 100ms, [] { return sdk::Application::get() != nullptr; })) {
-                throw std::runtime_error("Timed out waiting for Application to initialize.");
+            while (true) {
+                try {
+                    if (sdk::Application::get() != nullptr) {
+                        break;
+                    }
+                } catch(...) {
+                }
+
+                if (std::chrono::high_resolution_clock::now() - start_time > std::chrono::seconds(30)) {
+                    spdlog::error("Timed out waiting for Application to initialize.");
+                    throw std::runtime_error("Timed out waiting for Application to initialize.");
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 #endif
 
@@ -2123,9 +2034,6 @@ bool REFramework::initialize_windows_message_hook() {
         return false;
     }
 
-    // 无论是否需要重建，本次请求都已处理。
-    m_message_hook_requested.store(false);
-
     if (m_first_frame || m_message_hook_requested.load() || m_windows_message_hook == nullptr) {
         m_last_message_time.store(std::chrono::steady_clock::now());
         m_windows_message_hook.reset();
@@ -2134,9 +2042,11 @@ bool REFramework::initialize_windows_message_hook() {
             return on_message(wnd, msg, w_param, l_param);
         };
 
+        m_message_hook_requested.store(false);
         return true;
     }
 
+    m_message_hook_requested.store(false);
     return false;
 }
 
@@ -2358,8 +2268,21 @@ bool REFramework::init_d3d12() {
         m_d3d12.srv_desc_heap->SetName(L"Framework::m_d3d12.srv_desc_heap");
     }
 
-    // 堆重建后复位描述符分配器（deinit 后 static 计数器不会归零，曾是越界写入堆外内存的来源）
-    m_d3d12.srv_alloc.reset();
+    // Precompute CPU descriptor handles once — avoids calling the virtual
+    // GetDescriptorHandleIncrementSize() on every frame in the hot path.
+    {
+        const auto rtv_increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        const auto srv_increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        const auto rtv_base = m_d3d12.rtv_desc_heap->GetCPUDescriptorHandleForHeapStart();
+        const auto srv_base = m_d3d12.srv_desc_heap->GetCPUDescriptorHandleForHeapStart();
+
+        for (int i = 0; i < (int)D3D12::RTV::COUNT; ++i) {
+            m_d3d12.cpu_rtvs[i] = {rtv_base.ptr + (SIZE_T)i * rtv_increment};
+        }
+        for (int i = 0; i < (int)D3D12::SRV::COUNT; ++i) {
+            m_d3d12.cpu_srvs[i] = {srv_base.ptr + (SIZE_T)i * srv_increment};
+        }
+    }
 
     spdlog::info("[D3D12] Creating render targets...");
 
@@ -2445,28 +2368,6 @@ bool REFramework::init_d3d12() {
     auto& bb = m_d3d12.get_rt(D3D12::RTV::BACKBUFFER_0);
     auto bb_desc = bb->GetDesc();
 
-    // 两个 ImGui 后端共享同一 SRV 堆，描述符统一从 srv_alloc 分配/释放，
-    // 避免各后端内置计数器都从槽位 0 开始导致字体纹理互相覆盖。
-    const auto srv_alloc_fn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
-        const auto index = g_framework->m_d3d12.srv_alloc.alloc();
-
-        if (index < 0) {
-            spdlog::error("[D3D12] SRV descriptor heap exhausted");
-            *out_cpu_handle = {};
-            *out_gpu_handle = {};
-            return;
-        }
-
-        const SIZE_T increment = info->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        *out_cpu_handle = {info->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-        *out_gpu_handle = {info->SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-    };
-    const auto srv_free_fn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE) {
-        const SIZE_T increment = info->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        const auto index = (int)((cpu_handle.ptr - info->SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr) / increment);
-        g_framework->m_d3d12.srv_alloc.free(index);
-    };
-
     ImGui_ImplDX12_InitInfo init_info{};
     init_info.Device = device;
     init_info.CommandQueue = g_framework->get_d3d12_hook()->get_command_queue();
@@ -2474,8 +2375,16 @@ bool REFramework::init_d3d12() {
     init_info.RTVFormat = bb_desc.Format;
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
     init_info.SrvDescriptorHeap = m_d3d12.srv_desc_heap.Get();
-    init_info.SrvDescriptorAllocFn = srv_alloc_fn;
-    init_info.SrvDescriptorFreeFn = srv_free_fn;
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
+        auto* device = info->Device;
+        auto* heap = info->SrvDescriptorHeap;
+        static int next_descriptor = 0;
+        int index = next_descriptor++;
+        SIZE_T increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        *out_cpu_handle = {heap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+        *out_gpu_handle = {heap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+    };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
 
     if (!ImGui_ImplDX12_Init(&init_info)) {
         spdlog::error("[D3D12] Failed to initialize ImGui.");
@@ -2497,8 +2406,16 @@ bool REFramework::init_d3d12() {
     init_info_vr.RTVFormat = bb_vr_desc.Format;
     init_info_vr.DSVFormat = DXGI_FORMAT_UNKNOWN;
     init_info_vr.SrvDescriptorHeap = m_d3d12.srv_desc_heap.Get();
-    init_info_vr.SrvDescriptorAllocFn = srv_alloc_fn;
-    init_info_vr.SrvDescriptorFreeFn = srv_free_fn;
+    init_info_vr.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
+        auto* device = info->Device;
+        auto* heap = info->SrvDescriptorHeap;
+        static int next_descriptor = 0;
+        int index = next_descriptor++;
+        SIZE_T increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        *out_cpu_handle = {heap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+        *out_gpu_handle = {heap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+    };
+    init_info_vr.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
 
     if (!ImGui_ImplDX12_Init(&init_info_vr)) {
         spdlog::error("[D3D12] Failed to initialize ImGui.");
