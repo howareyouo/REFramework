@@ -936,12 +936,11 @@ bool REFramework::on_frame_common_init() {
 }
 
 // on_frame_d3d11/on_frame_d3d12 的公共序言。返回 false 表示调用方应直接 return。
-// prelude() 在加锁后最先执行，用于后端前置检查（如 d3d12 的 command_queue 判空），返回 false 即中止；
+// 调用方必须已持有 m_imgui_mtx，并保持到函数结束：序言与绘制路径都要与游戏线程的 run_imgui_frame 互斥。
+// prelude() 最先执行，用于后端前置检查（如 d3d12 的 command_queue 判空），返回 false 即中止；
 // device_provider() 在 message hook 之后执行，检查 device 是否有效，内部负责记录错误并复位 m_initialized。
 template <typename Prelude, typename DeviceFn>
 bool REFramework::frame_prologue(RendererType type, Prelude&& prelude, DeviceFn&& device_provider, bool& is_init_ok) {
-    std::scoped_lock _{ m_imgui_mtx };
-
     m_renderer_type = type;
 
     if (!prelude()) {
@@ -986,6 +985,10 @@ bool REFramework::frame_prologue(RendererType type, Prelude&& prelude, DeviceFn&
 }
 
 void REFramework::on_frame_d3d11() {
+    // 必须覆盖整个函数（含下面的 RenderDrawData）：游戏线程的 run_imgui_frame 会并发
+    // 把 DrawData 置为 invalid，只锁 frame_prologue 会让 GetDrawData() 返回空。
+    std::scoped_lock _{ m_imgui_mtx };
+
     bool is_init_ok = false;
 
     if (!frame_prologue(RendererType::D3D11,
@@ -1027,7 +1030,11 @@ void REFramework::on_frame_d3d11() {
 
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    // NewFrame() 与 Render() 之间 DrawData 不 Valid，GetDrawData() 会返回空。
+    if (auto* draw_data = ImGui::GetDrawData()) {
+        ImGui_ImplDX11_RenderDrawData(draw_data);
+    }
 
     if (is_init_ok) {
         m_mods->on_post_frame();
@@ -1052,6 +1059,9 @@ void REFramework::on_post_present_d3d11() {
 
 // D3D12 Draw funciton
 void REFramework::on_frame_d3d12() {
+    // 同上：锁必须覆盖到下面的 RenderDrawData。
+    std::scoped_lock _{ m_imgui_mtx };
+
     bool is_init_ok = false;
 
     auto device = m_d3d12_hook->get_device();
@@ -1150,7 +1160,10 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
+
+        if (auto* draw_data = ImGui::GetDrawData()) {
+            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
+        }
         
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -1166,7 +1179,10 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
+
+        if (auto* draw_data = ImGui::GetDrawData()) {
+            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
+        }
 
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
