@@ -224,8 +224,9 @@ private: // 启动流水线（构造函数各阶段辅助函数，按调用顺�
     template <typename HookT, typename RegisterCallbacks>
     bool hook_d3d_impl(std::unique_ptr<HookT>& hook_slot, bool& hooked_flag, bool other_hooked, const char* api_name, RegisterCallbacks&& register_callbacks);
 
-    // on_frame_d3d11/on_frame_d3d12 的公共序言：加锁 → 设 renderer 类型 → prelude(后端前置检查) →
+    // on_frame_d3d11/on_frame_d3d12 的公共序言：设 renderer 类型 → prelude(后端前置检查) →
     // 首次初始化 → message hook → device 校验 → on_frame_common_init → 首帧引导。
+    // 调用方必须已持有 m_imgui_mtx，并且要保持到函数结束：序言与绘制路径都要与游戏线程的 run_imgui_frame 互斥。
     // 返回 false 时调用方应直接 return；is_init_ok 输出 common_init 结果。
     // prelude/device_provider 语义见实现。
     template <typename Prelude, typename DeviceFn>
