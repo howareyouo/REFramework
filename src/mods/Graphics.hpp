@@ -56,6 +56,11 @@ public:
 private:
     void fix_ui_element(REComponent* gui_element);
     void do_scope_tweaks(sdk::renderer::layer::Scene* layer);
+#ifdef RE4
+    // True if the RE4 inventory was opened within the last 100ms. Used to skip
+    // FOV/display-type changes that would otherwise distort the inventory.
+    bool inventory_recently_opened();
+#endif
     void do_ultrawide_fix();
     void do_ultrawide_fov_restore(bool force = false);
     void set_ultrawide_fov(bool enable);
@@ -69,8 +74,6 @@ private:
     static void* rt_draw_hook(REComponent* rt, void* draw_context, void* r8, void* r9);
     static void* rt_draw_impl_hook(void* rt_impl, void* draw_context, void* r8, void* r9, void* unk);
     static sdk::renderer::PipelineState* find_pipeline_state_hook(void* shader_resource, uint32_t murmur_hash, void* unk);
-
-    static std::string make_replacement_shader();
 
     enum ShaderDispatchMode {
         Dispatch,
@@ -111,10 +114,7 @@ private:
     };
 
     std::array<InterceptedShader, 8> m_intercepted_shaders{};
-    bool is_intercepted(uint32_t hash);
     InterceptedShader* get_intercepted(uint32_t hash);
-
-    bool m_disable_path_space{false};
 
     std::unique_ptr<FunctionHook> m_rt_draw_hook{};
     std::unique_ptr<FunctionHook> m_rt_draw_impl_hook{};
@@ -138,7 +138,6 @@ private:
     } m_rt_draw_args{};
 
     bool m_within_rt_draw{ false };
-    bool m_cloning_dispatch{false};
 #endif
 
     std::recursive_mutex m_fov_mutex{};
