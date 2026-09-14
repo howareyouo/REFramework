@@ -24,7 +24,28 @@ public:
         ignore_application_entry(utility::hash(name));
     }
 
-    template<typename T=sdk::renderer::RenderLayer>
+    // One installed game-function hook. `Fn` is the hooked function type; the
+    // trampoline (the callable original) is fetched once when the hook is
+    // created and cached here, so a hooked call is a plain indirect call rather
+    // than a FunctionHook::get_original() query on every invocation.
+    template <typename Fn>
+    struct GameHook {
+        bool create(Address target, Fn* destination) {
+            handle = std::make_unique<FunctionHook>(target, destination);
+
+            if (!handle->create()) {
+                return false;
+            }
+
+            original = handle->get_original<Fn>();
+            return true;
+        }
+
+        std::unique_ptr<FunctionHook> handle{};
+        Fn* original{};
+    };
+
+    template<typename T = sdk::renderer::RenderLayer>
     struct RenderLayerHook {
         RenderLayerHook() = delete;
         RenderLayerHook(std::string_view name)
@@ -36,66 +57,31 @@ public:
         static void draw(T* layer, void* render_context);
         static void update(T* layer, void* render_context);
 
-        std::unique_ptr<FunctionHook> draw_hook{};
-        std::unique_ptr<FunctionHook> update_hook{};
+        bool hook_draw(Address target) {
+            return draw_hook.create(target, &RenderLayerHook<T>::draw);
+        }
+
+        bool hook_update(Address target) {
+            return update_hook.create(target, &RenderLayerHook<T>::update);
+        }
+
+        // The layer Update vtable function really takes only the layer, but the
+        // hook body is declared with the (layer, render_context) shape used by
+        // the mod callbacks and the extra argument is simply ignored by the game.
+        GameHook<void(T*, void*)> draw_hook{};
+        GameHook<void(T*, void*)> update_hook{};
         std::string name{};
-
-        virtual bool hook_draw(Address target) {
-            draw_hook = std::make_unique<FunctionHook>(target, &RenderLayerHook<T>::draw);
-            return draw_hook->create();
-        }
-
-        virtual bool hook_update(Address target) {
-            update_hook = std::make_unique<FunctionHook>(target, &RenderLayerHook<T>::update);
-            return update_hook->create();
-        }
-
-        operator RenderLayerHook<sdk::renderer::RenderLayer>&() {
-            return *(RenderLayerHook<sdk::renderer::RenderLayer>*)this;
-        }
     };
 
 protected:
-    void* update_transform_hook_internal(RETransform* t, uint8_t a2, uint32_t a3);
     static void* update_transform_hook(RETransform* t, uint8_t a2, uint32_t a3);
-
-    void* update_camera_controller_hook_internal(void* ctx, RopewayPlayerCameraController* camera_controller);
     static void* update_camera_controller_hook(void* ctx, RopewayPlayerCameraController* camera_controller);
-
-    void* update_camera_controller2_hook_internal(void* ctx, RopewayPlayerCameraController* camera_controller);
     static void* update_camera_controller2_hook(void* ctx, RopewayPlayerCameraController* camera_controller);
-
-    void* gui_draw_hook_internal(REComponent* gui_element, void* primitive_context);
     static void* gui_draw_hook(REComponent* gui_element, void* primitive_context);
-
-    void update_before_lock_scene_hook_internal(void* ctx);
     static void update_before_lock_scene_hook(void* ctx);
-
-    void lock_scene_hook_internal(void* entry);
-    static void lock_scene_hook(void* entry);
-
-    void begin_rendering_hook_internal(void* entry);
-    static void begin_rendering_hook(void* entry);
-
-    void end_rendering_hook_internal(void* entry);
-    static void end_rendering_hook(void* entry);
-
-    void wait_rendering_hook_internal(void* entry);
-    static void wait_rendering_hook(void* entry);
-
-    void lightshaft_draw_hook_internal(void* shaft, void* render_context);
-    static void lightshaft_draw_hook(void* shaft, void* render_context);
-    
-    void global_application_entry_hook_internal(void* entry, const char* name, size_t hash, void* original);
     static void global_application_entry_hook(void* entry, const char* name, size_t hash, void* original);
-
-    float* view_get_size_hook_internal(REManagedObject* scene_view, float* result);
     static float* view_get_size_hook(REManagedObject* scene_view, float* result);
-
-    Matrix4x4f* camera_get_projection_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result);
     static Matrix4x4f* camera_get_projection_matrix_hook(REManagedObject* camera, Matrix4x4f* result);
-
-    Matrix4x4f* camera_get_view_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result);
     static Matrix4x4f* camera_get_view_matrix_hook(REManagedObject* camera, Matrix4x4f* result);
 
 private:
@@ -104,39 +90,15 @@ private:
     std::optional<std::string> hook_update_camera_controller2();
     std::optional<std::string> hook_gui_draw();
     std::optional<std::string> hook_update_before_lock_scene();
-    std::optional<std::string> hook_lightshaft_draw();
     std::optional<std::string> hook_view_get_size();
     std::optional<std::string> hook_camera_get_projection_matrix();
     std::optional<std::string> hook_camera_get_view_matrix();
-    
-    std::optional<std::string> hook_render_layer(RenderLayerHook<sdk::renderer::RenderLayer>& hook);
-    std::optional<std::string> hook_render_layers() {
-        if (auto error = hook_render_layer(m_layer_hooks.overlay); error.has_value()) {
-            return error;
-        }
-
-        if (auto error = hook_render_layer(m_layer_hooks.post_effect); error.has_value()) {
-            return error;
-        }
-
-        if (auto error = hook_render_layer(m_layer_hooks.scene); error.has_value()) {
-            return error;
-        }
-
-        if (auto error = hook_render_layer(m_layer_hooks.output); error.has_value()) {
-            return error;
-        }
-
-        if (auto error = hook_render_layer(m_layer_hooks.prepare_output); error.has_value()) {
-            return error;
-        }
-
-        return std::nullopt;
-    }
-
-    // Utility function for hooking function entries in via.Application
-    std::optional<std::string> hook_application_entry(std::string name, std::unique_ptr<FunctionHook>& hook, void (*hook_fn)(void*));
     std::optional<std::string> hook_all_application_entries();
+
+    template <typename T>
+    std::optional<std::string> hook_render_layer(RenderLayerHook<T>& hook);
+
+    std::optional<std::string> hook_render_layers();
 
     #define HOOK_LAMBDA(func) [&]() -> std::optional<std::string> { return this->func(); }
 
@@ -150,7 +112,6 @@ private:
 #ifndef RE7
 #ifndef MHRISE
         HOOK_LAMBDA(hook_update_before_lock_scene),
-        HOOK_LAMBDA(hook_lightshaft_draw),
 #endif
 #endif
         HOOK_LAMBDA(hook_view_get_size),
@@ -159,15 +120,14 @@ private:
     };
 
 protected:
-    std::unique_ptr<FunctionHook> m_update_transform_hook;
-    std::unique_ptr<FunctionHook> m_update_camera_controller_hook;
-    std::unique_ptr<FunctionHook> m_update_camera_controller2_hook;
-    std::unique_ptr<FunctionHook> m_gui_draw_hook;
-    std::unique_ptr<FunctionHook> m_update_before_lock_scene_hook;
-    std::unique_ptr<FunctionHook> m_lightshaft_draw_hook;
-    std::unique_ptr<FunctionHook> m_view_get_size_hook;
-    std::unique_ptr<FunctionHook> m_camera_get_projection_matrix_hook;
-    std::unique_ptr<FunctionHook> m_camera_get_view_matrix_hook;
+    GameHook<void*(RETransform*, uint8_t, uint32_t)> m_update_transform;
+    GameHook<void*(void*, RopewayPlayerCameraController*)> m_update_camera_controller;
+    GameHook<void*(void*, RopewayPlayerCameraController*)> m_update_camera_controller2;
+    GameHook<void*(REComponent*, void*)> m_gui_draw;
+    GameHook<void(void*)> m_update_before_lock_scene;
+    GameHook<float*(REManagedObject*, float*)> m_view_get_size;
+    GameHook<Matrix4x4f*(REManagedObject*, Matrix4x4f*)> m_camera_get_projection_matrix;
+    GameHook<Matrix4x4f*(REManagedObject*, Matrix4x4f*)> m_camera_get_view_matrix;
 
     struct {
         RenderLayerHook<sdk::renderer::layer::Overlay> overlay{"via.render.layer.Overlay"};
