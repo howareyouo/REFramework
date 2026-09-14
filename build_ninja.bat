@@ -70,7 +70,7 @@ for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format 'MMdd_HHmmss'"'
 REM If an old dll exists, rename it with a timestamp suffix to keep history.
 if exist "%DST%" (
     echo [info] Existing dinput8.dll found, renaming to dinput8_!STAMP!.dll...
-    move /Y "%DST%" "%GAME_DIR%\dinput8_!STAMP!.dll" >nul
+    move /Y "%DST%" "%GAME_DIR%\dinput8.dll_!STAMP!" >nul
 )
 
 copy /Y "%SRC%" "%DST%" >nul
