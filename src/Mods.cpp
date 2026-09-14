@@ -7,14 +7,12 @@
 #include "mods/FreeCam.hpp"
 #include "mods/Hooks.hpp"
 #include "mods/IntegrityCheckBypass.hpp"
-#include "mods/ManualFlashlight.hpp"
 #include "mods/PluginLoader.hpp"
 #include "mods/REFrameworkConfig.hpp"
 #include "mods/MethodDatabase.hpp"
 #include "mods/Scene.hpp"
 #include "mods/ScriptRunner.hpp"
 #include "mods/LooseFileLoader.hpp"
-#include "mods/FaultyFileDetector.hpp"
 #include "mods/TemporalUpscaler.hpp"
 
 #include "Mods.hpp"
@@ -23,40 +21,25 @@ Mods::Mods() {
     m_mods.emplace_back(BackBufferRenderer::get());
     m_mods.emplace_back(REFrameworkConfig::get());
 
-#if defined(REENGINE_AT)
     m_mods.emplace_back(IntegrityCheckBypass::get_shared_instance());
-#endif
 
-#ifndef BAREBONES
     m_mods.emplace_back(MethodDatabase::get());
     m_mods.emplace_back(Hooks::get());
     m_mods.emplace_back(LooseFileLoader::get());
 
-#if defined(MHWILDS)
-    m_mods.emplace_back(FaultyFileDetector::get());
-#endif
 
     m_mods.emplace_back(TemporalUpscaler::get());
 
-#if defined(RE8) || defined(RE7)
-    m_mods.emplace_back(RE8VR::get());
-#endif
 
     // All games!!!
     m_mods.emplace_back(Camera::get());
     m_mods.emplace_back(Graphics::get());
 
-#if defined(RE2) || defined(RE3) || defined(RE8)
-    m_mods.emplace_back(std::make_unique<ManualFlashlight>());
-#endif
 
     m_mods.emplace_back(std::make_unique<FreeCam>());
 
-#if TDB_VER > 49
     m_mods.emplace_back(std::make_unique<SceneMods>());
-#endif
 
-#endif
 
     m_mods.emplace_back(APIProxy::get());
     m_mods.emplace_back(PluginLoader::get());

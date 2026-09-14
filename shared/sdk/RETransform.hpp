@@ -6,9 +6,7 @@
 #include "Math.hpp"
 #include "TDBVer.hpp"
 
-#if TDB_VER >= 69
 #include "REArray.hpp"
-#endif
 
 #include "RETypeDB.hpp"
 
@@ -25,29 +23,7 @@ struct Joint : public REManagedObject {
     int32_t JointIndex;
 
     int32_t get_joint_index() const {
-#if TDB_VER != 66
         return JointIndex;
-#else
-        if (Owner == nullptr) {
-            return 0;
-        }
-
-        auto& joint_array = Owner->joints;
-
-        if (joint_array.size <= 0 || joint_array.numAllocated <= 0 || joint_array.data == nullptr || joint_array.matrices == nullptr) {
-            return 0;
-        }
-
-        for (auto i = 0; i < joint_array.size; i++) {
-            auto joint = joint_array.data->joints[i];
-
-            if ((sdk::Joint*)joint == this) {
-                return i;
-            }
-        }
-
-        return 0;
-#endif
     }
 };
 }
@@ -59,18 +35,7 @@ namespace utility::re_transform {
 
     // Get a bone/joint by name
     static REJoint* get_joint(const ::RETransform& transform, std::wstring_view name) {
-#if TDB_VER < 69
-        auto& joint_array = transform.joints;
 
-        if (joint_array.size <= 0 || joint_array.numAllocated <= 0 || joint_array.data == nullptr || joint_array.matrices == nullptr) {
-            return nullptr;
-        }
-#endif
-
-#if TDB_VER < 69
-        for (int32_t i = 0; i < joint_array.size; ++i) {
-            auto joint = joint_array.data->joints[i];
-#else
         if (transform.joints.data == nullptr) {
             return nullptr;
         }
@@ -78,7 +43,6 @@ namespace utility::re_transform {
         for (int32_t i = 0; i < transform.joints.data->numElements; ++i) {
 
             auto joint = utility::re_array::get_element<REJoint>(transform.joints.data, i);
-#endif
 
             if (joint == nullptr) {
                 continue;
@@ -99,11 +63,7 @@ namespace utility::re_transform {
     }
 
     static Matrix4x4f& get_joint_matrix_by_index(const ::RETransform& transform, uint32_t index) {
-#if TDB_VER >= 70 && (defined(RE2) || defined(RE3) || defined(RE7))
-        return transform.jointMatrices->data[index].worldMatrix;
-#else
         return transform.joints.matrices->data[index].worldMatrix;
-#endif
     }
 
     // Get a bone/joint matrix by name
@@ -111,11 +71,7 @@ namespace utility::re_transform {
         auto joint = get_joint(transform, name);
 
         if (joint != nullptr && joint->info != nullptr) {
-#if TDB_VER >= 70 && (defined(RE2) || defined(RE3) || defined(RE7))
-            return transform.jointMatrices->data[((sdk::Joint*)joint)->get_joint_index()].worldMatrix;
-#else
             return transform.joints.matrices->data[((sdk::Joint*)joint)->get_joint_index()].worldMatrix;
-#endif
         }
 
         return invalid_matrix;
@@ -123,11 +79,7 @@ namespace utility::re_transform {
 
     static Matrix4x4f& get_joint_matrix(const ::RETransform& transform, REJoint* joint) {
         if (joint != nullptr && joint->info != nullptr) {
-#if TDB_VER >= 70 && (defined(RE2) || defined(RE3) || defined(RE7))
-            return transform.jointMatrices->data[((sdk::Joint*)joint)->get_joint_index()].worldMatrix;
-#else
             return transform.joints.matrices->data[((sdk::Joint*)joint)->get_joint_index()].worldMatrix;
-#endif
         }
 
         return invalid_matrix;
@@ -138,23 +90,16 @@ namespace utility::re_transform {
             return {};
         }
 
-#if TDB_VER >= 69
         if (transform.joints.data == nullptr) {
             return {};
         }
-#endif
         
         visited.insert(parent);
 
         std::vector<REJoint*> children{};
 
-#if TDB_VER < 69
-        for (int32_t i = 0; i < transform.joints.size; ++i) {
-            auto joint = transform.joints.data->joints[i]; 
-#else
         for (int32_t i = 0; i < transform.joints.data->numElements; ++i) {
             auto joint = utility::re_array::get_element<REJoint>(transform.joints.data, i);
-#endif
 
             if (joint == nullptr || joint == parent) {
                 continue;
@@ -191,21 +136,14 @@ namespace utility::re_transform {
             return {};
         }
 
-#if TDB_VER >= 69
         if (transform.joints.data == nullptr) {
             return {};
         }
-#endif
 
         std::vector<REJoint*> children{};
 
-#if TDB_VER < 69
-        for (int32_t i = 0; i < transform.joints.size; ++i) {
-            auto joint = transform.joints.data->joints[i]; 
-#else
         for (int32_t i = 0; i < transform.joints.data->numElements; ++i) {
             auto joint = utility::re_array::get_element<REJoint>(transform.joints.data, i);
-#endif
 
             if (joint == nullptr || joint == parent) {
                 continue;

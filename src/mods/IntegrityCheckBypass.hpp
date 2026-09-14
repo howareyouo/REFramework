@@ -27,9 +27,6 @@ public:
     static void ignore_application_entries();
     static void immediate_patch_re8();
     static void immediate_patch_re4();
-    static void immediate_patch_dd2();
-    static void immediate_patch_re9();
-    static void re9_heartbeat_bypass();
     static void remove_stack_destroyer();
 
     static void setup_pristine_syscall();
@@ -94,14 +91,9 @@ private:
     static inline std::unique_ptr<FunctionHookMinHook> s_rtl_exit_user_process_hook{};
     static void pak_store_flags_hook(safetyhook::Context& context);
 
-#ifdef RE3
-    // This is what the game uses to bypass its integrity checks altogether or something
-    bool* m_bypass_integrity_checks{ nullptr };
-#else
     void disable_update_timers(std::string_view name) const;
 
     std::vector<std::unique_ptr<Patch>> m_patches{};
-#endif
 
 #pragma region Custom PAK directory loading
     constexpr static const char* CUSTOM_PAK_DIRECTORY_PATH = "pak_mods";

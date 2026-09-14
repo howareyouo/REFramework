@@ -153,63 +153,11 @@ std::optional<std::string> Hooks::hook_update_transform() {
 }
 
 std::optional<std::string> Hooks::hook_update_camera_controller() {
-#if defined(RE2) || defined(RE3)
-    // Version 1.0 jmp stub: game+0xB4685A0
-    // Version 1
-    /*auto updatecamera_controllerCall = utility::scan(game, "75 ? 48 89 FA 48 89 D9 E8 ? ? ? ? 48 8B 43 50 48 83 78 18 00 75 ? 45 89");
-
-    if (!updatecamera_controllerCall) {
-        return "Unable to find Updatecamera_controller pattern.";
-    }
-
-    auto updatecamera_controller = utility::calculate_absolute(*updatecamera_controllerCall + 9);*/
-
-    // Version 2 Dec 17th, 2019 game.exe+0x7CF690 (works on old version too)
-    //auto update_camera_controller = utility::scan(game, "40 55 56 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? 00 00 48 8B 41 50");
-
-    // Version 3 June 2nd, 2020 game.exe+0xD41AD0 (works on old version too)
-    auto update_camera_controller = sdk::find_native_method(game_namespace("camera.PlayerCameraController"), "updateCameraPosition");
-
-    if (update_camera_controller == nullptr) {
-        return std::string{"Failed to find "} + game_namespace("camera.PlayerCameraController") + "::updateCameraPosition";
-    }
-
-    spdlog::info("camera.PlayerCameraController.updateCameraPosition: {:x}", (uintptr_t)update_camera_controller);
-
-    // Can be found by breakpointing camera controller's worldPosition
-    m_update_camera_controller_hook = std::make_unique<FunctionHook>(update_camera_controller, &update_camera_controller_hook);
-
-    if (!m_update_camera_controller_hook->create()) {
-        return "Failed to hook UpdateCameraController";
-    }
-#endif
 
     return std::nullopt;
 }
 
 std::optional<std::string> Hooks::hook_update_camera_controller2() {
-#if defined(RE2) || defined(RE3)
-    // Version 1.0 jmp stub: game+0xCF2510
-    // Version 1.0 function: game+0xB436230
-    
-    // Version 1
-    //auto updatecamera_controller2 = utility::scan(game, "40 53 57 48 81 ec ? ? ? ? 48 8b 41 ? 48 89 d7 48 8b 92 ? ? 00 00");
-    // Version 2 Dec 17th, 2019 game.exe+0x6CD9C0 (works on old version too)
-    auto update_camera_controller2 = sdk::find_native_method(game_namespace("camera.TwirlerCameraControllerRoot"), "update");
-
-    if (update_camera_controller2 == nullptr) {
-        return std::string{"Failed to find "} + game_namespace("camera.TwirlerCameraControllerRoot") + "::update";
-    }
-
-    spdlog::info("camera.TwirlerCameraControllerRoot.update: {:x}", (uintptr_t)update_camera_controller2);
-
-    // Can be found by breakpointing camera controller's worldRotation
-    m_update_camera_controller2_hook = std::make_unique<FunctionHook>(update_camera_controller2, &update_camera_controller2_hook);
-
-    if (!m_update_camera_controller2_hook->create()) {
-        return "Failed to hook Updatecamera_controller2";
-    }
-#endif
 
     return std::nullopt;
 }
@@ -388,7 +336,6 @@ std::optional<std::string> Hooks::hook_all_application_entries() {
 
 std::optional<std::string> Hooks::hook_update_before_lock_scene() {
     // This function is removed (or not reflected) >= TDB74...
-#if TDB_VER < 74
     // Hook updateBeforeLockScene
     auto update_before_lock_scene = sdk::find_native_method("via.render.EntityRenderer", "updateBeforeLockScene");
 
@@ -403,51 +350,11 @@ std::optional<std::string> Hooks::hook_update_before_lock_scene() {
     if (!m_update_before_lock_scene_hook->create()) {
         return "Failed to hook via::render::EntityRenderer::updateBeforeLockScene";
     }
-#endif
 
     return std::nullopt;
 }
 
 std::optional<std::string> Hooks::hook_lightshaft_draw() {
-#if 0
-    // Create a fake via.render.LightShaft instance
-    // so we can get the draw method and hook it.
-    auto lightshaft_t = sdk::find_type_definition("via.render.LightShaft");
-
-    if (lightshaft_t == nullptr) {
-        return "Unable to find via::render::LightShaft";
-    }
-
-    auto lightshaft = lightshaft_t->create_instance();
-
-    if (lightshaft == nullptr) {
-        return "Unable to create via::render::LightShaft instance";
-    }
-
-    auto lightshaft_vtable = *(void***)lightshaft;
-
-    if (lightshaft_vtable == nullptr) {
-        return "Unable to get via::render::LightShaft vtable";
-    }
-
-#if defined(RE8) || defined(MHRISE)
-    auto draw = lightshaft_vtable[13];
-#else
-    auto draw = lightshaft_vtable[10];
-#endif
-
-    if (draw == nullptr) {
-        return "Unable to get via::render::LightShaft::draw";
-    }
-
-    spdlog::info("LightShaft::draw: {:x}", (uintptr_t)draw);
-
-    m_lightshaft_draw_hook = std::make_unique<FunctionHook>((uintptr_t)draw, (uintptr_t)&lightshaft_draw_hook);
-
-    if (!m_lightshaft_draw_hook->create()) {
-        return "Failed to hook via::render::LightShaft::draw";
-    }
-#endif
 
     return std::nullopt;
 }
@@ -472,15 +379,6 @@ std::optional<std::string> Hooks::hook_view_get_size() {
     }
 
     
-#if TDB_VER >= 74
-    if (!ref) {
-        ref = utility::find_pattern_in_path((uint8_t*)get_size_func, 1000, false, "48 89 F2 E8"); // >= TDB74 (MHWILDS)
-    }
-
-    if (!ref) {
-        ref = utility::find_pattern_in_path((uint8_t*)get_size_func, 1000, false, "48 8B CF E8"); // Pragmata
-    }
-#endif
 
     if (!ref) {
         return "Hook init failed: via.SceneView.get_Size native function not found. Pattern scan failed.";
@@ -516,11 +414,6 @@ std::optional<std::string> Hooks::hook_camera_get_projection_matrix() {
         ref = utility::find_pattern_in_path((uint8_t*)func, 1000, false, "48 8B CB E8");
     }
     
-#if TDB_VER >= 74
-    if (!ref) {
-        ref = utility::find_pattern_in_path((uint8_t*)func, 1000, false, "48 89 F2 E8"); // >= TDB74?
-    }
-#endif
 
     if (!ref) {
         return "Hook init failed: via.Camera.get_ProjectionMatrix native function not found. Pattern scan failed.";
@@ -556,11 +449,6 @@ std::optional<std::string> Hooks::hook_camera_get_view_matrix() {
         ref = utility::find_pattern_in_path((uint8_t*)func, 1000, false, "48 8B CB E8");
     }
 
-#if TDB_VER >= 74
-    if (!ref) {
-        ref = utility::find_pattern_in_path((uint8_t*)func, 1000, false, "48 89 F2 E8"); // >= TDB74?
-    }
-#endif
 
     if (!ref) {
         return "Hook init failed: via.Camera.get_ViewMatrix native function not found. Pattern scan failed.";
@@ -811,18 +699,6 @@ void Hooks::global_application_entry_hook_internal(void* entry, const char* name
     }
 
     if (hash == "BeginRendering"_fnv) {
-#if TDB_VER >= 73
-    if (auto primitive_system = sdk::gui::renderer::PrimitiveSystem::get(); primitive_system != nullptr) {
-        auto primitive_buffer = primitive_system->get_primitive_buffer();
-        
-        if (primitive_buffer != nullptr) {
-            if (primitive_buffer->scratch.used >= primitive_buffer->scratch.size) {
-                spdlog::info("[GUI] Resizing scratch buffer from {} to {}", primitive_buffer->scratch.size, primitive_buffer->scratch.size * 2);
-                primitive_buffer->scratch.resize(primitive_buffer->scratch.size * 2);
-            }
-        }
-    }
-#endif
         g_framework->run_imgui_frame(false);
     }
 

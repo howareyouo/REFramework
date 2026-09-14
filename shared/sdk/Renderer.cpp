@@ -1679,24 +1679,7 @@ sdk::intrusive_ptr<RenderTargetView> RenderTargetView::clone(uint32_t new_width,
 }
 
 namespace detail {
-#if TDB_VER >= 74
-    constexpr auto rtv_size = 0xA8;
-#elif TDB_VER >= 71
-#if defined(SF6) || defined(DD2)
-    constexpr auto rtv_size = 0x98;
-#elif defined(MHRISE)
-    constexpr auto rtv_size = 0x88;
-#else
     constexpr auto rtv_size = 0x98 - sizeof(void*);
-#endif
-#elif TDB_VER == 70
-    constexpr auto rtv_size = 0x90 - sizeof(void*);
-#elif TDB_VER == 69
-    constexpr auto rtv_size = 0x88 - sizeof(void*);
-#elif TDB_VER <= 67
-// TODO: 66 and below
-    constexpr auto rtv_size = 0x88 - sizeof(void*);
-#endif
 }
 
 sdk::intrusive_ptr<Texture>& RenderTargetView::get_texture_d3d12() const {

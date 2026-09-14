@@ -66,10 +66,6 @@ private:
     const ModToggle::Ptr m_use_custom_global_fov{ ModToggle::create(generate_name("GlobalFOVEnabled"), false) };
     const ModSlider::Ptr m_global_fov{ ModSlider::create(generate_name("GlobalFOV"), 0.0f, 180.0f, 81.0f) };
 
-#ifdef RE8
-    const ModSlider::Ptr m_fov{ ModSlider::create(generate_name("FOV"), 0.0f, 180.0f, 81.0f) };
-    const ModSlider::Ptr m_fov_aiming{ ModSlider::create(generate_name("FOVAiming"), 0.0f, 180.0f, 70.0f) };
-#endif
 
     ValueList m_options{
         *m_enabled,
@@ -78,17 +74,8 @@ private:
         *m_use_custom_global_fov,
         *m_global_fov,
 
-#ifdef RE8
-        *m_fov,
-        *m_fov_aiming
-#endif
     };
 
-#ifdef RE8
-    AppPropsManager* m_props_manager{ nullptr };
-    AppPlayerConfigure* m_player_configure{ nullptr };
-    AppPlayerCameraParameter* m_player_camera_params{ nullptr };
-#endif
     RECamera* m_camera{ nullptr };
     REGameObject* m_player{ nullptr };
     REComponent* m_tone_map{ nullptr }; // via.render.ToneMapping
@@ -105,9 +92,6 @@ private:
 
     void update_vignetting() noexcept;
     void on_disabled() noexcept;
-#ifdef RE8
-    void on_player_transform(RETransform* transform) noexcept;
-#endif
 
     void set_vignette_type(via::render::ToneMapping::Vignetting value) noexcept;
     void set_vignette_brightness(float value) noexcept;

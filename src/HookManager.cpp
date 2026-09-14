@@ -615,9 +615,6 @@ HookManager::HookId HookManager::add(sdk::REMethodDefinition* fn, HookManager::P
 }
 
 HookManager::HookId HookManager::add_vtable(::REManagedObject* obj, sdk::REMethodDefinition* fn, PreHookFn pre_fn, PostHookFn post_fn) {
-#if TDB_VER == 49
-    throw std::runtime_error("VTable hooks are not supported in TDB 49");
-#endif
     
     if (obj == nullptr) {
         return HookId{};

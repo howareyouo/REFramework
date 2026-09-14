@@ -147,12 +147,8 @@ private:
         HOOK_LAMBDA(hook_update_camera_controller),
         HOOK_LAMBDA(hook_update_camera_controller2),
         HOOK_LAMBDA(hook_gui_draw),
-#ifndef RE7
-#ifndef MHRISE
         HOOK_LAMBDA(hook_update_before_lock_scene),
         HOOK_LAMBDA(hook_lightshaft_draw),
-#endif
-#endif
         HOOK_LAMBDA(hook_view_get_size),
         HOOK_LAMBDA(hook_camera_get_projection_matrix),
         HOOK_LAMBDA(hook_camera_get_view_matrix),

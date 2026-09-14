@@ -12,33 +12,8 @@
 #include <sdk/SceneManager.hpp>
 #include <sdk/Memory.hpp>
 
-#if TDB_VER >= 82
-#include "sdk/regenny/re9/via/Window.hpp"
-#include "sdk/regenny/re9/via/SceneView.hpp"
-#elif TDB_VER <= 49
-#include "sdk/regenny/re7/via/Window.hpp"
-#include "sdk/regenny/re7/via/SceneView.hpp"
-#elif TDB_VER < 69
-#include "sdk/regenny/re3/via/Window.hpp"
-#include "sdk/regenny/re3/via/SceneView.hpp"
-#elif TDB_VER == 69
-#include "sdk/regenny/re8/via/Window.hpp"
-#include "sdk/regenny/re8/via/SceneView.hpp"
-#elif TDB_VER == 70
-#include "sdk/regenny/re2_tdb70/via/Window.hpp"
-#include "sdk/regenny/re2_tdb70/via/SceneView.hpp"
-#elif TDB_VER >= 71
-#ifdef RE4
 #include "sdk/regenny/re4/via/Window.hpp"
 #include "sdk/regenny/re4/via/SceneView.hpp"
-#elif defined(SF6)
-#include "sdk/regenny/sf6/via/Window.hpp"
-#include "sdk/regenny/sf6/via/SceneView.hpp"
-#else
-#include "sdk/regenny/re8/via/Window.hpp"
-#include "sdk/regenny/re8/via/SceneView.hpp"
-#endif
-#endif
 
 #include "TemporalUpscaler.hpp"
 
@@ -231,11 +206,6 @@ void TemporalUpscaler::on_draw_ui() {
         return;
     }
 
-#if TDB_VER < 67
-    ImGui::TextWrapped("TemporalUpscaler is not yet supported on this version of the engine.");
-    ImGui::TextWrapped("Supported: RE2/RE3/RE7 (RT latest, not beta builds), RE4, RE8, SF6, DMC5 (partial)");
-    return;
-#else
     if (!m_backend_loaded) {
         ImGui::TextWrapped("Backend is not loaded, TemporalUpscaler will not work.");
         ImGui::TextWrapped("Make sure you've downloaded UpscalerBasePlugin (PDPerfPlugin.dll)");
@@ -313,7 +283,6 @@ void TemporalUpscaler::on_draw_ui() {
     if (needs_reinit) {
         m_wants_reinitialize = true;
     }
-#endif
 }
 
 void TemporalUpscaler::apply_setting_changes() {
@@ -1100,15 +1069,8 @@ uint32_t TemporalUpscaler::get_render_height() const {
 }
 
 void TemporalUpscaler::update_motion_scale() {
-#if TDB_VER > 67
     m_motion_scale[0] = (float)get_render_width() / 2.0f;
     m_motion_scale[1] = -1.0f * ((float)get_render_height() / 2.0f);
-#else
-    // I have no idea. Would need to take a look at the texture in RenderDoc.
-    // Might need a shader to fix this?
-    m_motion_scale[0] = 0.01f;
-    m_motion_scale[1] = -1.0f * ((float)get_render_height() / 2.0f);
-#endif
 
     SetMotionScaleX(VIEW_ID, m_motion_scale[0]);
     SetMotionScaleY(VIEW_ID, m_motion_scale[1]);

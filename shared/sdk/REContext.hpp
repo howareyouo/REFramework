@@ -23,10 +23,6 @@ InvokeMethod* get_invoke_table();
 #include "TDBVer.hpp"
 #include "RETypeDB.hpp"
 
-#if TDB_VER <= 49
-#include "regenny/re7/via/clr/VM.hpp"
-#endif
-
 namespace sdk {
 struct SystemArray;
 struct Delegate;
@@ -37,11 +33,7 @@ struct REStaticTbl {
 };
 
 // AKA via.clr.VM
-#if TDB_VER <= 49
-class VM : public regenny::via::clr::VM {
-#else
 class VM {
-#endif
 public:
     static inline uint32_t s_tdb_version{0};
     static VM* get();

@@ -84,30 +84,12 @@ void startup_thread(HMODULE reframework_module) {
     // every now and then because it gets replaced
     reframework::setup_exception_handler();
 
-#ifndef NDEBUG
-    AllocConsole();
-    freopen("CONIN$", "r", stdin);
-    freopen("CONOUT$", "w", stdout);
-    freopen("CONOUT$", "w", stderr);
-#endif
 
     if (load_dinput8()) {
         g_framework = std::make_unique<REFramework>(reframework_module);
 
         const auto our_dll = utility::get_module_within(&load_dinput8);
 
-#if defined(MHRISE)
-        if (our_dll) {
-            if (!g_success_made_ldr_notification) {
-                utility::spoof_module_paths_in_exe_dir();
-            }
-            utility::unlink(*our_dll);
-        }
-#elif defined (DD2) || TDB_VER >= 74
-        if (!g_success_made_ldr_notification) {
-            utility::spoof_module_paths_in_exe_dir();
-        }
-#endif
     }
 }
 

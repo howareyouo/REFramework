@@ -286,14 +286,7 @@ sdk::RETypeDefinition* REField::get_declaring_type() const {
 sdk::RETypeDefinition* REField::get_type() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 71
     const auto field_typeid = this->field_typeid;
-#elif TDB_VER >= 69
-    auto& impl = (*tdb->fieldsImpl)[this->impl_id];
-    const auto field_typeid = (uint32_t)impl.field_typeid;
-#else
-    const auto field_typeid = (uint32_t)this->field_typeid;
-#endif
 
     if (field_typeid == 0) {
         return nullptr;
@@ -305,12 +298,8 @@ sdk::RETypeDefinition* REField::get_type() const {
 const char* REField::get_name() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     auto& impl = (*tdb->fieldsImpl)[this->impl_id];
     const auto name_offset = impl.name_offset & tdb->get_string_pool_bitmask();
-#else
-    const auto name_offset = this->name_offset;
-#endif
 
     return tdb->get_string(name_offset);
 }
@@ -318,28 +307,15 @@ const char* REField::get_name() const {
 uint32_t REField::get_flags() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     auto& impl = (*tdb->fieldsImpl)[this->impl_id];
     return impl.flags;
-#else
-    return this->flags;
-#endif
 }
 
 uint32_t REField::get_init_data_index() const {
     auto tdb = RETypeDB::get();
     
-#if TDB_VER >= 71
     auto& impl = (*tdb->fieldsImpl)[this->impl_id];
     const auto init_data_index = impl.init_data_lo | (impl.init_data_mid << 6) | (this->init_data_hi << 10); // what the FUCK!!! IS THIS SHIT!!!
-#elif TDB_VER >= 69
-    auto& impl = (*tdb->fieldsImpl)[this->impl_id];
-    const auto init_data_index = impl.init_data_lo | (impl.init_data_hi << 14);
-#elif TDB_VER > 49
-    const auto init_data_index = this->init_data_index;
-#else
-    const auto init_data_index = 0;
-#endif
 
     return init_data_index;
 }
@@ -349,11 +325,7 @@ void* REField::get_init_data() const {
 
     const auto init_data_index = get_init_data_index();
 
-#if TDB_VER > 49
     const auto init_data_offset = (*tdb->initData)[init_data_index];
-#else
-    const auto init_data_offset = this->init_data_offset;
-#endif
 
     auto init_data = tdb->get_bytes(init_data_offset);
 
@@ -366,12 +338,8 @@ void* REField::get_init_data() const {
 }
 
 uint32_t REField::get_offset_from_fieldptr() const {
-#if TDB_VER >= 71
     const auto tdb = sdk::RETypeDB::get();
     return (*tdb->fieldsImpl)[this->impl_id].offset;
-#else
-    return this->offset;
-#endif
 }
 
 uint32_t REField::get_offset_from_base() const {
@@ -417,24 +385,6 @@ void* REField::get_data_raw(void* object, bool is_value_type) const {
             return Address{object}.get(this->get_offset_from_fieldptr());
         }
 
-#if TDB_VER >= 81
-        // Read fieldptr_offset from the object's own vtable, not from the
-        // declaring type's managed_vt. For abstract declaring types,
-        // get_managed_vt() walks up the parent chain and can return an
-        // ancestor's vtable with a WRONG fieldptr_offset. The object's
-        // vtable always has the correct value — this matches what the
-        // .NET runtime does in RuntimeFieldInfo.GetValue.
-        if (object != nullptr) try {
-            const auto vtable_ptr = *(uintptr_t*)object;
-            if (vtable_ptr != 0) {
-                const auto fieldptr_offset = *(int32_t*)(vtable_ptr - sizeof(void*));
-                return Address{object}.get(fieldptr_offset + this->get_offset_from_fieldptr());
-            }
-        } catch (...) {
-            // Occurs if consumer passes some bad object in. Need to look into this more.
-            return nullptr;
-        }
-#endif
 
         return Address{object}.get(this->get_offset_from_base());
     }
@@ -465,7 +415,6 @@ sdk::RETypeDefinition* REMethodDefinition::get_return_type() const {
     auto tdb = RETypeDB::get();
     const auto params_index = get_param_index();
 
-#if TDB_VER >= 69
     auto param_ids = tdb->get_data<sdk::ParamList>(params_index);
     
     const auto return_param_id = param_ids->returnType;
@@ -476,11 +425,6 @@ sdk::RETypeDefinition* REMethodDefinition::get_return_type() const {
     }
 
     const auto return_typeid = p.type_id;
-#elif TDB_VER >= 66
-    const auto return_typeid = (uint32_t)this->return_typeid;
-#else
-    const auto return_typeid = tdb->get_data<sdk::REMethodParamDef>(this->params)->return_typeid;
-#endif
 
     if (return_typeid == 0) {
         return nullptr;
@@ -492,12 +436,8 @@ sdk::RETypeDefinition* REMethodDefinition::get_return_type() const {
 const char* REMethodDefinition::get_name() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     auto& impl = (*tdb->methodsImpl)[this->impl_id];
     const auto name_offset = impl.name_offset & tdb->get_string_pool_bitmask();
-#else
-    const auto name_offset = this->name_offset;
-#endif
 
     return tdb->get_string(name_offset);
 }
@@ -506,7 +446,6 @@ std::unordered_set<REMethodDefinition*> logged_encoded_0_methods{};
 std::shared_mutex logged_encoded_0_methods_mtx{};
 
 void* REMethodDefinition::get_function() const {
-#if TDB_VER >= 71
     if (this->encoded_offset == 0) {
         /*const auto dt = this->get_declaring_type();
         
@@ -628,14 +567,6 @@ void* REMethodDefinition::get_function() const {
     }
 
     return result;
-#elif TDB_VER > 49
-    return this->function;
-#else
-    auto vm = sdk::VM::get();
-    auto& m = vm->methods[this->get_index()];
-
-    return m.function;
-#endif
 }
 
 uint32_t sdk::REMethodDefinition::get_invoke_id() const {
@@ -643,14 +574,10 @@ uint32_t sdk::REMethodDefinition::get_invoke_id() const {
 
     const auto params_index = get_param_index();
 
-#if TDB_VER >= 69
     const auto param_list = params_index;
     const auto param_ids = tdb->get_data<sdk::ParamList>(param_list);
     const auto num_params = param_ids->numParams;
     const auto invoke_id = param_ids->invokeID;
-#else
-    const auto invoke_id = (uint16_t)this->invoke_id;
-#endif
 
     return invoke_id;
 }
@@ -673,7 +600,6 @@ void sdk::REMethodDefinition::invoke(void* object, const std::span<void*>& args,
         return;
     }
 
-#if TDB_VER > 49
     const auto invoke_tbl = sdk::get_invoke_table();
     auto invoke_wrapper = invoke_tbl[get_invoke_id()];
 
@@ -769,306 +695,6 @@ void sdk::REMethodDefinition::invoke(void* object, const std::span<void*>& args,
     }
 
     return;
-#else
-    // RE7 doesn't have the invoke wrappers that the newer games use...
-    if (num_params > 3) {
-        spdlog::warn("REMethodDefinition::invoke for {} has more than 2 parameters, which is not supported at this time (RE7)", get_name());
-        return;
-    }
-
-    const bool is_static = this->is_static();
-
-    if (!is_static && object == nullptr) {
-        spdlog::warn("REMethodDefinition::invoke for {} is not static, but object is nullptr", get_name());
-        return;
-    }
-
-    auto ret_ty = get_return_type();
-    size_t ret_hash = ret_ty != nullptr ? utility::hash(ret_ty->get_full_name()) : 0;
-    bool is_ptr = false;
- 
-    // vec3 and stuff that is > sizeof(void*) requires special handling
-    // by preallocating the output buffer
-    if (ret_ty != nullptr && ret_ty->is_value_type()) {
-        if (ret_ty->get_valuetype_size() > sizeof(void*) || (!ret_ty->is_primitive() && !ret_ty->is_enum())) {
-            is_ptr = false;
-        } else {
-            is_ptr = true;
-        }
-    } else {
-        is_ptr = true;
-    }
-
-    const auto param_types = get_param_types();
-    std::vector<size_t> param_hashes{};
-    std::vector<void*> converted_args(args.size());
-
-    for (auto& ty : param_types) {
-        param_hashes.push_back(utility::hash(ty->get_full_name()));
-    }
-
-    // convert necessary args to float
-    // we pass the args as double, but because there's no invoke wrappers
-    // in RE7, we must convert them back to float
-    for (size_t i = 0; i < args.size(); i++) {
-        auto& arg = args[i];
-        auto& ty = param_types[i];
-        auto& hash = param_hashes[i];
-
-        switch (hash) {
-        case "System.Single"_fnv:
-            *(float*)&converted_args[i] = (float)*(double*)&arg;
-            break;
-        default:
-            converted_args[i] = arg;
-            break;
-        }
-    }
-
-    auto unpack_and_call = [&]<typename ...Types>() {
-        if constexpr (sizeof...(Types) == 0) {
-            if (is_static) {
-                if (!is_ptr) {
-                    this->call<void*>(out.bytes.data(), sdk::get_thread_context());
-                } else {
-                    if (ret_hash == "System.Single"_fnv) {
-                        out.d = (double)this->call<float>(sdk::get_thread_context());
-                    } else if (ret_hash == "System.Double"_fnv) {
-                        out.d = this->call<double>(sdk::get_thread_context());
-                    } else {
-                        out.ptr = this->call<void*>(sdk::get_thread_context());
-                    }
-                }
-            } else {
-                if (!is_ptr) {
-                    this->call<void*>(out.bytes.data(), sdk::get_thread_context(), object);
-                } else {
-                    if (ret_hash == "System.Single"_fnv) {
-                        out.d = (double)this->call<float>(sdk::get_thread_context(), object);
-                    } else if (ret_hash == "System.Double"_fnv) {
-                        out.d = this->call<double>(sdk::get_thread_context(), object);
-                    } else {
-                        out.ptr = this->call<void*>(sdk::get_thread_context(), object);
-                    }
-                }
-            }
-        } else if constexpr (sizeof...(Types) > 0) {
-            // now we must do the same as above but unpack the converted_args and cast them to the correct type
-            if (is_static) {
-                if (!is_ptr) {
-                    CallHelper<void*, Types...>::create(converted_args.data())(this, out.bytes.data(), sdk::get_thread_context());
-                } else {
-                    if (ret_hash == "System.Single"_fnv) {
-                        out.d = (double)CallHelper<float, Types...>::create(converted_args.data())(this, sdk::get_thread_context());
-                    } else if (ret_hash == "System.Double"_fnv) {
-                        out.d = CallHelper<double, Types...>::create(converted_args.data())(this, sdk::get_thread_context());
-                    } else {
-                        out.ptr = CallHelper<void*, Types...>::create(converted_args.data())(this, sdk::get_thread_context());
-                    }
-                }
-            } else {
-                if (!is_ptr) {
-                    CallHelper<void*, Types...>::create(converted_args.data())(this, out.bytes.data(), sdk::get_thread_context(), object);
-                } else {
-                    if (ret_hash == "System.Single"_fnv) {
-                        out.d = (double)CallHelper<float, Types...>::create(converted_args.data())(this, sdk::get_thread_context(), object);
-                    } else if (ret_hash == "System.Double"_fnv) {
-                        out.d = CallHelper<double, Types...>::create(converted_args.data())(this, sdk::get_thread_context(), object);
-                    } else {
-                        out.ptr = CallHelper<void*, Types...>::create(converted_args.data())(this, sdk::get_thread_context(), object);
-                    }
-                }
-            }
-        }
-    };
-
-    switch (num_params) {
-    case 0:
-        unpack_and_call();
-        return;
-
-        break;
-    case 1:
-        // now we must check each parameter to check if it's a float/double
-        if (param_hashes[0] == "System.Single"_fnv) {
-            unpack_and_call.operator()<float>();
-        } else if (param_hashes[0] == "System.Double"_fnv) {
-            unpack_and_call.operator()<double>();
-        } else {
-            unpack_and_call.operator()<void*>();
-        }
-
-        return;
-
-        break;
-    case 2:
-        // oh god now we need to handle more permutations
-        if (param_hashes[0] == "System.Single"_fnv && param_hashes[1] == "System.Single"_fnv) {
-            unpack_and_call.operator()<float, float>();
-        } else if (param_hashes[0] == "System.Single"_fnv && param_hashes[1] == "System.Double"_fnv) {
-            unpack_and_call.operator()<float, double>();
-        } else if (param_hashes[0] == "System.Double"_fnv && param_hashes[1] == "System.Single"_fnv) {
-            unpack_and_call.operator()<double, float>();
-        } else if (param_hashes[0] == "System.Double"_fnv && param_hashes[1] == "System.Double"_fnv) {
-            unpack_and_call.operator()<double, double>();
-        } else if (param_hashes[0] == "System.Single"_fnv) {
-            unpack_and_call.operator()<float, void*>();
-        } else if (param_hashes[0] == "System.Double"_fnv) {
-            unpack_and_call.operator()<double, void*>();
-        } else if (param_hashes[1] == "System.Single"_fnv) {
-            unpack_and_call.operator()<void*, float>();
-        } else if (param_hashes[1] == "System.Double"_fnv) {
-            unpack_and_call.operator()<void*, double>();
-        } else {
-            unpack_and_call.operator()<void*, void*>();
-        }
-
-        return;
-
-        break;
-    case 3:
-        // uhhhhhhh now this is just getting ridiculous
-        switch (param_hashes[0]) {
-        case "System.Single"_fnv:
-            switch (param_hashes[1]) {
-            case "System.Single"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<float, float, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<float, float, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<float, float, void*>();
-                    break;
-                }
-                break;
-            case "System.Double"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<float, double, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<float, double, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<float, double, void*>();
-                    break;
-                }
-                break;
-            default:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<float, void*, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<float, void*, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<float, void*, void*>();
-                    break;
-                }
-                break;
-            }
-            break;
-        case "System.Double"_fnv:
-            switch (param_hashes[1]) {
-            case "System.Single"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<double, float, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<double, float, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<double, float, void*>();
-                    break;
-                }
-                break;
-            case "System.Double"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<double, double, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<double, double, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<double, double, void*>();
-                    break;
-                }
-                break;
-            default:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<double, void*, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<double, void*, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<double, void*, void*>();
-                    break;
-                }
-                break;
-            }
-            break;
-        default:
-            switch (param_hashes[1]) {
-            case "System.Single"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<void*, float, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<void*, float, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<void*, float, void*>();
-                    break;
-                }
-                break;
-            case "System.Double"_fnv:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<void*, double, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<void*, double, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<void*, double, void*>();
-                    break;
-                }
-                break;
-            default:
-                switch (param_hashes[2]) {
-                case "System.Single"_fnv:
-                    unpack_and_call.operator()<void*, void*, float>();
-                    break;
-                case "System.Double"_fnv:
-                    unpack_and_call.operator()<void*, void*, double>();
-                    break;
-                default:
-                    unpack_and_call.operator()<void*, void*, void*>();
-                    break;
-                }
-                break;
-            }
-            break;
-        }
-    default:
-        // for now, we aren't going to handle the case where there are more than 3 parameters
-        // because that will get very very messy
-        // maybe try to fix it with templates or JIT or something...
-        // but for now, just return an empty struct
-        break;
-    }
-
-    return;
-#endif
 }
 
 uint32_t sdk::REMethodDefinition::get_index() const {
@@ -1078,33 +704,21 @@ uint32_t sdk::REMethodDefinition::get_index() const {
 }
 
 int32_t REMethodDefinition::get_virtual_index() const {
-#if TDB_VER >= 69
     auto tdb = RETypeDB::get();
     auto& impl = (*tdb->methodsImpl)[this->impl_id];
     return impl.vtable_index;
-#else
-    return this->vtable_index;
-#endif
 }
 
 uint16_t REMethodDefinition::get_flags() const {
-#if TDB_VER >= 69
     auto tdb = RETypeDB::get();
     auto& impl = (*tdb->methodsImpl)[this->impl_id];
     return impl.flags;
-#else
-    return this->flags;
-#endif
 }
 
 uint16_t REMethodDefinition::get_impl_flags() const {
-#if TDB_VER >= 69
     auto tdb = RETypeDB::get();
     auto& impl = (*tdb->methodsImpl)[this->impl_id];
     return impl.impl_flags;
-#else
-    return this->impl_flags;
-#endif
 }
 
 bool REMethodDefinition::is_static() const {
@@ -1116,19 +730,10 @@ bool REMethodDefinition::is_static() const {
 uint32_t sdk::REMethodDefinition::get_num_params() const {
     const auto params_index = get_param_index();
 
-#if TDB_VER >= 69
     auto tdb = RETypeDB::get();
     const auto param_list = params_index;
     const auto param_ids = tdb->get_data<sdk::ParamList>(param_list);
     return param_ids->numParams;
-#else
-#if TDB_VER >= 66
-    return this->num_params;
-#else
-    auto tdb = RETypeDB::get();
-    return tdb->get_data<sdk::REMethodParamDef>(this->params)->num_params;
-#endif
-#endif
 }
 
 std::vector<uint32_t> REMethodDefinition::get_param_typeids() const {
@@ -1139,7 +744,6 @@ std::vector<uint32_t> REMethodDefinition::get_param_typeids() const {
     std::vector<uint32_t> out{};
 
     // Parameters
-#if TDB_VER >= 69
     auto param_ids = tdb->get_data<sdk::ParamList>(param_list);
     const auto num_params = param_ids->numParams;
 
@@ -1157,23 +761,6 @@ std::vector<uint32_t> REMethodDefinition::get_param_typeids() const {
     }
 
     return out;
-#else
-#if TDB_VER >= 66
-    const auto param_ids = tdb->get_data<sdk::REMethodParamDef>(param_list);
-#else
-    const auto param_data = tdb->get_data<sdk::REMethodParamDef>(param_list);
-    const auto param_ids = param_data->params;
-#endif
-
-    const auto num_params = get_num_params();
-
-    for (uint32_t f = 0; f < num_params; ++f) {
-        auto& p = param_ids[f];
-        out.push_back((uint32_t)p.param_typeid);
-    }
-
-    return out;
-#endif
 }
 
 std::vector<sdk::RETypeDefinition*> REMethodDefinition::get_param_types() const {
@@ -1207,7 +794,6 @@ std::vector<const char*> REMethodDefinition::get_param_names() const {
     auto tdb = RETypeDB::get();
     const auto param_list = get_param_index();
 
-#if TDB_VER >= 69
     auto param_ids = tdb->get_data<sdk::ParamList>(param_list);
     const auto num_params = param_ids->numParams;
 
@@ -1225,24 +811,6 @@ std::vector<const char*> REMethodDefinition::get_param_names() const {
     }
 
     return out;
-#else
-    const auto num_params = get_num_params();
-
-#if TDB_VER >= 66
-    const auto param_ids = tdb->get_data<sdk::REMethodParamDef>(param_list);
-#else
-    const auto param_data = tdb->get_data<sdk::REMethodParamDef>(param_list);
-    const auto param_ids = param_data->params;
-#endif
-
-    for (uint32_t f = 0; f < num_params; ++f) {
-        const auto param_index = param_ids[f].param_typeid;
-        const auto name_offset = (uint32_t)param_ids[f].name_offset;
-        out.push_back(tdb->get_string(name_offset));
-    }
-    
-    return out;
-#endif
 }
 
 const char* REModule::get_assembly_name() const {
@@ -1268,33 +836,18 @@ std::span<uint32_t> REModule::get_types() const {
 std::span<uint32_t> REModule::get_methods() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 81
-    spdlog::warn("This TDB version does not support REModule::get_methods()");
-    return {};
-#else
     return std::span<uint32_t>{(uint32_t*)tdb->get_bytes(this->methods_start), (size_t)this->methods_count};
-#endif
 }
 
 std::span<uint32_t> REModule::get_instantiated_methods() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 81
-    spdlog::warn("This TDB version does not support REModule::get_instantiated_methods()");
-    return {};
-#else
     return std::span<uint32_t>{(uint32_t*)tdb->get_bytes(this->method_instantiations_start), (size_t)this->method_instantiations_count};
-#endif
 }
 
 std::span<uint32_t> REModule::get_member_references() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 81
-    spdlog::warn("This TDB version does not support REModule::get_member_references()");
-    return {};
-#else
     return std::span<uint32_t>{(uint32_t*)tdb->get_bytes(this->member_references_start), (size_t)this->member_references_count};
-#endif
 }
 } // namespace sdk

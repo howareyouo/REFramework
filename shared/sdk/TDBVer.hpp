@@ -3,15 +3,7 @@
 #define TDB_VER 71
 
 namespace sdk {
-struct RETypeDefVersion84;
-struct RETypeDefVersion83;
-struct RETypeDefVersion82;
-struct RETypeDefVersion74;
 struct RETypeDefVersion71;
-struct RETypeDefVersion69;
-struct RETypeDefVersion67;
-struct RETypeDefVersion66;
-struct RETypeDefVersion49;
 
 struct REField;
 struct REMethodDefinition;

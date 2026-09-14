@@ -8,15 +8,7 @@ namespace utility::re_array {
         return nullptr;
     }
 
-#if TDB_VER > 49
     return (::sdk::RETypeDefinition*)container->containedType;
-#else
-    if (container->containedType->classInfo == nullptr) {
-        return nullptr;
-    }
-
-    return (::sdk::RETypeDefinition*)container->containedType->classInfo;
-#endif
 }
 
 uint32_t get_element_size(::REArrayBase* container) {

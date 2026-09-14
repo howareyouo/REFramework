@@ -8,9 +8,7 @@
 
 using namespace utility;
 
-#if defined(RE2) || defined(RE3) || defined(RE8) || defined(RE4)
 #define MOVEMENT_DISABLE_FEATURE
-#endif
 
 void FreeCam::on_config_load(const Config& cfg) {
     config_load_options(cfg, m_options);
@@ -49,17 +47,11 @@ void FreeCam::on_draw_ui() {
     ImGui::SameLine();
     m_lock_camera->draw("Lock Position");
 
-#ifdef MOVEMENT_DISABLE_FEATURE
-    m_disable_movement->draw("Disable Character Movement");
-#endif
 
     m_toggle_key->draw("Toggle Key");
     m_move_up_key->draw("Move camera up Key");
     m_move_down_key->draw("Move camera down Key");
     m_lock_camera_key->draw("Lock Position Toggle Key");
-#ifdef MOVEMENT_DISABLE_FEATURE
-    m_disable_movement_key->draw("Disable Movement Toggle Key");
-#endif
     m_speed_modifier_fast_key->draw("Speed modifier Fast key");
     m_speed_modifier_slow_key->draw("Speed modifier Slow key");
 
@@ -89,15 +81,6 @@ void FreeCam::on_update_transform(RETransform* transform) {
     }
 
 
-#ifdef RE8
-    const auto player = m_props_manager->player;
-    if (player != nullptr && player->transform != nullptr && player->transform == transform) {
-        if (m_disable_movement->value() || m_was_disabled) {
-            player->shouldUpdate = !m_disable_movement->value();
-            m_was_disabled = !player->shouldUpdate;
-        }
-    }
-#endif
 
     const auto camera = m_camera;
 
@@ -105,31 +88,12 @@ void FreeCam::on_update_transform(RETransform* transform) {
         return;
     }
 
-#if defined(RE2) || defined(RE3)
-    static auto get_player_condition_method = sdk::find_method_definition(game_namespace("SurvivorManager"), "get_Player");
-    static auto get_action_orderer_method = sdk::find_method_definition(game_namespace("survivor.SurvivorCondition"), "get_ActionOrderer");
-
-    const auto condition = get_player_condition_method->call<RopewaySurvivorPlayerCondition*>(sdk::get_thread_context(), m_survivor_manager);
-    auto orderer = condition != nullptr ? get_action_orderer_method->call<RopewaySurvivorActionOrderer*>(sdk::get_thread_context(), condition) : nullptr;
-
-#endif
 
     // first joint
     auto joint = utility::re_transform::get_joint(*transform, 0);
 
     if (m_first_time) {
-#ifdef RE8
-        if (player != nullptr && m_was_disabled) {
-            player->shouldUpdate = true;
-            m_was_disabled = false;
-        }
-#endif
 
-#if defined(RE2) || defined(RE3)
-        if (orderer != nullptr) {
-            orderer->enabled = true;
-        }
-#endif
 
         /*if (joint != nullptr && transform->joints.matrices != nullptr) {
             m_last_camera_matrix = transform->joints.matrices->data[0].worldMatrix;
@@ -158,15 +122,9 @@ void FreeCam::on_update_transform(RETransform* transform) {
         return;
     }
 
-#if defined(RE2) || defined(RE3)
-    if (orderer != nullptr) {
-        orderer->enabled = !m_disable_movement->value();
-    }
-#endif
 
     // Update wanted camera position
     if (!m_lock_camera->value()) {
-#if TDB_VER > 49
         auto timescale = sdk::get_timescale() * sdk::Application::get_global_speed();
 
         if (timescale == 0.0f) {
@@ -174,17 +132,9 @@ void FreeCam::on_update_transform(RETransform* transform) {
         }
         
         const auto timescale_mult = 1.0f / timescale;
-#else
-        // RE7 doesn't have timescale
-        const auto timescale_mult = 1.0f;
-#endif
 
         Vector4f dir{};
-#if TDB_VER > 49
         const auto delta = re_component::get_delta_time(transform);
-#else
-        const auto delta = sdk::call_native_func_easy<float>(m_application.object, m_application.t, "get_DeltaTime");
-#endif
 
         // The rotation speed gets scaled down here heavily since "1.0f" is way too fast... This makes the slider a bit more user-friendly.
         // TODO: Figure out a conversion here to make KB+M & Controllers equal in rotation sensitivity.
@@ -327,27 +277,22 @@ void FreeCam::on_update_transform(RETransform* transform) {
     transform->position = m_last_camera_matrix[3];
 
     // IDK!!!
-#if TDB_VER < 81
     if (joint != nullptr) {
         joint->posOffset = Vector4f{};
         *(Vector4f*)&joint->anglesOffset = Vector4f{0.0f, 0.00f, 0.0f, 1.0f};
     }
-#endif
 }
 
 void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t hash) {
     if (hash == "LockScene"_fnv) {
         if (!m_enabled->value()) {
             m_camera = nullptr;
-#ifdef RE4
             m_re4_body = nullptr;
-#endif
             return;
         }
 
         m_camera = sdk::get_primary_camera();
 
-#ifdef RE4
         if (m_disable_movement->value()) {
             const auto character_manager = sdk::get_managed_singleton<::REManagedObject>(game_namespace("CharacterManager"));
 
@@ -454,26 +399,11 @@ void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t has
                 }
             }
         }
-#endif
     }
 }
 
 bool FreeCam::update_pointers() {
-#if defined(RE2) || defined(RE3)
-    if (m_survivor_manager == nullptr) {
-        auto& globals = *reframework::get_globals();
-        m_survivor_manager = globals.get<RopewaySurvivorManager>(game_namespace("SurvivorManager"));
-        return false;
-    }
-#endif
 
-#ifdef RE8
-    if (m_props_manager == nullptr) {
-        auto& globals = *reframework::get_globals();
-        m_props_manager = globals.get<AppPropsManager>(game_namespace("PropsManager"));
-        return false;
-    }
-#endif
 
     // Should work for all games.
     return m_via_hid_gamepad.update() && m_application.update();

@@ -41,7 +41,6 @@ std::vector<TreeNode*> TreeNode::get_children() const {
 }
 
 std::vector<::REManagedObject*> TreeNode::get_unloaded_actions() const {
-#if TDB_VER >= 69
     const auto tree_data = get_data();
 
     if (tree_data == nullptr) {
@@ -64,9 +63,6 @@ std::vector<::REManagedObject*> TreeNode::get_unloaded_actions() const {
     }
 
     return out;
-#else
-    return {};
-#endif
 }
 
 std::vector<::REManagedObject*> TreeNode::get_actions() const {
@@ -326,7 +322,6 @@ void BehaviorTree::set_current_node(sdk::behaviortree::TreeNode* node, uint32_t 
 }
 
 bool TreeObject::is_delayed() const {
-    #if TDB_VER >= 69
     static auto bhvt_manager = sdk::get_native_singleton("via.behaviortree.BehaviorTreeManager");
     static auto bhvt_manager_t = sdk::find_type_definition("via.behaviortree.BehaviorTreeManager");
     static auto bhvt_manager_retype = bhvt_manager_t->get_type();
@@ -342,9 +337,6 @@ bool TreeObject::is_delayed() const {
             }
         }
     }
-#else
-    const auto is_delay_setup_objects = false;
-#endif
 
     return is_delay_setup_objects;
 }
@@ -435,7 +427,6 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
         return (::REManagedObject*)this->data->static_actions.objects[new_idx];
     } else {
-#if TDB_VER >= 69
         if (is_delay_setup_objects) {
             if (index >= this->delayed_actions.count || this->delayed_actions.objects == nullptr) {
                 return nullptr;
@@ -449,20 +440,12 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
             return (::REManagedObject*)this->actions.objects[index];
         }
-#else
-        if (index >= this->actions.count || this->actions.objects == nullptr) {
-            return nullptr;
-        }
-
-        return (::REManagedObject*)this->actions.objects[index];
-#endif
     }
 
     return nullptr;
 }
 
 ::REManagedObject* TreeObject::get_unloaded_action(uint32_t index) const {
-#if TDB_VER >= 69
     if (this->data == nullptr) {
         return nullptr;
     }
@@ -481,7 +464,6 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
         return (::REManagedObject*)this->data->actions.objects[index];
     }
-#endif
 
     return nullptr;
 }
@@ -501,7 +483,6 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
         return (::REManagedObject*)this->data->static_conditions.objects[new_idx];
     } else {
-#if TDB_VER >= 69
         if (is_delay_setup_objects) {
             if (index >= this->delayed_conditions.count || this->delayed_conditions.objects == nullptr) {
                 return nullptr;
@@ -515,13 +496,6 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
             return (::REManagedObject*)this->conditions.objects[index];
         }
-#else
-        if (index >= this->conditions.count || this->conditions.objects == nullptr) {
-            return nullptr;
-        }
-
-        return (::REManagedObject*)this->conditions.objects[index];
-#endif
     }
 
     return nullptr;
@@ -542,7 +516,6 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
         return (::REManagedObject*)this->data->static_transitions.objects[new_idx];
     } else {
-#if TDB_VER >= 69
         if (is_delay_setup_objects) {
             if (index >= this->delayed_transitions.count || this->delayed_transitions.objects == nullptr) {
                 return nullptr;
@@ -556,46 +529,27 @@ void CoreHandle::relocate_datas(uintptr_t old_start, uintptr_t old_end, sdk::Nat
 
             return (::REManagedObject*)this->transitions.objects[index];
         }
-#else
-        if (index >= this->transitions.count || this->transitions.objects == nullptr) {
-            return nullptr;
-        }
-
-        return (::REManagedObject*)this->transitions.objects[index];
-#endif 
     }
 
     return nullptr;
 }
 
 uint32_t TreeObject::get_action_count() const {
-#if TDB_VER >= 69
     const auto is_delay_setup_objects = is_delayed();
 
     return is_delay_setup_objects ? this->delayed_actions.count : this->actions.count;
-#else
-    return this->actions.count;
-#endif
 }
 
 uint32_t TreeObject::get_condition_count() const {
-#if TDB_VER >= 69
     const auto is_delay_setup_objects = is_delayed();
 
     return is_delay_setup_objects ? this->delayed_conditions.count : this->conditions.count;
-#else
-    return this->conditions.count;
-#endif
 }
 
 uint32_t TreeObject::get_transition_count() const {
-#if TDB_VER >= 69
     const auto is_delay_setup_objects = is_delayed();
 
     return is_delay_setup_objects ? this->delayed_transitions.count : this->transitions.count;
-#else
-    return this->transitions.count;
-#endif
 }
 }
 }

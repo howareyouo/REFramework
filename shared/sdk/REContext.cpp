@@ -56,7 +56,6 @@ namespace sdk {
     }
 
     uint8_t* VM::get_static_tbl_for_type(uint32_t type_index) {
-#if TDB_VER > 49
         auto& tbls = get_static_tbl();
 
         /*if (type_index >= tbls.size) {
@@ -64,13 +63,6 @@ namespace sdk {
         }*/
 
         return tbls.elements[type_index];
-#else
-        if (type_index >= this->num_types) {
-            return nullptr;
-        }
-
-        return (uint8_t*)this->types[type_index].static_fields;
-#endif
     }
 
     static std::shared_mutex s_mutex{};
@@ -206,7 +198,6 @@ namespace sdk {
         // We use tdb->numTypes (already resolved above) as the exact expected array count, instead of
         // the original crude range check (2000..9999999). This eliminates false positives where unrelated
         // adjacent arrays happen to have matching counts within that loose range.
-#if TDB_VER >= 71
         if (s_global_context != nullptr && *s_global_context != nullptr) {
             const auto expected_count = tdb != nullptr ? tdb->get_num_types() : 0;
 
@@ -285,12 +276,10 @@ namespace sdk {
                 return;
             }
         }
-#endif
 
         // Get invoke_tbl
         // this SEEMS to work on RE2 and onwards, but not on RE7
         // look into it later
-#if TDB_VER > 49
         // Just a potential method inside the table
         // we will scan for something pointing to it,
         // meaning that we will land in the middle of the invoke table somwhere
@@ -480,7 +469,6 @@ namespace sdk {
         }
 
         spdlog::info("[VM::update_pointers] s_invoke_tbl: {:x}", (uintptr_t)s_invoke_tbl);
-#endif
     }
 
     sdk::VMContext* get_thread_context(int32_t unk /*= -1*/) {

@@ -10,11 +10,7 @@ sdk::RETypeDefinition* utility::re_type::get_type_definition(REType* type) {
         return nullptr;
     }
 
-#if TDB_VER > 49
     return (sdk::RETypeDefinition*)type->classInfo;
-#else
-    return (sdk::RETypeDefinition*)type->classInfo->classInfo;
-#endif
 }
 
 uint32_t utility::re_type::get_vm_type(::REType* t) {

@@ -10,36 +10,8 @@
 #include "Graphics.hpp"
 
 
-#if TDB_VER >= 83
-#include "sdk/regenny/re9/via/Window.hpp"
-#include "sdk/regenny/re9/via/SceneView.hpp"
-#elif TDB_VER <= 49
-#include "sdk/regenny/re7/via/Window.hpp"
-#include "sdk/regenny/re7/via/SceneView.hpp"
-#elif TDB_VER < 69
-#include "sdk/regenny/re3/via/Window.hpp"
-#include "sdk/regenny/re3/via/SceneView.hpp"
-#elif TDB_VER == 69
-#include "sdk/regenny/re8/via/Window.hpp"
-#include "sdk/regenny/re8/via/SceneView.hpp"
-#elif TDB_VER == 70
-#include "sdk/regenny/re2_tdb70/via/Window.hpp"
-#include "sdk/regenny/re2_tdb70/via/SceneView.hpp"
-#elif TDB_VER >= 71
-#ifdef SF6
-#include "sdk/regenny/sf6/via/Window.hpp"
-#include "sdk/regenny/sf6/via/SceneView.hpp"
-#elif defined(RE4)
 #include "sdk/regenny/re4/via/Window.hpp"
 #include "sdk/regenny/re4/via/SceneView.hpp"
-#elif defined(DD2) || TDB_VER >= 74 // TODO: Actually make headers for TDB74
-#include "sdk/regenny/dd2/via/Window.hpp"
-#include "sdk/regenny/dd2/via/SceneView.hpp"
-#else
-#include "sdk/regenny/mhrise_tdb71/via/Window.hpp"
-#include "sdk/regenny/mhrise_tdb71/via/SceneView.hpp"
-#endif
-#endif
 
 std::shared_ptr<Graphics>& Graphics::get() {
     static auto mod = std::make_shared<Graphics>();
@@ -118,7 +90,6 @@ static bool ImGuiInputTextResizing(const char* label, std::string& str) {
 }
 
 std::optional<std::string> Graphics::on_initialize() {
-#if TDB_VER >= 69
     const auto raytracing_enum = sdk::find_type_definition("via.render.ExperimentalRayTrace.Raytracing");
 
     if (raytracing_enum == nullptr) {
@@ -182,7 +153,6 @@ std::optional<std::string> Graphics::on_initialize() {
     m_ray_trace_clone_type_pre->recreate_options(s_ray_trace_type);
     m_ray_trace_clone_type_post->recreate_options(s_ray_trace_type);
     m_ray_trace_clone_type_true->recreate_options(s_ray_trace_type);
-#endif
 
     return Mod::on_initialize(); // OK
 }
@@ -191,102 +161,8 @@ void Graphics::on_lua_state_created(sol::state& lua) {
     lua.new_usertype<Graphics>("REFGraphics",
         "get", []() -> Graphics* { return Graphics::get().get(); },
         "is_ultrawide_fix_enabled", &Graphics::is_ultrawide_fix_enabled
-#ifdef MHWILDS
-        ,
-        "get_mhwilds_ultrawide_correction_value", &Graphics::get_mhwilds_ultrawide_correction_value,
-        "set_mhwilds_ultrawide_correction_value", &Graphics::set_mhwilds_ultrawide_correction_value
-#endif
     );
 
-#ifdef MHWILDS
-try {
-    lua.do_string(R"--delimiter--(local Statics = {}
-
-    function Statics.generate(typename, double_ended)
-        local double_ended = double_ended or false
-
-        local t = sdk.find_type_definition(typename)
-        if not t then return {} end
-
-        local fields = t:get_fields()
-        local enum = {}
-
-        for i, field in ipairs(fields) do
-            if field:is_static() then
-                local name = field:get_name()
-                local raw_value = field:get_data(nil)
-
-                log.info(name .. " = " .. tostring(raw_value))
-
-                enum[name] = raw_value
-
-                if double_ended then
-                    enum[raw_value] = name
-                end
-            end
-        end
-
-        return enum
-    end
-
-    local app_option_id = Statics.generate("app.Option.ID")
-    local ULTRAWIDE_UI_POS = app_option_id.ULTRAWIDE_UI_POS
-    local hook_enabled = false
-    local graphics = REFGraphics.get()
-    local last_known_correction_value = graphics:get_mhwilds_ultrawide_correction_value()
-    local first_time = true
-
-    local function enable_hook()
-        hook_enabled = true
-
-        sdk.hook(sdk.find_type_definition("app.savedata.cOptionParam"):get_method("getOptionValue(app.Option.ID)"),
-        function(args)
-            pcall(function()
-                thread.get_hook_storage()["option_id"] = sdk.to_int64(args[3])
-            end)
-        end,
-        function(retval)
-            pcall(function()
-                local option_id = thread.get_hook_storage()["option_id"] or 0
-                if (option_id == ULTRAWIDE_UI_POS) then
-                    local retval_as_int = sdk.to_int64(retval) & 0xFFFFFFFF
-
-                    -- Allow user to change value from within game menu
-                    if retval_as_int ~= last_known_correction_value and not first_time then
-                        graphics:set_mhwilds_ultrawide_correction_value(retval_as_int)
-                    else
-                        first_time = false
-                    end
-
-                    retval = sdk.to_ptr(graphics:get_mhwilds_ultrawide_correction_value())
-
-                    last_known_correction_value = retval_as_int
-                end
-            end)
-            return retval
-        end)
-
-        log.info("[Graphics] Hooked app.savedata.cOptionParam.getOptionValue(app.Option.ID)")
-    end
-
-    -- We use this to only hook if the ultrawide fix is enabled
-    re.on_frame(function()
-        if hook_enabled then
-            return
-        end
-
-        if graphics:is_ultrawide_fix_enabled() then
-            enable_hook()
-        end
-    end)
-    )--delimiter--"
-);
-} catch(const std::exception& e) {
-    spdlog::error("Error while trying to hook app.savedata.cOptionParam.getOptionValue(app.Option.ID): {}", e.what());
-} catch(...) {
-    spdlog::error("Error while trying to hook app.savedata.cOptionParam.getOptionValue(app.Option.ID): unknown error");
-}
-#endif
 }
 
 void Graphics::on_config_load(const utility::Config& cfg) {
@@ -302,7 +178,6 @@ void Graphics::on_frame() {
         m_disable_gui->toggle();
     }
 
-#if TDB_VER >= 69
     if (m_ray_tracing_tweaks->value()) {
         setup_path_trace_hook();
         apply_ray_tracing_tweaks();
@@ -311,7 +186,6 @@ void Graphics::on_frame() {
     if (m_shader_playground->value()) {
         setup_shader_interception_hook();
     }
-#endif
 }
 
 void Graphics::on_draw_ui() {
@@ -320,7 +194,6 @@ void Graphics::on_draw_ui() {
         return;
     }
 
-#ifdef RE4
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("RE4 Scope Tweaks")) {
         m_scope_tweaks->draw("Enable Scope Tweaks");
@@ -332,7 +205,6 @@ void Graphics::on_draw_ui() {
 
         ImGui::TreePop();
     }
-#endif
 
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("Ultrawide/FOV Options")) {
@@ -341,14 +213,10 @@ void Graphics::on_draw_ui() {
         }
 
         if (m_ultrawide_fix->value()) {
-#ifndef MHWILDS
             m_ultrawide_constrain_ui->draw("Ultrawide: Constrain UI to 16:9");
             if (m_ultrawide_constrain_ui->value()) {
                 m_ultrawide_constrain_child_ui->draw("Ultrawide: Constrain Child UI to 16:9");
             }
-#else
-            m_ultrawide_ui_correction->draw("Ultrawide: UI Correction");
-#endif
             m_ultrawide_vertical_fov->draw("Ultrawide: Enable Vertical FOV");
             m_ultrawide_custom_fov->draw("Ultrawide: Override FOV");
             m_ultrawide_fov_multiplier->draw("Ultrawide: FOV Multiplier");
@@ -366,7 +234,6 @@ void Graphics::on_draw_ui() {
         ImGui::TreePop();
     }
 
-#if TDB_VER >= 69
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("Ray Tracing Tweaks")) {
         m_ray_tracing_tweaks->draw("Enable Ray Tracing Tweaks");
@@ -469,7 +336,6 @@ void Graphics::on_draw_ui() {
 
         ImGui::TreePop();
     }
-#endif
 }
 
 void Graphics::on_present() {
@@ -526,9 +392,7 @@ void Graphics::on_pre_application_entry(void* entry, const char* name, size_t ha
     if (hash == "UpdateBehavior"_fnv) {
         // SF6 has some weird behavior where it doesn't restore the FOV correctly
         // corrupting the value
-#ifndef SF6
         do_ultrawide_fix();
-#endif
     }
 
     if (hash == "UnlockScene"_fnv) {
@@ -538,9 +402,7 @@ void Graphics::on_pre_application_entry(void* entry, const char* name, size_t ha
 
 void Graphics::on_application_entry(void* entry, const char* name, size_t hash) {
     if (hash == "UpdateBehavior"_fnv) {
-#ifndef SF6
         do_ultrawide_fov_restore();
-#endif
     }
 
     // To actually fix the rendering.
@@ -632,15 +494,9 @@ bool Graphics::on_pre_gui_draw_element(REComponent* gui_element, void* primitive
     }
 
     // TODO: Check how this interacts with the other games, could be useful for them too.
-#if defined(SF6)
-    fix_ui_element(gui_element);
-#else
-#ifndef MHWILDS
     if (m_ultrawide_constrain_ui->value()) {
         fix_ui_element(gui_element);
     }
-#endif
-#endif
 
     auto game_object = utility::re_component::get_game_object(gui_element);
     static auto letter_box_behavior_t = sdk::find_type_definition("app.LetterBoxBehavior");
@@ -681,13 +537,7 @@ bool Graphics::on_pre_gui_draw_element(REComponent* gui_element, void* primitive
 
             break;
 
-#if defined(DD2)
-        case "ui012203"_fnv:
-            game_object->shouldDraw = false;
-            return false;
-#endif
 
-#if defined(RE4)
         case "Gui_ui2510"_fnv: // Black bars in cutscenes
             game_object->shouldDraw = false;
             return false;
@@ -701,13 +551,7 @@ bool Graphics::on_pre_gui_draw_element(REComponent* gui_element, void* primitive
                 m_re4.last_inventory_open = std::chrono::steady_clock::now();
             }
             break;
-#endif
 
-#if defined(RE9)
-        case "Gui_ui0440"_fnv: // Black bars in cutscenes
-            game_object->shouldDraw = false;
-            return false;
-#endif
 
         default:
             break;
@@ -718,17 +562,6 @@ bool Graphics::on_pre_gui_draw_element(REComponent* gui_element, void* primitive
 }
 
 void Graphics::on_view_get_size(REManagedObject* scene_view, float* result) {
-#if defined(SF6) || defined(DMC5) || TDB_VER >= 73
-    if (m_ultrawide_fix->value()) {
-        auto regenny_view = (regenny::via::SceneView*)scene_view;
-        auto window = regenny_view->window;
-
-        if (window != nullptr) {
-            window->borderless_size.w = (float)window->width;
-            window->borderless_size.h = (float)window->height;
-        }
-    }
-#endif
 
     const auto bb_w = m_backbuffer_width.load(std::memory_order_relaxed);
     const auto bb_h = m_backbuffer_height.load(std::memory_order_relaxed);
@@ -737,19 +570,11 @@ void Graphics::on_view_get_size(REManagedObject* scene_view, float* result) {
         return;
     }
 
-#if TDB_VER < 73
     result[0] = (float)bb_w;
     result[1] = (float)bb_h;
-#else
-    auto regenny_view = (regenny::via::SceneView*)scene_view;
-
-    regenny_view->size.w = (float)bb_w;
-    regenny_view->size.h = (float)bb_h;
-#endif
 }
 
 void Graphics::do_scope_tweaks(sdk::renderer::layer::Scene* layer) {
-#ifdef RE4
     if (!m_scope_tweaks->value()) {
         return;
     }
@@ -790,13 +615,10 @@ void Graphics::do_scope_tweaks(sdk::renderer::layer::Scene* layer) {
     if (set_interleave_method != nullptr) {
         set_interleave_method->call(sdk::get_thread_context(), render_output, m_scope_interlaced_rendering->value());
     }
-#endif
 }
 
 void Graphics::on_scene_layer_update(sdk::renderer::layer::Scene* layer, void* render_context) {
-#ifdef RE4
     do_scope_tweaks(layer);
-#endif
 }
 
 void Graphics::do_ultrawide_fix() {
@@ -806,7 +628,6 @@ void Graphics::do_ultrawide_fix() {
 
     set_ultrawide_fov(m_ultrawide_vertical_fov->value());
 
-#if defined(RE4)
     {
         std::shared_lock _{m_re4.time_mtx};
 
@@ -815,7 +636,6 @@ void Graphics::do_ultrawide_fix() {
             return;
         }
     }
-#endif
 
     static auto via_scene_view = sdk::find_type_definition("via.SceneView");
     static auto set_display_type_method = via_scene_view->get_method("set_DisplayType");
@@ -870,12 +690,10 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
         return;
     }
 
-#if defined(RE4) // Don't restore the FOV if we've just opened the inventory
     const auto now = std::chrono::steady_clock::now();
     if (now - m_re4.last_inventory_open < std::chrono::milliseconds(100)) {
         return;
     }
-#endif
 
     static auto via_camera = sdk::find_type_definition("via.Camera");
     static auto set_fov_method = via_camera->get_method("set_FOV");
@@ -915,7 +733,6 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     }
 
     bool allow_changing_fov = true;
-#if defined(RE4)
     // Never scale the FOV if the inventory just opened, otherwise it could make the inventory appear much smaller than it should.
     // Unfortunately it doesn't scale right at 21:9 even in the unpatched game.
     const auto now = std::chrono::steady_clock::now();
@@ -926,7 +743,6 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
         std::scoped_lock _{m_fov_mutex};
         m_fov_map.clear();
     }
-#endif
 
     static auto via_camera = sdk::find_type_definition("via.Camera");
     static auto get_vertical_enable_method = via_camera->get_method("get_VerticalEnable");
@@ -988,14 +804,8 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
         // The threshold for letter boxing
         constexpr float min_supported_aspect_ratio = default_aspect_ratio;
         // The threshold for pillar boxing (or shifting to Ver- FOV)
-#if defined(RE8)
-        constexpr float max_supported_aspect_ratio = 32.f / 9.f;
-#elif defined(RE2) || defined(RE3) || defined(RE4)
         // Even if most 21:9 resolutions actually have a higher aspect ratio than 2.333, that's actually what some games wrongfully use
         constexpr float max_supported_aspect_ratio = 21.f / 9.f;
-#else
-        constexpr float max_supported_aspect_ratio = default_aspect_ratio;
-#endif
 
         float current_aspect_ratio = default_aspect_ratio;
         float target_aspect_ratio = default_aspect_ratio;
@@ -1031,7 +841,6 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     }
 }
 
-#if TDB_VER >= 69
 void Graphics::setup_shader_interception_hook() {
     if (m_attempted_shader_interception_hook) {
         return;
@@ -1544,4 +1353,3 @@ sdk::renderer::PipelineState* Graphics::find_pipeline_state_hook(void* shader_re
 
     return result;
 }
-#endif

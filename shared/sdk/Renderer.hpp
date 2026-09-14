@@ -88,32 +88,9 @@ public:
     DirectXResource<ID3D12Resource>* get_d3d12_resource_container();
 
 private:
-#if TDB_VER >= 73 || defined(SF6)
-    static constexpr inline auto s_desc_offset = sizeof(RenderResource) + 0x18;
-#else
     static constexpr inline auto s_desc_offset = sizeof(RenderResource) + sizeof(void*);
-#endif
 
-#if TDB_VER >= 73
-    static constexpr inline auto s_d3d12_resource_offset = 0xE0;
-#elif TDB_VER >= 71
-#ifdef SF6
-    // So because this discrepancy in SF6 is > 8 bytes (which is how much was added to RenderResource), trying to automate this
-    // is a bit trickier so we can look into this later, and just hardcode it for now.
-    static constexpr inline auto s_d3d12_resource_offset = 0xB8;
-#elif defined(MHRISE)
-    static constexpr inline auto s_d3d12_resource_offset = 0x98; // WHAT THE HECK!!!
-#else
     static constexpr inline auto s_d3d12_resource_offset = 0xA0;
-#endif
-#elif TDB_VER == 70
-    static constexpr inline auto s_d3d12_resource_offset = 0x98;
-#elif TDB_VER == 69
-    static constexpr inline auto s_d3d12_resource_offset = 0x98;
-#else
-    // TODO? might not be right offset (verified in DMC5)
-    static constexpr inline auto s_d3d12_resource_offset = 0x98;
-#endif
 };
 
 class DepthStencilView : public RenderResource {
@@ -191,23 +168,7 @@ public:
 
     // more here but not needed... for now
 };
-#if TDB_VER >= 82
-static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x30);
-#elif TDB_VER >= 73
 static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x28);
-#elif TDB_VER > 67
-#ifdef SF6
-static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x28);
-#else
-#ifdef RE4
-static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x28);
-#else
-static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x20);
-#endif
-#endif
-#else
-static_assert(offsetof(TargetState, m_desc) + offsetof(TargetState::Desc, num_rtv) == 0x28);
-#endif
 
 class Buffer : public RenderResource {
 public:

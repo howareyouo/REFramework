@@ -32,12 +32,8 @@ sdk::REMethodDefinition* RETypeDefinition::MethodIterator::end()  const {
 
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     const auto& impl = (*tdb->typesImpl)[m_parent->impl_index];
     const auto num_methods = impl.num_member_methods;
-#else
-    const auto num_methods = m_parent->num_member_method;
-#endif
 
     return &(*tdb->methods)[m_parent->member_method + num_methods];
 }
@@ -74,13 +70,9 @@ sdk::REField* sdk::RETypeDefinition::FieldIterator::REFieldIterator::operator*()
 }
 
 size_t sdk::RETypeDefinition::FieldIterator::size() const {
-#if TDB_VER >= 69
         auto tdb = sdk::RETypeDB::get();
         const auto& impl = (*tdb->typesImpl)[m_parent->impl_index];
         const auto num_fields = impl.num_member_fields;
-#else
-        const auto num_fields = m_parent->num_member_field;
-#endif
 
         return num_fields;
     }
@@ -114,13 +106,9 @@ size_t RETypeDefinition::PropertyIterator::size() const {
 const char* RETypeDefinition::get_namespace() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     auto& impl = (*tdb->typesImpl)[this->impl_index];
 
     const auto name_index = impl.namespace_offset;
-#else
-    const auto name_index = this->namespace_offset;
-#endif
 
     return tdb->get_string(name_index);
 }
@@ -128,13 +116,9 @@ const char* RETypeDefinition::get_namespace() const {
 const char* RETypeDefinition::get_name() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER >= 69
     auto& impl = (*tdb->typesImpl)[this->impl_index];
 
     const auto name_index = impl.name_offset;
-#else
-    const auto name_index = this->name_offset;
-#endif
 
     return tdb->get_string(name_index);
 }
@@ -146,9 +130,6 @@ static std::shared_mutex g_full_name_mtx{};
 std::string RETypeDefinition::get_full_name() const {
     auto tdb = RETypeDB::get();
 
-#if TDB_VER <= 49
-    return tdb->get_string(this->full_name_offset); // uhh thanks?
-#else
     {
         std::shared_lock _{ g_full_name_mtx };
 
@@ -227,7 +208,6 @@ std::string RETypeDefinition::get_full_name() const {
         }
     };
 
-#if TDB_VER > 49
     const auto generics = this->get_generic_data();
 
     if (generics != nullptr && generics->num > 0) {
@@ -258,9 +238,6 @@ std::string RETypeDefinition::get_full_name() const {
     } else if (generics != nullptr) {
         generate_full_name_via_reflection();
     }
-#else
-    //full_name += "<not implemented>";
-#endif
 
     // For arrays
     if (full_name.empty()) {
@@ -273,7 +250,6 @@ std::string RETypeDefinition::get_full_name() const {
     }
 
     return full_name;
-#endif
 }
 
 std::vector<std::string> RETypeDefinition::get_name_hierarchy() const {
@@ -349,7 +325,6 @@ sdk::RETypeDefinition* RETypeDefinition::get_underlying_type() const {
         return nullptr;
     }
 
-#if TDB_VER > 49
     const auto runtime_type = this->get_runtime_type();
 
     // dont forget to do this, passing nullptr into GetUnderlyingType causes System.ArgumentNullException
@@ -395,24 +370,9 @@ sdk::RETypeDefinition* RETypeDefinition::get_underlying_type() const {
     
     std::unique_lock _{ g_underlying_mtx };
     return g_underlying_types[this];
-#else
-    const auto value_field = this->get_field("value__");
-
-    if (value_field == nullptr) {
-        g_underlying_types[this] = nullptr;
-        return nullptr;
-    }
-
-    const auto underlying_type = value_field->get_type();
-    
-    std::unique_lock _{ g_underlying_mtx };
-    g_underlying_types[this] = underlying_type;
-    return g_underlying_types[this];
-#endif
 }
 
 sdk::RETypeDefinition* RETypeDefinition::get_generic_type_definition() const {
-#if TDB_VER > 49
     if (this->generics > 0) {
         const auto tdb = sdk::RETypeDB::get();
         auto generics = tdb->get_data<sdk::GenericListData>(this->generics);
@@ -423,7 +383,6 @@ sdk::RETypeDefinition* RETypeDefinition::get_generic_type_definition() const {
             return tdb->get_type(id);
         }
     }
-#endif
 
     return nullptr;
 }
@@ -571,7 +530,6 @@ std::vector<sdk::REMethodDefinition*> RETypeDefinition::get_methods(std::string_
 std::vector<sdk::RETypeDefinition*> RETypeDefinition::get_generic_argument_types() const {
     std::vector<sdk::RETypeDefinition*> out{};
 
-#if TDB_VER > 49
     const auto generics = get_generic_data();
 
     if (generics != nullptr && generics->num > 0) {
@@ -587,67 +545,33 @@ std::vector<sdk::RETypeDefinition*> RETypeDefinition::get_generic_argument_types
             }
         }
     }
-#endif
 
     return out;
 }
 
 sdk::GenericListData* RETypeDefinition::get_generic_data() const {
-#if TDB_VER > 49
     if (this->generics > 0) {
         const auto tdb = sdk::RETypeDB::get();
         return tdb->get_data<sdk::GenericListData>(this->generics);
     }
-#endif
 
     return nullptr;
 }
 
 uint32_t RETypeDefinition::get_index() const {
-#if TDB_VER > 49
     return this->index;
-#else
-    const auto tdb = RETypeDB::get();
-
-    return (uint32_t)(((uintptr_t)this - (uintptr_t)tdb->types) / sizeof(sdk::RETypeDefinition));
-#endif
 }
 
 int32_t RETypeDefinition::get_fieldptr_offset() const {
-#if TDB_VER > 49
-    #if TDB_VER >= 81
-        REObjectInfo *target_managed_vt = get_managed_vt();
-
-        if (target_managed_vt == nullptr) {
-            return 0;
-        }
-
-        return *(int32_t*)((uintptr_t)target_managed_vt - sizeof(void*));
-    #else
         if (this->managed_vt == nullptr) {
             return 0;
         }
 
         return *(int32_t*)((uintptr_t)this->managed_vt - sizeof(void*));
-    #endif
-#else
-    auto vm = sdk::VM::get();
-    const auto& vm_type = vm->types[this->get_index()];
-
-    return vm_type.fieldptr_offset;
-#endif
 }
 
 bool RETypeDefinition::has_fieldptr_offset() const {
-#if TDB_VER > 49
-    #if TDB_VER >= 81
-        return get_managed_vt() != nullptr;
-    #else
         return this->managed_vt != nullptr;
-    #endif
-#else
-    return true;
-#endif
 }
 
 bool RETypeDefinition::is_a(const sdk::RETypeDefinition* other) const {
@@ -797,7 +721,6 @@ bool RETypeDefinition::is_primitive() const {
         }
     }
 
-#if TDB_VER > 49
     std::unique_lock _{g_primitive_mtx};
 
     auto runtime_type = this->get_runtime_type();
@@ -819,43 +742,12 @@ bool RETypeDefinition::is_primitive() const {
     g_primitive_map[this] = primitive_method->call<bool>(sdk::get_thread_context(), runtime_type);
 
     return g_primitive_map[this];
-#else
-    // RE7 is missing get_IsPrimitive and System.RuntimeType
-    const auto full_name_hash = utility::hash(this->get_full_name());
-
-    switch (full_name_hash) {
-    case "System.Boolean"_fnv:[[fallthrough]];
-    case "System.Char"_fnv:[[fallthrough]];
-    case "System.SByte"_fnv:[[fallthrough]];
-    case "System.Byte"_fnv:[[fallthrough]];
-    case "System.Int16"_fnv:[[fallthrough]];
-    case "System.UInt16"_fnv:[[fallthrough]];
-    case "System.Int32"_fnv:[[fallthrough]];
-    case "System.UInt32"_fnv:[[fallthrough]];
-    case "System.Int64"_fnv:[[fallthrough]];
-    case "System.UInt64"_fnv:[[fallthrough]];
-    case "System.Single"_fnv:[[fallthrough]];
-    case "System.Double"_fnv:[[fallthrough]];
-    case "System.Void"_fnv:[[fallthrough]];
-    case "System.IntPtr"_fnv:[[fallthrough]];
-    case "System.UIntPtr"_fnv:
-        g_primitive_map[this] = true;
-        return true;
-    default:
-        g_primitive_map[this] = false;
-        return false;
-    }
-
-    return false;
-#endif
 }
 
 bool RETypeDefinition::is_generic_type_definition() const {
-#if TDB_VER > 49
     if (const auto gd = get_generic_data(); gd != nullptr && gd->definition_typeid == this->get_index()) {
         return true;
     }
-#endif
 
     return false;
 }
@@ -898,18 +790,8 @@ bool RETypeDefinition::has_attribute(::REManagedObject* attribute_runtime_type, 
 }
 
 uint32_t RETypeDefinition::get_crc_hash() const {
-#if TDB_VER > 49
     const auto t = get_type();
     return t != nullptr ? t->typeCRC : this->type_crc;
-#else
-    const auto t = (regenny::via::typeinfo::TypeInfo*)get_type();
-
-    if (t == nullptr) {
-        return 0;
-    }
-
-    return t->crc;
-#endif
 }
 
 uint32_t RETypeDefinition::get_fqn_hash() const {
@@ -917,21 +799,10 @@ uint32_t RETypeDefinition::get_fqn_hash() const {
 }
 
 uint32_t RETypeDefinition::get_size() const {
-#if TDB_VER > 49
     return this->size;
-#else
-    auto t = (regenny::via::typeinfo::TypeInfo*)get_type();
-
-    if (t == nullptr) {
-        return 0;
-    }
-
-    return t->size;
-#endif
 }
 
 uint32_t RETypeDefinition::get_valuetype_size() const {
-#if TDB_VER >= 69
     auto tdb = RETypeDB::get();
     auto impl_id = this->impl_index;
 
@@ -940,20 +811,10 @@ uint32_t RETypeDefinition::get_valuetype_size() const {
     }
 
     return (*tdb->typesImpl)[impl_id].field_size;
-#else
-    return this->element_size;
-#endif
 }
 
 ::REType* RETypeDefinition::get_type() const {
-#if TDB_VER > 49
     return this->type;
-#else
-    auto vm = sdk::VM::get();
-    const auto& vm_type = vm->types[this->get_index()];
-
-    return (::REType*)vm_type.reflection_type;
-#endif
 }
 
 static std::unordered_map<const sdk::RETypeDefinition*, ::REManagedObject*> g_runtime_type_map{};
@@ -968,7 +829,6 @@ static std::shared_mutex g_runtime_type_mtx{};
         }
     }
 
-#if TDB_VER > 49
     static auto appdomain_type = sdk::find_type_definition("System.AppDomain");
     static auto assembly_type = sdk::find_type_definition("System.Reflection.Assembly");
     static auto get_current_domain_func = appdomain_type->get_method("get_CurrentDomain");
@@ -1079,19 +939,6 @@ static std::shared_mutex g_runtime_type_mtx{};
     // The type may become available later (e.g. after delayed assembly loading).
     // Previously this code cached nullptr which made transient failures permanent.
     return nullptr;
-#else
-    auto vm = sdk::VM::get();
-
-    if (vm == nullptr) {
-        return nullptr;
-    }
-
-    const auto& vm_type = vm->types[this->get_index()];
-
-    std::unique_lock _{g_runtime_type_mtx};
-    g_runtime_type_map[this] = (::REManagedObject*)vm_type.runtime_type;
-    return g_runtime_type_map[this];
-#endif
 }
 
 void* RETypeDefinition::get_instance() const {
@@ -1142,43 +989,11 @@ void* RETypeDefinition::create_instance() const {
 }
 
 ::REObjectInfo* RETypeDefinition::get_managed_vt() const {
-#if TDB_VER > 49
-    #if TDB_VER >= 81
-        REObjectInfo *target_managed_vt = this->managed_vt;
-        const int ABSTRACT_TYPE_FLAG = 128;
-
-        if (this->managed_vt == nullptr) {
-            // Abstract
-            if (this->type_flags & ABSTRACT_TYPE_FLAG) {
-                // Keep getting parent type until getting a hit
-                auto parent_type_def = this->get_parent_type();
-                while (parent_type_def != nullptr) {
-                    target_managed_vt = parent_type_def->managed_vt;
-
-                    if (target_managed_vt != nullptr) {
-                        break;
-                    }
-
-                    parent_type_def = parent_type_def->get_parent_type();
-                }
-            }
-        }
-
-        return target_managed_vt;
-    #else
         return (::REObjectInfo*)this->managed_vt;
-    #endif
-#else
-    return (::REObjectInfo*)&sdk::VM::get()->types[this->get_index()];
-#endif
 }
 
 uint32_t RETypeDefinition::get_flags() const {
-#if TDB_VER > 49
     return this->type_flags;
-#else
-    return 0;
-#endif
 }
 
 bool RETypeDefinition::should_pass_by_pointer() const {

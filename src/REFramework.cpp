@@ -30,7 +30,6 @@ extern "C" {
 #include "utility/Thread.hpp"
 
 #include "Mods.hpp"
-#include "mods/FaultyFileDetector.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/PluginLoader.hpp"
 #include "sdk/REGlobals.hpp"
@@ -242,9 +241,6 @@ try {
             if (full_dll_path.parent_path() == *g_current_game_path) {
                 spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}", utility::narrow(full_dll_name));
 
-#if defined(DD2) || defined(MHRISE) || TDB_VER >= 74
-                utility::spoof_module_paths_in_exe_dir();
-#endif
             }
         } else {
             spdlog::info("LdrRegisterDllNotification: DLL loaded from unknown location");
@@ -305,11 +301,7 @@ void REFramework::setup_logging() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-#ifdef DEBUG
-    spdlog::set_level(spdlog::level::debug);
-#else
     spdlog::set_level(spdlog::level::warn);
-#endif
 }
 
 void REFramework::detect_game_path() {
@@ -371,58 +363,6 @@ void REFramework::detect_os_version() {
 }
 
 void REFramework::copy_storage_files() {
-#if defined(DD2) || defined(MHRISE) || TDB_VER >= 74
-    if (!g_current_game_path.has_value()) return;
-
-    const auto dest_path = *g_current_game_path / "_storage_";
-    fs::create_directories(dest_path);
-
-    if (!std::filesystem::exists(dest_path)) {
-        spdlog::error("Failed to create storage directory");
-        return;
-    }
-
-    // Helper: copy a single file with error reporting.
-    auto copy_file_safe = [](const fs::path& src, const fs::path& dst, const char* label) {
-        try {
-            std::error_code ec{};
-            fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
-            if (ec) {
-                spdlog::error("Failed to copy {}: {}", label, ec.message());
-            }
-        } catch (const std::filesystem::filesystem_error& e) {
-            spdlog::error("Failed to copy {}: {}", label, e.what());
-        } catch (const std::exception& e) {
-            spdlog::error("Failed to copy {}: {}", label, e.what());
-        } catch(...) {
-            spdlog::error("Failed to copy {}: unknown exception", label);
-        }
-    };
-
-    // Copy all DLLs from the game directory.
-    std::error_code directory_ec{};
-    for (const auto& entry : fs::directory_iterator(*g_current_game_path, directory_ec)) {
-        const auto entry_path = entry.path();
-        if (entry.is_regular_file() && entry_path.extension() == ".dll") {
-            spdlog::info("Copying DLL file: {}", entry_path.filename().string());
-            copy_file_safe(entry_path, dest_path / entry_path.filename().string(), "DLL file");
-        }
-    }
-
-    if (directory_ec) {
-        spdlog::error("An error occurred while traversing the game directory: {}", directory_ec.message());
-    }
-
-    // Copy D3D12Core.dll preserving subdirectory structure.
-    const auto d3d12_path = *g_current_game_path / "D3D12" / "D3D12Core.dll";
-    if (std::filesystem::exists(d3d12_path)) {
-        spdlog::info("Copying D3D12Core.dll file");
-        fs::create_directories(dest_path / "D3D12");
-        copy_file_safe(d3d12_path, dest_path / "D3D12" / "D3D12Core.dll", "D3D12Core.dll");
-    }
-
-    utility::spoof_module_paths_in_exe_dir();
-#endif
 }
 
 void REFramework::register_ldr_notification() {
@@ -450,7 +390,6 @@ void REFramework::register_ldr_notification() {
 }
 
 void REFramework::wait_for_d3d_if_packed() {
-#if defined(REENGINE_PACKED)
     auto now = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point next_log = now;
 
@@ -471,77 +410,29 @@ void REFramework::wait_for_d3d_if_packed() {
     }
 
     spdlog::info("D3D12 loaded");
-#endif
 }
 
 void REFramework::load_vr_dlls() {
-#if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-    LoadLibraryA("dxgi.dll");
-    LoadLibraryA("d3d11.dll");
-
-    if (!g_success_made_ldr_notification) {
-        utility::spoof_module_paths_in_exe_dir();
-    }
-#endif
 }
 
 void REFramework::setup_re8_crash_fix() {
-#if defined(RE8)
-    auto startup_lookup_thread = std::make_unique<std::thread>([this]() {
-        uint32_t times_searched = 0;
-
-        auto startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
-
-        while (!startup_patch_addr) {
-            startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
-
-            if (times_searched++ > MAX_SCAN_RETRIES) {
-                spdlog::error("Failed to find startup patch address");
-                return;
-            }
-        }
-
-        if (startup_patch_addr) {
-            spdlog::info("Found startup patch at {:x}", *startup_patch_addr);
-            static auto permanent_patch = Patch::create(*startup_patch_addr, {0xC3});
-        } else {
-            spdlog::info("Couldn't find RE8 crash fix patch location!");
-        }
-    });
-    startup_lookup_thread->detach();
-#endif
 }
 
 void REFramework::setup_mhwilds_early_init() {
-#if defined(MHWILDS)
-    FaultyFileDetector::early_init();
-#endif
 }
 
 void REFramework::setup_integrity_bypass() {
-#if defined(REENGINE_AT)
     utility::ThreadSuspender suspender{};
     IntegrityCheckBypass::ignore_application_entries();
 
-#if defined(RE8) || defined(RE4) || defined(SF6)
     IntegrityCheckBypass::immediate_patch_re8();
-#endif
 
-#if defined(RE4) || defined(SF6)
     IntegrityCheckBypass::immediate_patch_re4();
-#endif
 
-#if defined(DD2) || TDB_VER >= 74
-    IntegrityCheckBypass::immediate_patch_dd2();
-#endif
 
-#if TDB_VER >= 82
-    IntegrityCheckBypass::immediate_patch_re9();
-#endif
 
     IntegrityCheckBypass::remove_stack_destroyer();
     suspender.resume();
-#endif
 }
 
 void REFramework::plugin_early_init() {
@@ -575,18 +466,12 @@ void REFramework::wait_for_vm_and_renderer() {
         auto& loader = LooseFileLoader::get();
         auto& integrity_bypass = IntegrityCheckBypass::get_shared_instance();
 
-#if defined(MHWILDS)
-        auto& faulty_file_detector = FaultyFileDetector::get();
-#endif
 
         const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string();
         if (fs::exists(utility::widen(config_path))) {
             utility::Config cfg{ config_path };
             loader->on_config_load(cfg);
 
-#if defined(MHWILDS)
-            faulty_file_detector->on_config_load(cfg);
-#endif
             integrity_bypass->on_config_load(cfg);
         }
 
@@ -1940,14 +1825,8 @@ bool REFramework::initialize_game_data() {
         std::scoped_lock _{this->m_startup_mutex};
 
         try {
-#if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-            if (!g_success_made_ldr_notification) {
-                utility::spoof_module_paths_in_exe_dir();
-            }
-#endif
             reframework::initialize_sdk();
 
-#if TDB_VER >= 71
             const auto start_time = std::chrono::high_resolution_clock::now();
 
             while (true) {
@@ -1981,7 +1860,6 @@ bool REFramework::initialize_game_data() {
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
-#endif
 
             m_mods = std::make_unique<Mods>();
 
@@ -2016,11 +1894,6 @@ bool REFramework::initialize_game_data() {
             spdlog::error("Initialization of mods failed. Reason: exception thrown.");
         }
 
-#if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-        if (!g_success_made_ldr_notification) {
-            utility::spoof_module_paths_in_exe_dir();
-        }
-#endif
         spdlog::info("Game data initialization thread finished");
     });
 

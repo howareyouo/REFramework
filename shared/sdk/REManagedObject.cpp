@@ -98,15 +98,7 @@ void add_ref(REManagedObject* object) {
 
     //spdlog::info("Pushing: {} {} {:x}", (int32_t)object->referenceCount, utility::re_managed_object::get_type_definition(object)->get_full_name(), (uintptr_t)object);
 
-#if TDB_VER <= 49
-    if ((int32_t)object->referenceCount >= 0) {
-        _InterlockedIncrement(&object->referenceCount);
-    } else {
-        add_ref_func(object);
-    }
-#else
     add_ref_func(object);
-#endif
 }
 
 void release(REManagedObject* object) {
@@ -251,7 +243,6 @@ bool is_managed_object(Address address) {
         return false;
     }
 
-#if TDB_VER >= 71
     const auto td = (sdk::RETypeDefinition*)class_info;
 
     if ((uintptr_t)td->managed_vt != (uintptr_t)object->info) {
@@ -272,59 +263,6 @@ bool is_managed_object(Address address) {
     if (IsBadReadPtr(td->type->name, sizeof(void*))) {
         return false;
     }
-#elif TDB_VER > 49
-    if (class_info->parentInfo != object->info) {
-        // This allows for cases when a vtable hook is being used to replace this pointer.
-        if (IsBadReadPtr(class_info->parentInfo, sizeof(void*)) || class_info->parentInfo->classInfo != class_info) {
-            return false;
-        }
-    }
-
-    if (class_info->type == nullptr) {
-        return false;
-    }
-
-    if (IsBadReadPtr(class_info->type, sizeof(REType)) || class_info->type->name == nullptr) {
-        return false;
-    }
-
-    if (IsBadReadPtr(class_info->type->name, sizeof(void*))) {
-        return false;
-    }
-#else
-    auto info = object->info;
-
-    if (info->type == nullptr) {
-        return false;
-    }
-
-    if (IsBadReadPtr(info->type, sizeof(REType)) || info->type->name == nullptr) {
-        return false;
-    }
-
-    if (IsBadReadPtr(info->type->name, sizeof(void*))) {
-        return false;
-    }
-
-    if (info->type->super != nullptr && IsBadReadPtr(info->type->super, sizeof(REType))) {
-        return false;
-    }
-
-    if (info->type->classInfo != nullptr && IsBadReadPtr(info->type->classInfo, sizeof(REObjectInfo))) {
-        return false;
-    }
-
-    static auto vm = sdk::VM::get();
-    const auto tdef = (sdk::RETypeDefinition*)info->classInfo;
-    
-    if (&vm->types[tdef->get_index()] != (regenny::via::clr::VM::Type*)object->info) {
-        return false;
-    }
-
-    /*if (info->type->classInfo != nullptr && info->type->classInfo != object->info) {
-        return false;
-    }*/
-#endif
 
     return true;
 }
@@ -340,7 +278,6 @@ REType* get_type(::REManagedObject* object) {
         return nullptr;
     }
 
-#if TDB_VER >= 71
     const auto td = get_type_definition(object);
 
     if (td == nullptr) {
@@ -348,17 +285,6 @@ REType* get_type(::REManagedObject* object) {
     }
 
     return td->type;
-#elif TDB_VER > 49
-    auto class_info = info->classInfo;
-
-    if (class_info == nullptr) {
-        return nullptr;
-    }
-
-    return class_info->type;
-#else
-    return info->type;
-#endif
 }
 
 sdk::RETypeDefinition* get_type_definition(::REManagedObject* object) {
@@ -424,13 +350,7 @@ via::clr::VMObjType get_vm_type(::REManagedObject* object) {
         return via::clr::VMObjType::NULL_;
     }
 
-#if TDB_VER >= 71
     return get_type_definition(object)->get_vm_obj_type();
-#elif TDB_VER >= 69
-    return (via::clr::VMObjType)(info->classInfo->objectFlags >> 5);
-#else
-    return (via::clr::VMObjType)info->classInfo->objectType;
-#endif
 }
 
 uint32_t get_size(::REManagedObject* object) {
@@ -440,12 +360,8 @@ uint32_t get_size(::REManagedObject* object) {
         return 0;
     }
 
-#if TDB_VER > 49
     const auto td = get_type_definition(object);
     auto size = td->get_size();
-#else
-    auto size = info->size;
-#endif
 
     switch (get_vm_type(object)) {
     case via::clr::VMObjType::Array:

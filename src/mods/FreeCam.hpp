@@ -54,13 +54,7 @@ private:
         *m_rotation_speed,
     };
 
-#if defined(RE2) || defined(RE3)
-    RopewaySurvivorManager* m_survivor_manager{ nullptr };
-#endif
 
-#ifdef RE8
-    AppPropsManager* m_props_manager{ nullptr };
-#endif
 
     sdk::helpers::NativeObject m_via_hid_gamepad{ "via.hid.GamePad" };
     sdk::helpers::NativeObject m_application{ "via.Application" };
@@ -75,7 +69,6 @@ private:
 
     RECamera* m_camera{nullptr};
 
-#ifdef RE4
     struct {
         bool attempted_hook{false};
         std::optional<size_t> get_past_move_frame_move_dir_vec_id{};
@@ -89,5 +82,4 @@ private:
     } m_player_motion_controller_hook{};
 
     REManagedObject* m_re4_body{nullptr};
-#endif
 };
