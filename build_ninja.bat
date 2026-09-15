@@ -20,7 +20,10 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM Detect sccache compile cache
+REM Detect sccache compile cache (prefer bundled copy next to BuildTools, then PATH)
+set "SCCACHE_DIR=%BUILD_TOOLS%\sccache"
+if exist "%SCCACHE_DIR%\sccache.exe" set "PATH=%SCCACHE_DIR%;%PATH%"
+
 where sccache >nul 2>&1
 if %ERRORLEVEL%==0 (
     echo [info] sccache found in PATH, enabling compile cache...

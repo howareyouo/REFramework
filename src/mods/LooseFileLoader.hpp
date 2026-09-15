@@ -18,7 +18,6 @@ public:
     LooseFileLoader();
     std::string_view get_name() const override { return "LooseFileLoader"; }
 
-    std::optional<std::string> on_initialize() override;
     void on_config_load(const utility::Config& cfg) override;
     void on_config_save(utility::Config& cfg) override;
 

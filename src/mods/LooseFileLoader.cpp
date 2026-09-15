@@ -14,7 +14,13 @@ LooseFileLoader* g_loose_file_loader{nullptr};
 
 namespace {
     constexpr size_t kMaxRecentFiles = 100;
-    constexpr size_t kThreadCacheMax = 4096; // per-thread cap before falling back to the shared cache
+    constexpr size_t kThreadCacheSize = 4096; // per-thread cache slots, must be a power of two
+
+#if TDB_VER > 67
+    constexpr uint64_t kSkipHash = 4294967296; // no path can hash to this, so it makes the game skip the packed file
+#else
+    constexpr uint64_t kSkipHash = 0xFFFFFFFF;
+#endif
 
     bool file_exists(const wchar_t* path) {
         return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
@@ -27,14 +33,19 @@ namespace {
         return logger;
     }
 
+    // True when `obj` exists and its reflected name is `name`. Tolerates a null object.
+    template <typename T>
+    bool named_as(T* obj, std::string_view name) {
+        return obj != nullptr && obj->get_name() != nullptr && std::string_view{obj->get_name()} == name;
+    }
+
     // Returns the `via.io.file.exists` method pointers, or empty when the type database
     // isn't usable yet. Walked manually because this loader runs before the VM is ready.
     std::vector<uintptr_t> find_exists_methods(sdk::RETypeDB* tdb) {
         for (auto i = 0; i < tdb->get_num_types(); ++i) {
             const auto t = tdb->get_type(i);
 
-            if (t == nullptr || t->get_name() == nullptr || std::string_view{t->get_name()} != "file" ||
-                t->get_declaring_type() == nullptr || std::string_view{t->get_declaring_type()->get_name()} != "io") {
+            if (!named_as(t, "file") || !named_as(t->get_declaring_type(), "io")) {
                 continue;
             }
 
@@ -43,10 +54,8 @@ namespace {
             std::vector<uintptr_t> candidates;
 
             for (auto& method : t->get_methods()) {
-                if (method.get_name() != nullptr && std::string_view{method.get_name()} == "exists") {
-                    if (auto fn = method.get_function(); fn != nullptr) {
-                        candidates.push_back((uintptr_t)fn);
-                    }
+                if (named_as(&method, "exists") && method.get_function() != nullptr) {
+                    candidates.push_back((uintptr_t)method.get_function());
                 }
             }
 
@@ -115,18 +124,11 @@ LooseFileLoader::LooseFileLoader() {
 
     m_logger = make_logger("LooseFileLoader", "reframework_accessed_files.txt");
     m_loose_file_logger = make_logger("LooseFileLoader2", "reframework_loose_files.txt");
-
-    m_logger->info("LooseFileLoader constructed");
-    m_loose_file_logger->info("LooseFileLoader constructed");
 }
 
 std::shared_ptr<LooseFileLoader>& LooseFileLoader::get() {
     static auto instance = std::shared_ptr<LooseFileLoader>(new LooseFileLoader());
     return instance;
-}
-
-std::optional<std::string> LooseFileLoader::on_initialize() {
-    return Mod::on_initialize();
 }
 
 void LooseFileLoader::on_frame() {
@@ -246,21 +248,24 @@ void LooseFileLoader::hook() {
     const auto module_addr = (uintptr_t)module;
     const auto module_end = module_addr + utility::get_module_size(module).value_or(0);
 
-    // Prefer the real via.io.file.exists methods; fall back to a landmark scan of the exe.
-    auto candidates = find_exists_methods(tdb);
-
-    if (candidates.empty()) {
-        candidates = find_landmark_functions(module, module_end);
-    }
-
-    std::optional<uintptr_t> candidate;
-
-    for (const auto fn : candidates) {
-        candidate = scan_for_path_to_hash(fn, module_addr, module_end);
-
-        if (candidate) {
-            break;
+    auto scan_candidates = [&](const std::vector<uintptr_t>& fns) -> std::optional<uintptr_t> {
+        for (const auto fn : fns) {
+            if (auto candidate = scan_for_path_to_hash(fn, module_addr, module_end); candidate) {
+                return candidate;
+            }
         }
+
+        return std::nullopt;
+    };
+
+    // Prefer the real via.io.file.exists methods, but a non-empty list is not proof of
+    // success: the VM may not have resolved their function pointers to the paths that
+    // actually contain path_to_hash yet. Fall back to the landmark scan whenever the
+    // preferred pass comes up empty-handed, not only when it had no input at all.
+    auto candidate = scan_candidates(find_exists_methods(tdb));
+
+    if (!candidate) {
+        candidate = scan_candidates(find_landmark_functions(module, module_end));
     }
 
     if (!candidate) {
@@ -279,29 +284,24 @@ void LooseFileLoader::hook() {
 }
 
 bool LooseFileLoader::check_exists(const wchar_t* path, size_t hash) {
-    // Per-thread cache that keeps the common path entirely lock-free.
-    static thread_local FileCache tl_cache;
+    // Lock-free per-thread front cache so a resolved hash (the common case) never takes
+    // a lock. Direct-mapped: a slot is trusted only when its key matches, so a collision
+    // costs a miss but can never report the wrong answer. An unwritten slot holds key 0,
+    // hence the `hash != 0` guard.
+    static thread_local std::pair<size_t, bool> tl_cache[kThreadCacheSize]{};
 
-    if (const auto it = tl_cache.find(hash); it != tl_cache.end()) {
+    const auto index = hash & (kThreadCacheSize - 1);
+    const auto& [key, cached_exists] = tl_cache[index];
+
+    if (hash != 0 && key == hash) {
         ++m_cache_hits;
-        return it->second;
+        return cached_exists;
     }
 
-    // Once the local cache saturates it can no longer absorb new hashes, so a cheap shared
-    // read of the global cache keeps unknown hashes off the unique lock + disk path.
-    if (tl_cache.size() >= kThreadCacheMax) {
-        std::shared_lock _{m_cache_mutex};
-
-        if (const auto it = m_cache.find(hash); it != m_cache.end()) {
-            ++m_cache_hits;
-            return it->second;
-        }
-    }
-
-    bool on_disk{false};
+    bool on_disk{};
 
     {
-        // Purpose of this is to only hit the disk once per unique file.
+        // Only the first thread to see `hash` touches the disk.
         std::unique_lock _{m_cache_mutex};
 
         const auto [it, inserted] = m_cache.try_emplace(hash, false);
@@ -322,10 +322,7 @@ bool LooseFileLoader::check_exists(const wchar_t* path, size_t hash) {
     }
 
     ++m_uncached_hits;
-
-    if (tl_cache.size() < kThreadCacheMax) {
-        tl_cache.emplace(hash, on_disk);
-    }
+    tl_cache[index] = {hash, on_disk};
 
     return on_disk;
 }
@@ -381,7 +378,8 @@ uint64_t LooseFileLoader::path_to_hash_hook(const wchar_t* path) {
 #else
 uint64_t LooseFileLoader::path_to_hash_hook(void* This, const wchar_t* path) {
 #endif
-    const auto og = g_loose_file_loader->m_path_to_hash_hook->get_original<decltype(path_to_hash_hook)>();
+    // Resolved once: this runs for every resource load and the trampoline never moves.
+    static const auto og = g_loose_file_loader->m_path_to_hash_hook->get_original<decltype(path_to_hash_hook)>();
 
 #if TDB_VER > 67
     const auto result = og(path);
@@ -389,14 +387,6 @@ uint64_t LooseFileLoader::path_to_hash_hook(void* This, const wchar_t* path) {
     const auto result = og(This, path);
 #endif
 
-    // true to skip.
-    if (g_loose_file_loader->handle_path(path, result)) {
-#if TDB_VER > 67
-        return 4294967296;
-#else
-        return 0xFFFFFFFF;
-#endif
-    }
-
-    return result;
+    // handle_path returns true when a loose file exists, i.e. the packed file should be skipped.
+    return g_loose_file_loader->handle_path(path, result) ? kSkipHash : result;
 }
