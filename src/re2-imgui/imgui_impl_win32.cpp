@@ -8,13 +8,14 @@
 //  [X] Platform: Mouse cursor shape and visibility (ImGuiBackendFlags_HasMouseCursors). Disable with 'io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange'.
 
 // Local fork of dependencies/imgui/backends/imgui_impl_win32.cpp (Dear ImGui 1.92.0), maintained by REFramework.
-// Runtime behaviour is intentionally identical to the copy it replaces; the differences are structural:
+// Differences from the copy it replaces:
 //  - The gamepad/XInput implementation is gone. re2_imconfig.hpp defines IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
 //    project-wide, so it was already preprocessed out of every build. Take it back from the vendored
 //    upstream file if that option is ever turned off.
 //  - VK_xxx -> ImGuiKey_xxx and ImGuiMouseCursor_ -> IDC_xxx are table lookups instead of long switches.
 //  - Mouse button presses and releases share one helper.
-//  - Known upstream fix not carried over: mouse capture re-acquisition after an external capture loss (#8594, 2025-04-30).
+//  - Carries upstream's 2025-04-30 input fix (#8594): an externally lost mouse capture is detected and
+//    reclaimed on the next click. Everything else is runtime-equivalent to the copy it replaced.
 
 #include "imgui.h"
 #ifndef IMGUI_DISABLE
@@ -313,7 +314,11 @@ static void ImGui_ImplWin32_AddMouseButtonEvent(ImGuiIO& io, ImGui_ImplWin32_Dat
 
     if (down)
     {
-        if (bd->MouseButtonsDown == 0 && ::GetCapture() == nullptr)
+        // Reclaim the capture if it was lost externally (e.g. focus loss) while a button was still down.
+        HWND hwnd_with_capture = ::GetCapture();
+        if (bd->MouseButtonsDown != 0 && hwnd_with_capture != hwnd) // Did we externally lost capture?
+            bd->MouseButtonsDown = 0;
+        if (bd->MouseButtonsDown == 0 && hwnd_with_capture == nullptr)
             ::SetCapture(hwnd); // Allow us to read mouse coordinates when dragging mouse outside of our window bounds.
         bd->MouseButtonsDown |= 1 << button;
     }
