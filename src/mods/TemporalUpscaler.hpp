@@ -53,10 +53,6 @@ public:
 
     void on_scene_layer_update(sdk::renderer::layer::Scene* scene_layer, void* render_context) override;
 
-    void on_overlay_layer_draw(sdk::renderer::layer::Overlay* overlay_layer, void* render_context) override;
-
-    void on_prepare_output_layer_draw(sdk::renderer::layer::PrepareOutput* layer, void* render_context) override;
-
     bool ready() const {
         return m_initialized && m_backend_loaded && m_enabled->value() && !m_wants_reinitialize;
     }
@@ -131,11 +127,6 @@ private:
         ComPtr<ID3D12Resource> depth{};
         ComPtr<ID3D12Resource> color{};
 
-        // Engine-owned copies of those inputs, created by the engine's render context.
-        sdk::intrusive_ptr<sdk::renderer::Texture> color_copy{};
-        sdk::intrusive_ptr<sdk::renderer::Texture> motion_vectors_copy{};
-        sdk::intrusive_ptr<sdk::renderer::Texture> depth_copy{};
-
         uint32_t jitter_index{};
         std::array<float, 2> jitter_offset{0.0f, 0.0f}; // last offset handed to the plugin
 
@@ -152,9 +143,6 @@ private:
         void reset() {
             reset_inputs();
             scene_layer.reset();
-            color_copy.reset();
-            motion_vectors_copy.reset();
-            depth_copy.reset();
         }
     };
 

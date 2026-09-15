@@ -70,8 +70,6 @@ struct Reflection {
     VariableDescriptor* depth_distortion_desc{};
     VariableDescriptor* filter_desc{};
     VariableDescriptor* z_prepass_desc{};
-    VariableDescriptor* depth_stencil_desc{};
-    VariableDescriptor* velocity_target_desc{};
 };
 
 const Reflection& reflection() {
@@ -106,8 +104,6 @@ const Reflection& reflection() {
             api.depth_distortion_desc = utility::re_type::get_field_desc(api.scene_layer_type, "DepthDistortionSceneInfo");
             api.filter_desc = utility::re_type::get_field_desc(api.scene_layer_type, "FilterSceneInfo");
             api.z_prepass_desc = utility::re_type::get_field_desc(api.scene_layer_type, "ZPrepassSceneInfo");
-            api.depth_stencil_desc = utility::re_type::get_field_desc(api.scene_layer_type, "DepthStencilTex");
-            api.velocity_target_desc = utility::re_type::get_field_desc(api.scene_layer_type, "VelocityTarget");
         }
 
         if (const auto prepare_output = sdk::find_type_definition("via.render.layer.PrepareOutput"); prepare_output != nullptr) {
@@ -810,75 +806,6 @@ void TemporalUpscaler::on_scene_layer_update(sdk::renderer::layer::Scene* layer,
 
         scene_info->view_projection_matrix = scene_info->projection_matrix * scene_info->view_matrix;
         scene_info->inverse_view_projection_matrix = glm::inverse(scene_info->view_projection_matrix);
-    }
-}
-
-void TemporalUpscaler::on_overlay_layer_draw(sdk::renderer::layer::Overlay* layer, void* render_context) {
-    if (!ready()) {
-        return;
-    }
-
-    auto context = (sdk::renderer::RenderContext*)render_context;
-    auto scene_layer = (sdk::renderer::layer::Scene*)layer->get_parent();
-
-    if (scene_layer == nullptr || m_view.scene_layer.get() != scene_layer) {
-        return;
-    }
-
-    auto& state = m_view;
-    const auto& refl = reflection();
-
-    auto depth = utility::re_managed_object::get_field<::sdk::renderer::Texture*>((::REManagedObject*)scene_layer, refl.depth_stencil_desc);
-
-    if (depth != nullptr && state.depth_copy != nullptr) {
-        context->copy_texture(state.depth_copy, depth);
-    }
-
-    auto motion_vectors_state = utility::re_managed_object::get_field<::sdk::renderer::TargetState*>((::REManagedObject*)scene_layer, refl.velocity_target_desc);
-
-    if (motion_vectors_state != nullptr && state.motion_vectors_copy != nullptr) {
-        if (auto rtv = motion_vectors_state->get_rtv(0); rtv != nullptr) {
-            if (auto motion_vectors = rtv->get_texture_d3d12(); motion_vectors != nullptr) {
-                context->copy_texture(state.motion_vectors_copy, motion_vectors);
-            }
-        }
-    }
-}
-
-void TemporalUpscaler::on_prepare_output_layer_draw(sdk::renderer::layer::PrepareOutput* layer, void* render_context) {
-    if (!ready()) {
-        return;
-    }
-
-    auto context = (sdk::renderer::RenderContext*)render_context;
-    auto scene_layer = (sdk::renderer::layer::Scene*)layer->get_parent();
-
-    if (scene_layer == nullptr || m_view.scene_layer.get() != scene_layer) {
-        return;
-    }
-
-    const auto output_state = layer->get_output_state();
-
-    if (output_state == nullptr) {
-        return;
-    }
-
-    const auto rtv = output_state->get_rtv(0);
-
-    if (rtv == nullptr) {
-        return;
-    }
-
-    const auto tex = rtv->get_texture_d3d12();
-
-    if (tex == nullptr) {
-        return;
-    }
-
-    auto& state = m_view;
-
-    if (state.color_copy != nullptr) {
-        context->copy_texture(state.color_copy, tex);
     }
 }
 
