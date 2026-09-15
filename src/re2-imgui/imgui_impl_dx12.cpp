@@ -90,17 +90,12 @@ struct ImGui_ImplDX12_Data
     ID3D12RootSignature*        pRootSignature;
     ID3D12PipelineState*        pPipelineState;
     ID3D12CommandQueue*         pCommandQueue;
-    bool                        commandQueueOwned;
     DXGI_FORMAT                 RTVFormat;
     DXGI_FORMAT                 DSVFormat;
-    ID3D12DescriptorHeap*       pd3dSrvDescHeap;
     UINT                        numFramesInFlight;
 
     ImGui_ImplDX12_RenderBuffers* pFrameResources;
     UINT                        frameIndex;
-
-    ImGui_ImplDX12_Texture      FontTexture;
-    bool                        LegacySingleDescriptorUsed;
 
     ImGui_ImplDX12_Data()       { memset((void*)this, 0, sizeof(*this)); frameIndex = UINT_MAX; }
 };
@@ -189,6 +184,70 @@ static inline void SafeRelease(T*& res)
     res = nullptr;
 }
 
+// These only factor out repetitive D3D12 struct setup; the resulting API calls
+// are identical to writing every struct out inline.
+static D3D12_HEAP_PROPERTIES ImGui_ImplDX12_HeapProps(D3D12_HEAP_TYPE type)
+{
+    D3D12_HEAP_PROPERTIES props = {};
+    props.Type = type;
+    props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    return props;
+}
+
+static D3D12_RESOURCE_DESC ImGui_ImplDX12_BufferDesc(UINT64 width)
+{
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc.Width = width;
+    desc.Height = 1;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_UNKNOWN;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    return desc;
+}
+
+static D3D12_RESOURCE_DESC ImGui_ImplDX12_Texture2DDesc(UINT width, UINT height, DXGI_FORMAT format)
+{
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = format;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    return desc;
+}
+
+static void ImGui_ImplDX12_Transition(ID3D12GraphicsCommandList* command_list, ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+{
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = resource;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = before;
+    barrier.Transition.StateAfter = after;
+    command_list->ResourceBarrier(1, &barrier);
+}
+
+// (Re)create an upload-heap buffer able to hold at least 'count' elements of 'element_size' bytes.
+static bool ImGui_ImplDX12_EnsureUploadBuffer(ID3D12Device* device, ID3D12Resource** buffer, int* buffer_size, int count, UINT element_size, int slack)
+{
+    if (*buffer != nullptr && *buffer_size >= count)
+        return true;
+
+    SafeRelease(*buffer);
+    *buffer_size = count + slack;
+    const D3D12_HEAP_PROPERTIES props = ImGui_ImplDX12_HeapProps(D3D12_HEAP_TYPE_UPLOAD);
+    const D3D12_RESOURCE_DESC desc = ImGui_ImplDX12_BufferDesc((UINT64)*buffer_size * element_size);
+    return SUCCEEDED(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(buffer)));
+}
+
 // Render function
 void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list)
 {
@@ -209,48 +268,10 @@ void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandL
     ImGui_ImplDX12_RenderBuffers* fr = &bd->pFrameResources[bd->frameIndex % bd->numFramesInFlight];
 
     // Create and grow vertex/index buffers if needed
-    if (fr->VertexBuffer == nullptr || fr->VertexBufferSize < draw_data->TotalVtxCount)
-    {
-        SafeRelease(fr->VertexBuffer);
-        fr->VertexBufferSize = draw_data->TotalVtxCount + 5000;
-        D3D12_HEAP_PROPERTIES props = {};
-        props.Type = D3D12_HEAP_TYPE_UPLOAD;
-        props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        D3D12_RESOURCE_DESC desc = {};
-        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        desc.Width = fr->VertexBufferSize * sizeof(ImDrawVert);
-        desc.Height = 1;
-        desc.DepthOrArraySize = 1;
-        desc.MipLevels = 1;
-        desc.Format = DXGI_FORMAT_UNKNOWN;
-        desc.SampleDesc.Count = 1;
-        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        if (bd->pd3dDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&fr->VertexBuffer)) < 0)
-            return;
-    }
-    if (fr->IndexBuffer == nullptr || fr->IndexBufferSize < draw_data->TotalIdxCount)
-    {
-        SafeRelease(fr->IndexBuffer);
-        fr->IndexBufferSize = draw_data->TotalIdxCount + 10000;
-        D3D12_HEAP_PROPERTIES props = {};
-        props.Type = D3D12_HEAP_TYPE_UPLOAD;
-        props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        D3D12_RESOURCE_DESC desc = {};
-        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        desc.Width = fr->IndexBufferSize * sizeof(ImDrawIdx);
-        desc.Height = 1;
-        desc.DepthOrArraySize = 1;
-        desc.MipLevels = 1;
-        desc.Format = DXGI_FORMAT_UNKNOWN;
-        desc.SampleDesc.Count = 1;
-        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        if (bd->pd3dDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&fr->IndexBuffer)) < 0)
-            return;
-    }
+    if (!ImGui_ImplDX12_EnsureUploadBuffer(bd->pd3dDevice, &fr->VertexBuffer, &fr->VertexBufferSize, draw_data->TotalVtxCount, sizeof(ImDrawVert), 5000))
+        return;
+    if (!ImGui_ImplDX12_EnsureUploadBuffer(bd->pd3dDevice, &fr->IndexBuffer, &fr->IndexBufferSize, draw_data->TotalIdxCount, sizeof(ImDrawIdx), 10000))
+        return;
 
     // Upload vertex/index data into a single contiguous GPU buffer
     // During Map() we specify a null read range (as per DX12 API, this is informational and for tooling only)
@@ -368,24 +389,8 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         ImGui_ImplDX12_Texture* backend_tex = IM_NEW(ImGui_ImplDX12_Texture)();
         bd->InitInfo.SrvDescriptorAllocFn(&bd->InitInfo, &backend_tex->hFontSrvCpuDescHandle, &backend_tex->hFontSrvGpuDescHandle); // Allocate a desctriptor handle
 
-        D3D12_HEAP_PROPERTIES props = {};
-        props.Type = D3D12_HEAP_TYPE_DEFAULT;
-        props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-
-        D3D12_RESOURCE_DESC desc;
-        ZeroMemory(&desc, sizeof(desc));
-        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        desc.Alignment = 0;
-        desc.Width = tex->Width;
-        desc.Height = tex->Height;
-        desc.DepthOrArraySize = 1;
-        desc.MipLevels = 1;
-        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        desc.SampleDesc.Count = 1;
-        desc.SampleDesc.Quality = 0;
-        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        const D3D12_HEAP_PROPERTIES props = ImGui_ImplDX12_HeapProps(D3D12_HEAP_TYPE_DEFAULT);
+        const D3D12_RESOURCE_DESC desc = ImGui_ImplDX12_Texture2DDesc(tex->Width, tex->Height, DXGI_FORMAT_R8G8B8A8_UNORM);
 
         ID3D12Resource* pTexture = nullptr;
         bd->pd3dDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
@@ -430,25 +435,8 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         UINT upload_pitch_dst = (upload_pitch_src + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
         UINT upload_size = upload_pitch_dst * upload_h;
 
-        D3D12_RESOURCE_DESC desc;
-        ZeroMemory(&desc, sizeof(desc));
-        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        desc.Alignment = 0;
-        desc.Width = upload_size;
-        desc.Height = 1;
-        desc.DepthOrArraySize = 1;
-        desc.MipLevels = 1;
-        desc.Format = DXGI_FORMAT_UNKNOWN;
-        desc.SampleDesc.Count = 1;
-        desc.SampleDesc.Quality = 0;
-        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-        D3D12_HEAP_PROPERTIES props;
-        memset(&props, 0, sizeof(D3D12_HEAP_PROPERTIES));
-        props.Type = D3D12_HEAP_TYPE_UPLOAD;
-        props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        const D3D12_RESOURCE_DESC desc = ImGui_ImplDX12_BufferDesc(upload_size);
+        const D3D12_HEAP_PROPERTIES props = ImGui_ImplDX12_HeapProps(D3D12_HEAP_TYPE_UPLOAD);
 
         // FIXME-OPT: Can upload buffer be reused?
         ID3D12Resource* uploadBuffer = nullptr;
@@ -484,43 +472,23 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         uploadBuffer->Unmap(0, &range);
 
         if (need_barrier_before_copy)
-        {
-            D3D12_RESOURCE_BARRIER barrier = {};
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            barrier.Transition.pResource = backend_tex->pTextureResource;
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-            cmdList->ResourceBarrier(1, &barrier);
-        }
+            ImGui_ImplDX12_Transition(cmdList, backend_tex->pTextureResource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 
         D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+        srcLocation.pResource = uploadBuffer;
+        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        srcLocation.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srcLocation.PlacedFootprint.Footprint.Width = upload_w;
+        srcLocation.PlacedFootprint.Footprint.Height = upload_h;
+        srcLocation.PlacedFootprint.Footprint.Depth = 1;
+        srcLocation.PlacedFootprint.Footprint.RowPitch = upload_pitch_dst;
         D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
-        {
-            srcLocation.pResource = uploadBuffer;
-            srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-            srcLocation.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            srcLocation.PlacedFootprint.Footprint.Width = upload_w;
-            srcLocation.PlacedFootprint.Footprint.Height = upload_h;
-            srcLocation.PlacedFootprint.Footprint.Depth = 1;
-            srcLocation.PlacedFootprint.Footprint.RowPitch = upload_pitch_dst;
-            dstLocation.pResource = backend_tex->pTextureResource;
-            dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            dstLocation.SubresourceIndex = 0;
-        }
+        dstLocation.pResource = backend_tex->pTextureResource;
+        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dstLocation.SubresourceIndex = 0;
         cmdList->CopyTextureRegion(&dstLocation, upload_x, upload_y, 0, &srcLocation, nullptr);
 
-        {
-            D3D12_RESOURCE_BARRIER barrier = {};
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            barrier.Transition.pResource = backend_tex->pTextureResource;
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            cmdList->ResourceBarrier(1, &barrier);
-        }
+        ImGui_ImplDX12_Transition(cmdList, backend_tex->pTextureResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         hr = cmdList->Close();
         IM_ASSERT(SUCCEEDED(hr));
@@ -730,47 +698,46 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
     }
 
-    // Create the blending setup
-    {
-        D3D12_BLEND_DESC& desc = psoDesc.BlendState;
-        desc.AlphaToCoverageEnable = false;
-        desc.RenderTarget[0].BlendEnable = true;
-        desc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-        desc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-        desc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-        desc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-        desc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-        desc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-        desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    }
+    // Create the blending setup (alpha out = src alpha * 1 + dst alpha * (1 - src alpha))
+    psoDesc.BlendState = {
+        .AlphaToCoverageEnable = FALSE,
+        .RenderTarget = { {
+            .BlendEnable = TRUE,
+            .SrcBlend = D3D12_BLEND_SRC_ALPHA,
+            .DestBlend = D3D12_BLEND_INV_SRC_ALPHA,
+            .BlendOp = D3D12_BLEND_OP_ADD,
+            .SrcBlendAlpha = D3D12_BLEND_ONE,
+            .DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA,
+            .BlendOpAlpha = D3D12_BLEND_OP_ADD,
+            .RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
+        } },
+    };
 
     // Create the rasterizer state
-    {
-        D3D12_RASTERIZER_DESC& desc = psoDesc.RasterizerState;
-        desc.FillMode = D3D12_FILL_MODE_SOLID;
-        desc.CullMode = D3D12_CULL_MODE_NONE;
-        desc.FrontCounterClockwise = FALSE;
-        desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-        desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-        desc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-        desc.DepthClipEnable = true;
-        desc.MultisampleEnable = FALSE;
-        desc.AntialiasedLineEnable = FALSE;
-        desc.ForcedSampleCount = 0;
-        desc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-    }
+    psoDesc.RasterizerState = {
+        .FillMode = D3D12_FILL_MODE_SOLID,
+        .CullMode = D3D12_CULL_MODE_NONE,
+        .FrontCounterClockwise = FALSE,
+        .DepthBias = D3D12_DEFAULT_DEPTH_BIAS,
+        .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        .DepthClipEnable = TRUE,
+        .MultisampleEnable = FALSE,
+        .AntialiasedLineEnable = FALSE,
+        .ForcedSampleCount = 0,
+        .ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+    };
 
     // Create depth-stencil State
-    {
-        D3D12_DEPTH_STENCIL_DESC& desc = psoDesc.DepthStencilState;
-        desc.DepthEnable = false;
-        desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        desc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-        desc.StencilEnable = false;
-        desc.FrontFace.StencilFailOp = desc.FrontFace.StencilDepthFailOp = desc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-        desc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-        desc.BackFace = desc.FrontFace;
-    }
+    const D3D12_DEPTH_STENCILOP_DESC face = { D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS };
+    psoDesc.DepthStencilState = {
+        .DepthEnable = FALSE,
+        .DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+        .StencilEnable = FALSE,
+        .FrontFace = face,
+        .BackFace = face,
+    };
 
     HRESULT result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineState));
     vertexShaderBlob->Release();
@@ -787,9 +754,6 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     if (!bd || !bd->pd3dDevice)
         return;
 
-    if (bd->commandQueueOwned)
-        SafeRelease(bd->pCommandQueue);
-    bd->commandQueueOwned = false;
     SafeRelease(bd->pRootSignature);
     SafeRelease(bd->pPipelineState);
 
@@ -805,28 +769,6 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
         SafeRelease(fr->VertexBuffer);
     }
 }
-
-#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-static void ImGui_ImplDX12_InitLegacySingleDescriptorMode(ImGui_ImplDX12_InitInfo* init_info)
-{
-    // Wrap legacy behavior of passing space for a single descriptor
-    IM_ASSERT(init_info->LegacySingleSrvCpuDescriptor.ptr != 0 && init_info->LegacySingleSrvGpuDescriptor.ptr != 0);
-    init_info->SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
-    {
-        ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-        IM_ASSERT(bd->LegacySingleDescriptorUsed == false && "Only 1 simultaneous texture allowed with legacy ImGui_ImplDX12_Init() signature!");
-        *out_cpu_handle = bd->InitInfo.LegacySingleSrvCpuDescriptor;
-        *out_gpu_handle = bd->InitInfo.LegacySingleSrvGpuDescriptor;
-        bd->LegacySingleDescriptorUsed = true;
-    };
-    init_info->SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE)
-    {
-        ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-        IM_ASSERT(bd->LegacySingleDescriptorUsed == true);
-        bd->LegacySingleDescriptorUsed = false;
-    };
-}
-#endif
 
 bool ImGui_ImplDX12_Init(ImGui_ImplDX12_InitInfo* init_info)
 {
@@ -845,17 +787,12 @@ bool ImGui_ImplDX12_Init(ImGui_ImplDX12_InitInfo* init_info)
     bd->RTVFormat = init_info->RTVFormat;
     bd->DSVFormat = init_info->DSVFormat;
     bd->numFramesInFlight = init_info->NumFramesInFlight;
-    bd->pd3dSrvDescHeap = init_info->SrvDescriptorHeap;
 
     io.BackendRendererUserData = (void*)bd;
     io.BackendRendererName = "imgui_impl_dx12";
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;   // We can honor ImGuiPlatformIO::Textures[] requests during render.
 
-#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-    if (init_info->SrvDescriptorAllocFn == nullptr)
-        ImGui_ImplDX12_InitLegacySingleDescriptorMode(init_info);
-#endif
     IM_ASSERT(init_info->SrvDescriptorAllocFn != nullptr && init_info->SrvDescriptorFreeFn != nullptr);
 
     // Create buffers with a default size (they will later be grown as needed)
@@ -872,36 +809,6 @@ bool ImGui_ImplDX12_Init(ImGui_ImplDX12_InitInfo* init_info)
 
     return true;
 }
-
-#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-// Legacy initialization API Obsoleted in 1.91.5
-// font_srv_cpu_desc_handle and font_srv_gpu_desc_handle are handles to a single SRV descriptor to use for the internal font texture, they must be in 'srv_descriptor_heap'
-bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap* srv_descriptor_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle)
-{
-    ImGui_ImplDX12_InitInfo init_info;
-    init_info.Device = device;
-    init_info.NumFramesInFlight = num_frames_in_flight;
-    init_info.RTVFormat = rtv_format;
-    init_info.SrvDescriptorHeap = srv_descriptor_heap;
-    init_info.LegacySingleSrvCpuDescriptor = font_srv_cpu_desc_handle;
-    init_info.LegacySingleSrvGpuDescriptor = font_srv_gpu_desc_handle;
-
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    queueDesc.NodeMask = 1;
-    HRESULT hr = device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&init_info.CommandQueue));
-    IM_ASSERT(SUCCEEDED(hr));
-
-    bool ret = ImGui_ImplDX12_Init(&init_info);
-    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-    bd->commandQueueOwned = true;
-    ImGuiIO& io = ImGui::GetIO();
-    io.BackendFlags &= ~ImGuiBackendFlags_RendererHasTextures; // Using legacy ImGui_ImplDX12_Init() call with 1 SRV descriptor we cannot support multiple textures.
-
-    return ret;
-}
-#endif
 
 void ImGui_ImplDX12_Shutdown()
 {
