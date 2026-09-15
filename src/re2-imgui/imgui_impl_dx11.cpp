@@ -69,7 +69,6 @@ struct ImGui_ImplDX11_Data
 {
     ID3D11Device*               pd3dDevice;
     ID3D11DeviceContext*        pd3dDeviceContext;
-    IDXGIFactory*               pFactory;
     ID3D11Buffer*               pVB;
     ID3D11Buffer*               pIB;
     ID3D11VertexShader*         pVertexShader;
@@ -96,6 +95,42 @@ struct VERTEX_CONSTANT_BUFFER_DX11
 static ImGui_ImplDX11_Data* ImGui_ImplDX11_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX11_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
+}
+
+template<typename T>
+static inline void SafeRelease(T*& res)
+{
+    if (res)
+        res->Release();
+    res = nullptr;
+}
+
+// Which of the two dynamic upload buffers ImGui_ImplDX11_EnsureBuffer() grows.
+enum ImGui_ImplDX11_BufferKind { ImGui_ImplDX11_BufferVertex, ImGui_ImplDX11_BufferIndex };
+
+// Grow a dynamic upload buffer when the current one is missing or too small for this frame.
+// Returns false if the device failed to create it (the caller then skips the frame, as upstream did).
+static bool ImGui_ImplDX11_EnsureBuffer(ImGui_ImplDX11_Data* bd, ImGui_ImplDX11_BufferKind kind, int count)
+{
+    const bool is_vertex = (kind == ImGui_ImplDX11_BufferVertex);
+    ID3D11Buffer** buffer = is_vertex ? &bd->pVB : &bd->pIB;
+    int* buffer_size = is_vertex ? &bd->VertexBufferSize : &bd->IndexBufferSize;
+    if (*buffer != nullptr && *buffer_size >= count)
+        return true;
+
+    SafeRelease(*buffer);
+    *buffer_size = count + (is_vertex ? 5000 : 10000);
+
+    const UINT element_size = is_vertex ? (UINT)sizeof(ImDrawVert) : (UINT)sizeof(ImDrawIdx);
+    const UINT bind_flags = is_vertex ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER;
+    const D3D11_BUFFER_DESC desc =
+    {
+        .ByteWidth = (UINT)(*buffer_size * element_size),
+        .Usage = D3D11_USAGE_DYNAMIC,
+        .BindFlags = bind_flags,
+        .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
+    };
+    return SUCCEEDED(bd->pd3dDevice->CreateBuffer(&desc, nullptr, buffer));
 }
 
 // Functions
@@ -174,31 +209,10 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
                 ImGui_ImplDX11_UpdateTexture(tex);
 
     // Create and grow vertex/index buffers if needed
-    if (!bd->pVB || bd->VertexBufferSize < draw_data->TotalVtxCount)
-    {
-        if (bd->pVB) { bd->pVB->Release(); bd->pVB = nullptr; }
-        bd->VertexBufferSize = draw_data->TotalVtxCount + 5000;
-        D3D11_BUFFER_DESC desc = {};
-        desc.Usage = D3D11_USAGE_DYNAMIC;
-        desc.ByteWidth = bd->VertexBufferSize * sizeof(ImDrawVert);
-        desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        desc.MiscFlags = 0;
-        if (bd->pd3dDevice->CreateBuffer(&desc, nullptr, &bd->pVB) < 0)
-            return;
-    }
-    if (!bd->pIB || bd->IndexBufferSize < draw_data->TotalIdxCount)
-    {
-        if (bd->pIB) { bd->pIB->Release(); bd->pIB = nullptr; }
-        bd->IndexBufferSize = draw_data->TotalIdxCount + 10000;
-        D3D11_BUFFER_DESC desc = {};
-        desc.Usage = D3D11_USAGE_DYNAMIC;
-        desc.ByteWidth = bd->IndexBufferSize * sizeof(ImDrawIdx);
-        desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        if (bd->pd3dDevice->CreateBuffer(&desc, nullptr, &bd->pIB) < 0)
-            return;
-    }
+    if (!ImGui_ImplDX11_EnsureBuffer(bd, ImGui_ImplDX11_BufferVertex, draw_data->TotalVtxCount))
+        return;
+    if (!ImGui_ImplDX11_EnsureBuffer(bd, ImGui_ImplDX11_BufferIndex, draw_data->TotalIdxCount))
+        return;
 
     // Upload vertex/index data into a single contiguous GPU buffer
     D3D11_MAPPED_SUBRESOURCE vtx_resource, idx_resource;
@@ -323,21 +337,22 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
     // Restore modified DX state
     device->RSSetScissorRects(old.ScissorRectsCount, old.ScissorRects);
     device->RSSetViewports(old.ViewportsCount, old.Viewports);
-    device->RSSetState(old.RS); if (old.RS) old.RS->Release();
-    device->OMSetBlendState(old.BlendState, old.BlendFactor, old.SampleMask); if (old.BlendState) old.BlendState->Release();
-    device->OMSetDepthStencilState(old.DepthStencilState, old.StencilRef); if (old.DepthStencilState) old.DepthStencilState->Release();
-    device->PSSetShaderResources(0, 1, &old.PSShaderResource); if (old.PSShaderResource) old.PSShaderResource->Release();
-    device->PSSetSamplers(0, 1, &old.PSSampler); if (old.PSSampler) old.PSSampler->Release();
-    device->PSSetShader(old.PS, old.PSInstances, old.PSInstancesCount); if (old.PS) old.PS->Release();
-    for (UINT i = 0; i < old.PSInstancesCount; i++) if (old.PSInstances[i]) old.PSInstances[i]->Release();
-    device->VSSetShader(old.VS, old.VSInstances, old.VSInstancesCount); if (old.VS) old.VS->Release();
-    device->VSSetConstantBuffers(0, 1, &old.VSConstantBuffer); if (old.VSConstantBuffer) old.VSConstantBuffer->Release();
-    device->GSSetShader(old.GS, old.GSInstances, old.GSInstancesCount); if (old.GS) old.GS->Release();
-    for (UINT i = 0; i < old.VSInstancesCount; i++) if (old.VSInstances[i]) old.VSInstances[i]->Release();
+    // The Set* call must come first: the context AddRefs the object it binds, so releasing our own reference afterwards is safe.
+    device->RSSetState(old.RS);                                                SafeRelease(old.RS);
+    device->OMSetBlendState(old.BlendState, old.BlendFactor, old.SampleMask);  SafeRelease(old.BlendState);
+    device->OMSetDepthStencilState(old.DepthStencilState, old.StencilRef);     SafeRelease(old.DepthStencilState);
+    device->PSSetShaderResources(0, 1, &old.PSShaderResource);                 SafeRelease(old.PSShaderResource);
+    device->PSSetSamplers(0, 1, &old.PSSampler);                               SafeRelease(old.PSSampler);
+    device->PSSetShader(old.PS, old.PSInstances, old.PSInstancesCount);        SafeRelease(old.PS);
+    for (UINT i = 0; i < old.PSInstancesCount; i++)                            SafeRelease(old.PSInstances[i]);
+    device->VSSetShader(old.VS, old.VSInstances, old.VSInstancesCount);        SafeRelease(old.VS);
+    device->VSSetConstantBuffers(0, 1, &old.VSConstantBuffer);                 SafeRelease(old.VSConstantBuffer);
+    device->GSSetShader(old.GS, old.GSInstances, old.GSInstancesCount);        SafeRelease(old.GS);
+    for (UINT i = 0; i < old.VSInstancesCount; i++)                            SafeRelease(old.VSInstances[i]);
     device->IASetPrimitiveTopology(old.PrimitiveTopology);
-    device->IASetIndexBuffer(old.IndexBuffer, old.IndexBufferFormat, old.IndexBufferOffset); if (old.IndexBuffer) old.IndexBuffer->Release();
-    device->IASetVertexBuffers(0, 1, &old.VertexBuffer, &old.VertexBufferStride, &old.VertexBufferOffset); if (old.VertexBuffer) old.VertexBuffer->Release();
-    device->IASetInputLayout(old.InputLayout); if (old.InputLayout) old.InputLayout->Release();
+    device->IASetIndexBuffer(old.IndexBuffer, old.IndexBufferFormat, old.IndexBufferOffset);               SafeRelease(old.IndexBuffer);
+    device->IASetVertexBuffers(0, 1, &old.VertexBuffer, &old.VertexBufferStride, &old.VertexBufferOffset); SafeRelease(old.VertexBuffer);
+    device->IASetInputLayout(old.InputLayout);                                 SafeRelease(old.InputLayout);
 }
 
 static void ImGui_ImplDX11_DestroyTexture(ImTextureData* tex)
@@ -369,31 +384,30 @@ void ImGui_ImplDX11_UpdateTexture(ImTextureData* tex)
         ImGui_ImplDX11_Texture* backend_tex = IM_NEW(ImGui_ImplDX11_Texture)();
 
         // Create texture
-        D3D11_TEXTURE2D_DESC desc;
-        ZeroMemory(&desc, sizeof(desc));
-        desc.Width = (UINT)tex->Width;
-        desc.Height = (UINT)tex->Height;
-        desc.MipLevels = 1;
-        desc.ArraySize = 1;
-        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        desc.SampleDesc.Count = 1;
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = 0;
-        D3D11_SUBRESOURCE_DATA subResource;
-        subResource.pSysMem = pixels;
-        subResource.SysMemPitch = desc.Width * 4;
-        subResource.SysMemSlicePitch = 0;
+        const D3D11_TEXTURE2D_DESC desc =
+        {
+            .Width = (UINT)tex->Width,
+            .Height = (UINT)tex->Height,
+            .MipLevels = 1,
+            .ArraySize = 1,
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .SampleDesc = { .Count = 1 },
+            .Usage = D3D11_USAGE_DEFAULT,
+            .BindFlags = D3D11_BIND_SHADER_RESOURCE,
+        };
+        const D3D11_SUBRESOURCE_DATA subResource =
+        {
+            .pSysMem = pixels,
+            .SysMemPitch = desc.Width * 4,
+        };
         bd->pd3dDevice->CreateTexture2D(&desc, &subResource, &backend_tex->pTexture);
         IM_ASSERT(backend_tex->pTexture != nullptr && "Backend failed to create texture!");
 
         // Create texture view
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        ZeroMemory(&srvDesc, sizeof(srvDesc));
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = desc.MipLevels;
-        srvDesc.Texture2D.MostDetailedMip = 0;
         bd->pd3dDevice->CreateShaderResourceView(backend_tex->pTexture, &srvDesc, &backend_tex->pTextureView);
         IM_ASSERT(backend_tex->pTextureView != nullptr && "Backend failed to create texture!");
 
@@ -434,33 +448,20 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
 
     // Create the vertex shader
     {
-        static const char* vertexShader =
-            "cbuffer vertexBuffer : register(b0) \
-            {\
-              float4x4 ProjectionMatrix; \
-            };\
-            struct VS_INPUT\
-            {\
-              float2 pos : POSITION;\
-              float4 col : COLOR0;\
-              float2 uv  : TEXCOORD0;\
-            };\
-            \
-            struct PS_INPUT\
-            {\
-              float4 pos : SV_POSITION;\
-              float4 col : COLOR0;\
-              float2 uv  : TEXCOORD0;\
-            };\
-            \
-            PS_INPUT main(VS_INPUT input)\
-            {\
-              PS_INPUT output;\
-              output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));\
-              output.col = input.col;\
-              output.uv  = input.uv;\
-              return output;\
-            }";
+        static const char* vertexShader = R"(
+            cbuffer vertexBuffer : register(b0) { float4x4 ProjectionMatrix; };
+
+            struct VS_INPUT { float2 pos : POSITION; float4 col : COLOR0; float2 uv  : TEXCOORD0; };
+            struct PS_INPUT { float4 pos : SV_POSITION; float4 col : COLOR0; float2 uv  : TEXCOORD0; };
+
+            PS_INPUT main(VS_INPUT input)
+            {
+              PS_INPUT output;
+              output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));
+              output.col = input.col;
+              output.uv  = input.uv;
+              return output;
+            })";
 
         ID3DBlob* vertexShaderBlob;
         if (FAILED(D3DCompile(vertexShader, strlen(vertexShader), nullptr, nullptr, nullptr, "main", "vs_4_0", 0, 0, &vertexShaderBlob, nullptr)))
@@ -499,21 +500,16 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
 
     // Create the pixel shader
     {
-        static const char* pixelShader =
-            "struct PS_INPUT\
-            {\
-            float4 pos : SV_POSITION;\
-            float4 col : COLOR0;\
-            float2 uv  : TEXCOORD0;\
-            };\
-            sampler sampler0;\
-            Texture2D texture0;\
-            \
-            float4 main(PS_INPUT input) : SV_Target\
-            {\
-            float4 out_col = input.col * texture0.Sample(sampler0, input.uv); \
-            return out_col; \
-            }";
+        static const char* pixelShader = R"(
+            struct PS_INPUT { float4 pos : SV_POSITION; float4 col : COLOR0; float2 uv  : TEXCOORD0; };
+            sampler sampler0;
+            Texture2D texture0;
+
+            float4 main(PS_INPUT input) : SV_Target
+            {
+            float4 out_col = input.col * texture0.Sample(sampler0, input.uv);
+            return out_col;
+            })";
 
         ID3DBlob* pixelShaderBlob;
         if (FAILED(D3DCompile(pixelShader, strlen(pixelShader), nullptr, nullptr, nullptr, "main", "ps_4_0", 0, 0, &pixelShaderBlob, nullptr)))
@@ -597,16 +593,16 @@ void    ImGui_ImplDX11_InvalidateDeviceObjects()
         if (tex->RefCount == 1)
             ImGui_ImplDX11_DestroyTexture(tex);
 
-    if (bd->pFontSampler)           { bd->pFontSampler->Release(); bd->pFontSampler = nullptr; }
-    if (bd->pIB)                    { bd->pIB->Release(); bd->pIB = nullptr; }
-    if (bd->pVB)                    { bd->pVB->Release(); bd->pVB = nullptr; }
-    if (bd->pBlendState)            { bd->pBlendState->Release(); bd->pBlendState = nullptr; }
-    if (bd->pDepthStencilState)     { bd->pDepthStencilState->Release(); bd->pDepthStencilState = nullptr; }
-    if (bd->pRasterizerState)       { bd->pRasterizerState->Release(); bd->pRasterizerState = nullptr; }
-    if (bd->pPixelShader)           { bd->pPixelShader->Release(); bd->pPixelShader = nullptr; }
-    if (bd->pVertexConstantBuffer)  { bd->pVertexConstantBuffer->Release(); bd->pVertexConstantBuffer = nullptr; }
-    if (bd->pInputLayout)           { bd->pInputLayout->Release(); bd->pInputLayout = nullptr; }
-    if (bd->pVertexShader)          { bd->pVertexShader->Release(); bd->pVertexShader = nullptr; }
+    SafeRelease(bd->pFontSampler);
+    SafeRelease(bd->pIB);
+    SafeRelease(bd->pVB);
+    SafeRelease(bd->pBlendState);
+    SafeRelease(bd->pDepthStencilState);
+    SafeRelease(bd->pRasterizerState);
+    SafeRelease(bd->pPixelShader);
+    SafeRelease(bd->pVertexConstantBuffer);
+    SafeRelease(bd->pInputLayout);
+    SafeRelease(bd->pVertexShader);
 }
 
 bool    ImGui_ImplDX11_Init(ID3D11Device* device, ID3D11DeviceContext* device_context)
@@ -625,21 +621,8 @@ bool    ImGui_ImplDX11_Init(ID3D11Device* device, ID3D11DeviceContext* device_co
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
     platform_io.Renderer_TextureMaxWidth = platform_io.Renderer_TextureMaxHeight = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
-    // Get factory from device
-    IDXGIDevice* pDXGIDevice = nullptr;
-    IDXGIAdapter* pDXGIAdapter = nullptr;
-    IDXGIFactory* pFactory = nullptr;
-
-    if (device->QueryInterface(IID_PPV_ARGS(&pDXGIDevice)) == S_OK)
-        if (pDXGIDevice->GetParent(IID_PPV_ARGS(&pDXGIAdapter)) == S_OK)
-            if (pDXGIAdapter->GetParent(IID_PPV_ARGS(&pFactory)) == S_OK)
-            {
-                bd->pd3dDevice = device;
-                bd->pd3dDeviceContext = device_context;
-                bd->pFactory = pFactory;
-            }
-    if (pDXGIDevice) pDXGIDevice->Release();
-    if (pDXGIAdapter) pDXGIAdapter->Release();
+    bd->pd3dDevice = device;
+    bd->pd3dDeviceContext = device_context;
     bd->pd3dDevice->AddRef();
     bd->pd3dDeviceContext->AddRef();
 
@@ -657,9 +640,8 @@ void ImGui_ImplDX11_Shutdown()
     ImGuiIO& io = ImGui::GetIO();
 
     ImGui_ImplDX11_InvalidateDeviceObjects();
-    if (bd->pFactory)             { bd->pFactory->Release(); }
-    if (bd->pd3dDevice)           { bd->pd3dDevice->Release(); }
-    if (bd->pd3dDeviceContext)    { bd->pd3dDeviceContext->Release(); }
+    SafeRelease(bd->pd3dDevice);
+    SafeRelease(bd->pd3dDeviceContext);
     io.BackendRendererName = nullptr;
     io.BackendRendererUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures);
