@@ -163,13 +163,12 @@ void draw_capsule(const Vector3f& start, const Vector3f& end, float radius, ImU3
     const auto start_circle = project_circle(start, radius);
     const auto end_circle = project_circle(end, radius);
 
-    // Caps are always outlined, matching the previous draw_sphere(..., true).
     if (start_circle) {
-        draw_circle(*start_circle, color, true);
+        draw_circle(*start_circle, color, outline);
     }
 
     if (end_circle) {
-        draw_circle(*end_circle, color, true);
+        draw_circle(*end_circle, color, outline);
     }
 
     if (!start_circle || !end_circle) {
