@@ -36,17 +36,9 @@ void msg(const char* text) {
 }
 
 namespace api::log {
-void info(const char* str) {
-    spdlog::info(str);
-}
-
-void warn(const char* str) {
-    spdlog::warn(str);
-}
-
-void error(const char* str) {
-    spdlog::error(str);
-}
+void info(const char* str) { spdlog::info(str); }
+void warn(const char* str) { spdlog::warn(str); }
+void error(const char* str) { spdlog::error(str); }
 
 void debug(const char* str) {
     OutputDebugString(str);
@@ -57,8 +49,7 @@ void debug(const char* str) {
 
 namespace api::thread {
 size_t get_hash() {
-    const auto id = std::this_thread::get_id();
-    return std::hash<std::thread::id>{}(id);
+    return std::hash<std::thread::id>{}(std::this_thread::get_id());
 }
 
 uint32_t get_id() {
@@ -79,25 +70,13 @@ sol::object get_hook_storage(sol::this_state s) {
 }
 
 namespace api::reframework {
-std::string get_branch() {
-    return REF_BRANCH;
-}
-
-uint32_t get_commit_count() {
-    return REF_TOTAL_COMMITS;
-}
-
-std::string get_commit_hash() {
-    return REF_COMMIT_HASH;
-}
-
-std::string get_tag() {
-    return REF_TAG;
-}
-
-std::string get_tag_long() {
-    return REF_TAG_LONG;
-}
+std::string get_branch() { return REF_BRANCH; }
+uint32_t get_commit_count() { return REF_TOTAL_COMMITS; }
+std::string get_commit_hash() { return REF_COMMIT_HASH; }
+std::string get_tag() { return REF_TAG; }
+std::string get_tag_long() { return REF_TAG_LONG; }
+std::string get_build_date() { return REF_BUILD_DATE; }
+std::string get_build_time() { return REF_BUILD_TIME; }
 
 std::string get_commits_past_tag() {
 #ifdef REF_COMMITS_PAST_TAG
@@ -106,15 +85,78 @@ std::string get_commits_past_tag() {
     return "0";
 #endif
 }
-
-std::string get_build_date() {
-    return REF_BUILD_DATE;
 }
 
-std::string get_build_time() {
-    return REF_BUILD_TIME;
+namespace {
+// Extends a Lua `package.path` value with the search directories used for a script's folder.
+std::string make_package_path(std::string base, const std::string& dir) {
+    base += ';';
+    base += dir;
+    base += "/?.lua;";
+    base += dir;
+    base += "/?/init.lua;";
+    base += dir;
+    base += "/?.dll";
+    return base;
 }
+
+// Runs `body` under the state's execution lock, funnelling any failure into the
+// ScriptRunner error reporter so a bad script can never unwind into engine code.
+template <typename Body>
+void guarded(ScriptState& state, const char* on_error, Body&& body) {
+    try {
+        auto _ = state.scoped_lock();
+        body();
+    } catch (const std::exception& e) {
+        ScriptRunner::get()->spew_error(e.what());
+    } catch (...) {
+        ScriptRunner::get()->spew_error(on_error);
+    }
 }
+
+// guarded(), but skips the lock entirely when there is nothing registered to run.
+template <typename Fns>
+void run_callbacks(ScriptState& state, Fns& fns, const char* on_error) {
+    if (fns.empty()) {
+        return;
+    }
+
+    guarded(state, on_error, [&] {
+        for (auto& fn : fns) {
+            state.handle_protected_result(fn());
+        }
+    });
+}
+
+// guarded(), but for the FNV-keyed callback multimaps; skips the lock when the hash has no listeners.
+template <typename Fns>
+void run_keyed_callbacks(ScriptState& state, Fns& fns, size_t hash, const char* on_error) {
+    auto range = fns.equal_range(hash);
+
+    if (range.first == range.second) {
+        return;
+    }
+
+    guarded(state, on_error, [&] {
+        for (auto it = range.first; it != range.second; ++it) {
+            state.handle_protected_result(it->second());
+        }
+    });
+}
+
+// Registers the operations that Vector2f/Vector3f/Vector4f all expose.
+template <typename V>
+void bind_common_vector_ops(sol::usertype<V>& t) {
+    t.set("clone", [](V& v) -> V { return v; });
+    t.set("dot", [](V& a, V& b) { return glm::dot(a, b); });
+    t.set("length", [](V& v) { return glm::length(v); });
+    t.set("normalize", [](V& v) { v = glm::normalize(v); });
+    t.set("normalized", [](V& v) { return glm::normalize(v); });
+    t.set(sol::meta_function::addition, [](V& a, V& b) { return a + b; });
+    t.set(sol::meta_function::subtraction, [](V& a, V& b) { return a - b; });
+    t.set(sol::meta_function::multiplication, [](V& a, float scalar) { return a * scalar; });
+}
+} // namespace
 
 ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool is_main_state) {
     std::scoped_lock _{ m_execution_mutex };
@@ -147,8 +189,8 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
     re["msg"] = api::re::msg;
     re["on_pre_application_entry"] = [this](const char* name, sol::function fn) { m_pre_application_entry_fns.emplace(utility::hash(name), fn); };
     re["on_application_entry"] = [this](const char* name, sol::function fn) { m_application_entry_fns.emplace(utility::hash(name), fn); };
-    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.emplace_back(fn); };
-    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.emplace_back(fn); };
+    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.emplace_back(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
+    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.emplace_back(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
     re["on_draw_ui"] = [this](sol::function fn) { m_on_draw_ui_fns.emplace_back(fn); };
     re["on_frame"] = [this](sol::function fn) { m_on_frame_fns.emplace_back(fn); };
     re["on_script_reset"] = [this](sol::function fn) { m_on_script_reset_fns.emplace_back(fn); };
@@ -171,75 +213,52 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
     
     // clang-format off
     // add vec2 usertype
-    m_lua.new_usertype<Vector2f>("Vector2f",
+    auto vec2 = m_lua.new_usertype<Vector2f>("Vector2f",
         sol::meta_function::construct, sol::constructors<Vector4f(float, float)>(),
-        "clone", [](Vector2f& v) -> Vector2f { return v; },
-        "x", &Vector2f::x, 
-        "y", &Vector2f::y, 
-        "dot", [](Vector2f& v1, Vector2f& v2) { return glm::dot(v1, v2); },
-        "length", [](Vector2f& v) { return glm::length(v); },
-        "normalize", [](Vector2f& v) { v = glm::normalize(v); },
-        "normalized", [](Vector2f& v) { return glm::normalize(v); },
-        sol::meta_function::addition, [](Vector2f& lhs, Vector2f& rhs) { return lhs + rhs; },
-        sol::meta_function::subtraction, [](Vector2f& lhs, Vector2f& rhs) { return lhs - rhs; },
-        sol::meta_function::multiplication, [](Vector2f& lhs, float scalar) { return lhs * scalar; },
+        "x", &Vector2f::x,
+        "y", &Vector2f::y,
         "to_vec3", [](Vector2f& v) { return Vector3f{v.x, v.y, 0.0f}; },
         "to_vec4", [](Vector2f& v) { return Vector4f{v.x, v.y, 0.0f, 0.0f}; });
+    bind_common_vector_ops(vec2);
 
     // add vec3 usertype
-    m_lua.new_usertype<Vector3f>("Vector3f",
+    auto vec3 = m_lua.new_usertype<Vector3f>("Vector3f",
         sol::meta_function::construct, sol::constructors<Vector4f(float, float, float)>(),
-        "clone", [](Vector3f& v) -> Vector3f { return v; },
         "x", &Vector3f::x,
         "y", &Vector3f::y,
         "z", &Vector3f::z,
-        "dot", [](Vector3f& v1, Vector3f& v2) { return glm::dot(v1, v2); },
         "cross", [](Vector3f& v1, Vector3f& v2) { return glm::cross(v1, v2); },
-        "length", [](Vector3f& v) { return glm::length(v); },
-        "normalize", [](Vector3f& v) { v = glm::normalize(v); },
-        "normalized", [](Vector3f& v) { return glm::normalize(v); },
         "reflect", [](Vector3f& v, Vector3f& normal) { return glm::reflect(v, normal); },
         "refract", [](Vector3f& v, Vector3f& normal, float eta) { return glm::refract(v, normal, eta); },
         "lerp", [](Vector3f& v1, Vector3f& v2, float t) { return glm::lerp(v1, v2, t); },
-        sol::meta_function::addition, [](Vector3f& lhs, Vector3f& rhs) { return lhs + rhs; },
-        sol::meta_function::subtraction, [](Vector3f& lhs, Vector3f& rhs) { return lhs - rhs; },
-        sol::meta_function::multiplication, [](Vector3f& lhs, float scalar) { return lhs * scalar; },
         "to_vec2", [](Vector3f& v) { return Vector2f{v.x, v.y}; },
         "to_vec4", [](Vector3f& v) { return Vector4f{v.x, v.y, v.z, 0.0f}; },
         "to_mat", [](Vector3f& v) { return glm::rowMajor4(glm::lookAtLH(Vector3f{0.0f, 0.0f, 0.0f}, v, Vector3f{0.0f, 1.0f, 0.0f})); },
-        "to_quat", [](Vector3f& v) { 
+        "to_quat", [](Vector3f& v) {
             auto mat = glm::rowMajor4(glm::lookAtLH(Vector3f{0.0f, 0.0f, 0.0f}, v, Vector3f{0.0f, 1.0f, 0.0f}));
-
             return glm::quat{mat};
         });
+    bind_common_vector_ops(vec3);
 
     // add vec4 usertype
-    m_lua.new_usertype<Vector4f>("Vector4f",
+    auto vec4 = m_lua.new_usertype<Vector4f>("Vector4f",
         sol::meta_function::construct, sol::constructors<Vector4f(float, float, float, float)>(),
-        "clone", [](Vector4f& v) -> Vector4f { return v; },
         "x", &Vector4f::x,
         "y", &Vector4f::y,
         "z", &Vector4f::z,
         "w", &Vector4f::w,
-        "dot", [](Vector4f& v1, Vector4f& v2) { return glm::dot(v1, v2); },
         "cross", [](Vector4f& v1, Vector4f& v2) { return glm::cross(Vector3f{v1.x, v1.y, v1.z}, Vector3f{v2.x, v2.y, v2.z}); },
-        "length", [](Vector4f& v) { return glm::length(v); },
-        "normalize", [](Vector4f& v) { v = glm::normalize(v); },
-        "normalized", [](Vector4f& v) { return glm::normalize(v); },
         "reflect", [](Vector4f& v, Vector4f& normal) { return glm::reflect(v, normal); },
         "refract", [](Vector4f& v, Vector4f& normal, float eta) { return glm::refract(v, normal, eta); },
         "lerp", [](Vector4f& v1, Vector4f& v2, float t) { return glm::lerp(v1, v2, t); },
-        sol::meta_function::addition, [](Vector4f& lhs, Vector4f& rhs) { return lhs + rhs; },
-        sol::meta_function::subtraction, [](Vector4f& lhs, Vector4f& rhs) { return lhs - rhs; },
-        sol::meta_function::multiplication, [](Vector4f& lhs, float scalar) { return lhs * scalar; },
         "to_vec2", [](Vector4f& v) { return Vector2f{v.x, v.y}; },
         "to_vec3", [](Vector4f& v) { return Vector3f{v.x, v.y, v.z}; },
         "to_mat", [](Vector4f& v) { return glm::rowMajor4(glm::lookAtLH(Vector3f{0.0f, 0.0f, 0.0f}, Vector3f{v.x, v.y, v.z}, Vector3f{0.0f, 1.0f, 0.0f})); },
-        "to_quat", [](Vector4f& v) { 
+        "to_quat", [](Vector4f& v) {
             auto mat = glm::rowMajor4(glm::lookAtLH(Vector3f{0.0f, 0.0f, 0.0f}, Vector3f{v.x, v.y, v.z}, Vector3f{0.0f, 1.0f, 0.0f}));
-
             return glm::quat{mat};
         });
+    bind_common_vector_ops(vec4);
 
     // add Matrix4x4f (glm::mat4) usertype
     m_lua.new_usertype<Matrix4x4f>("Matrix4x4f",
@@ -429,16 +448,9 @@ void ScriptState::run_script(const std::string& p) {
     const std::string old_path = m_lua["package"]["path"];
 
     try {
-        auto path = std::filesystem::path(p);
-        auto dir = path.parent_path();
+        const auto dir = std::filesystem::path(p).parent_path();
 
-        std::string package_path = m_lua["package"]["path"];
-
-        package_path = old_path + ";" + dir.string() + "/?.lua";
-        package_path = package_path + ";" + dir.string() + "/?/init.lua";
-        package_path = package_path + ";" + dir.string() + "/?.dll";
-
-        m_lua["package"]["path"] = package_path;
+        m_lua["package"]["path"] = make_package_path(old_path, dir.string());
         m_lua.registry()["package_path"] = m_lua["package"]["path"];
         m_lua.registry()["package_cpath"] = m_lua["package"]["cpath"];
 
@@ -467,93 +479,35 @@ sol::protected_function_result ScriptState::handle_protected_result(sol::protect
 }
 
 void ScriptState::on_frame() {
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
-        for (auto& fn : m_on_frame_fns) {
-            handle_protected_result(fn());
-        }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown error in on_frame");
-    }
+    run_callbacks(*this, m_on_frame_fns, "Unknown error in on_frame");
 
     api::imgui::cleanup();
     api::imnodes::cleanup();
 }
 
 void ScriptState::on_draw_ui() {
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
-        for (auto& fn : m_on_draw_ui_fns) {
-            handle_protected_result(fn());
-        }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown error in on_draw_ui");
-    }
+    run_callbacks(*this, m_on_draw_ui_fns, "Unknown error in on_draw_ui");
 
     api::imgui::cleanup();
     api::imnodes::cleanup();
 }
 
 void ScriptState::on_update_transform(RETransform* transform) {
-    try {
-        std::scoped_lock _{m_execution_mutex};
+    guarded(*this, "Unknown exception in on_update_transform", [&] {
         auto it = m_on_update_transform_fns.find(transform);
+
         if (it != m_on_update_transform_fns.end()) {
             handle_protected_result(it->second(transform));
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_update_transform");
-    }
+    });
 }
 
 void ScriptState::on_pre_application_entry(size_t hash) {
-    try {
-        if (m_pre_application_entry_fns.empty()) {
-            return;
-        }
-
-        auto range = m_pre_application_entry_fns.equal_range(hash);
-
-        if (range.first != range.second) {
-            std::scoped_lock _{ m_execution_mutex };
-
-            for (auto it = range.first; it != range.second; ++it) {
-                handle_protected_result(it->second());
-            }
-        }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_pre_application_entry");
-    }
+    run_keyed_callbacks(*this, m_pre_application_entry_fns, hash, "Unknown exception in on_pre_application_entry");
 }
 
 void ScriptState::on_application_entry(size_t hash) {
-    try {
-        if (!m_application_entry_fns.empty()) {
-            auto range = m_application_entry_fns.equal_range(hash);
-
-            if (range.first != range.second) {
-                std::scoped_lock _{ m_execution_mutex };
-
-                for (auto it = range.first; it != range.second; ++it) {
-                    handle_protected_result(it->second());
-                }
-            }
-        }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_application_entry");
-    }
+    run_keyed_callbacks(*this, m_application_entry_fns, hash, "Unknown exception in on_application_entry");
 
     if (hash == "EndRendering"_fnv && m_gc_data.gc_handler == ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED) {
         std::scoped_lock _{ m_execution_mutex };
@@ -594,19 +548,13 @@ bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* contex
 
     bool any_false = false;
 
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
+    guarded(*this, "Unknown exception in on_pre_gui_draw_element", [&] {
         for (auto& fn : m_pre_gui_draw_element_fns) {
             if (sol::object result = handle_protected_result(fn(gui_element, context)); !result.is<sol::nil_t>() && result.is<bool>() && result.as<bool>() == false) {
                 any_false = true;
             }
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_pre_gui_draw_element");
-    }
+    });
 
     return !any_false;
 }
@@ -616,47 +564,28 @@ void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
         return;
     }
 
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
+    guarded(*this, "Unknown exception in on_gui_draw_element", [&] {
         for (auto& fn : m_gui_draw_element_fns) {
             handle_protected_result(fn(gui_element, context));
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_gui_draw_element");
-    }
+    });
 }
 
-void ScriptState::on_script_reset() try {
-    std::scoped_lock _{ m_execution_mutex };
+void ScriptState::on_script_reset() {
+    guarded(*this, "Unknown exception in on_script_reset", [&] {
+        // Save configs first so scripts can persist state prior to the reset.
+        for (auto& fn : m_on_config_save_fns) {
+            handle_protected_result(fn());
+        }
 
-    // We first call on_config_save functions so scripts can save prior to reset.
-    for (auto& fn : m_on_config_save_fns) {
-        handle_protected_result(fn());
-    }
-
-    for (auto& fn : m_on_script_reset_fns) {
-        handle_protected_result(fn());
-    }
-} catch (const std::exception& e) {
-    ScriptRunner::get()->spew_error(e.what());
-} catch (...) {
-    ScriptRunner::get()->spew_error("Unknown exception in on_script_reset");
+        for (auto& fn : m_on_script_reset_fns) {
+            handle_protected_result(fn());
+        }
+    });
 }
 
-void ScriptState::on_config_save() try {
-    std::scoped_lock _{ m_execution_mutex };
-
-    for (auto& fn : m_on_config_save_fns) {
-        handle_protected_result(fn());
-    }
-}
-catch (const std::exception& e) {
-    ScriptRunner::get()->spew_error(e.what());
-} catch (...) {
-    ScriptRunner::get()->spew_error("Unknown exception in on_config_save");
+void ScriptState::on_config_save() {
+    run_callbacks(*this, m_on_config_save_fns, "Unknown exception in on_config_save");
 }
 
 void ScriptState::add_hook(
@@ -683,15 +612,16 @@ void ScriptState::install_hooks() {
         const auto hookman_data = HookManager::EitherOr{hookdef.obj, hookdef.fn, ignore_jmp_object.is<bool>() ? ignore_jmp_object.as<bool>() : false};
         auto id = g_hookman.add_either_or(
             hookman_data,
-            [pre_cb, state = this](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+            [pre_cb, state = this, runner = ScriptRunner::get().get()](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
                 using PreHookResult = HookManager::PreHookResult;
+
+                // Scripts are unloaded during online matches, so skip the lock and Lua entirely.
+                if (runner->is_online_match()) {
+                    return PreHookResult::CALL_ORIGINAL;
+                }
 
                 auto _ = state->scoped_lock();
                 auto result = PreHookResult::CALL_ORIGINAL;
-
-                if (ScriptRunner::get()->is_online_match()) {
-                    return result;
-                }
 
                 try {
                     state->push_hook_storage(std::hash<std::thread::id>{}(std::this_thread::get_id()));
@@ -727,20 +657,20 @@ void ScriptState::install_hooks() {
                         args[i] = (uintptr_t)arg.get<void*>();
                     }
                 } catch (const std::exception& e) {
-                    ScriptRunner::get()->spew_error(e.what());
+                    runner->spew_error(e.what());
                 } catch (...) {
-                    ScriptRunner::get()->spew_error("Unknown exception in pre_hook");
+                    runner->spew_error("Unknown exception in pre_hook");
                 }
 
                 return result;
             },
-            [post_cb, state = this](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
-                auto _ = state->scoped_lock();
-                
-                if (ScriptRunner::get()->is_online_match()) {
+            [post_cb, state = this, runner = ScriptRunner::get().get()](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
+                // Matches the pre-hook: nothing to pop when scripts are disabled mid-match.
+                if (runner->is_online_match()) {
                     return;
                 }
 
+                auto _ = state->scoped_lock();
                 const auto thash = std::hash<std::thread::id>{}(std::this_thread::get_id());
                 utility::ScopeGuard sg{[state, thash] { state->pop_hook_storage(thash); }};
 
@@ -759,9 +689,9 @@ void ScriptState::install_hooks() {
 
                     ret_val = (uintptr_t)script_result.get<void*>();
                 } catch (const std::exception& e) {
-                    ScriptRunner::get()->spew_error(e.what());
+                    runner->spew_error(e.what());
                 } catch (...) {
-                    ScriptRunner::get()->spew_error("Unknown exception in post_hook");
+                    runner->spew_error("Unknown exception in post_hook");
                 }
             }
         );
@@ -914,43 +844,42 @@ void ScriptRunner::hook_battle_rule() {
     // Disabled: caused issues with matchmaking. See git history for original implementation.
 }
 
-void ScriptRunner::on_frame() {
-    if (!m_scene_okay) try {
+bool ScriptRunner::check_scene_ready() {
+    try {
         if (!m_checked_scene_once) {
             m_checked_scene_once = true;
             m_scene_check_time = std::chrono::system_clock::now();
         } else if (std::chrono::system_clock::now() - m_scene_check_time > std::chrono::seconds(5)) {
             m_scene_okay = true;
             spdlog::warn("[ScriptRunner] Scene or scene manager not found after 5 seconds. Loading scripts anyways...");
-            return;
+            return false;
         } else {
             const auto scene_manager_t = sdk::find_type_definition("via.SceneManager");
+
             if (scene_manager_t == nullptr) {
-                return;
+                return false;
             }
 
             const auto get_CurrentScene = scene_manager_t->get_method("get_CurrentScene");
 
             if (get_CurrentScene == nullptr) {
-                return;
+                return false;
             }
 
             const auto scene_manager = sdk::get_native_singleton("via.SceneManager");
 
             if (scene_manager == nullptr) {
-                return;
+                return false;
             }
 
             const auto context = sdk::get_thread_context();
-            
-            if (context == nullptr) {
-                return;
-            }
-            
-            const auto scene = get_CurrentScene->call_safe<void*>(context, scene_manager);
 
-            if (scene == nullptr) {
-                return;
+            if (context == nullptr) {
+                return false;
+            }
+
+            if (get_CurrentScene->call_safe<void*>(context, scene_manager) == nullptr) {
+                return false;
             }
 
             m_scene_okay = true;
@@ -958,9 +887,17 @@ void ScriptRunner::on_frame() {
         }
     } catch (const std::exception& e) {
         spdlog::error("[ScriptRunner] Error while checking for scene: {}", e.what());
-        return;
+        return false;
     } catch (...) {
         spdlog::error("[ScriptRunner] Unknown error while checking for scene.");
+        return false;
+    }
+
+    return true;
+}
+
+void ScriptRunner::on_frame() {
+    if (!m_scene_okay && !check_scene_ready()) {
         return;
     }
 
@@ -1053,7 +990,7 @@ void ScriptRunner::on_draw_ui() {
                 m_console_spawned = true;
             }
         }
-        //Garbage collection currently only showing from main lua state, might rework to show total later?
+        // Garbage collection stats currently only reflect the main Lua state.
         if (ImGui::TreeNode("Garbage Collection Stats")) {
             std::scoped_lock _{ m_access_mutex };
 
@@ -1065,38 +1002,38 @@ void ScriptRunner::on_draw_ui() {
             ImGui::TreePop();
         }
 
-        if (m_gc_handler->draw("Garbage Collection Handler")) {
+        // Any GC widget re-applies the whole GC configuration when it changes.
+        const auto apply_gc = [this] {
             std::scoped_lock _{ m_access_mutex };
             m_main_state->gc_data_changed(make_gc_data());
+        };
+
+        if (m_gc_handler->draw("Garbage Collection Handler")) {
+            apply_gc();
         }
 
         if (m_gc_mode->draw("Garbage Collection Mode")) {
-            std::scoped_lock _{ m_access_mutex };
-            m_main_state->gc_data_changed(make_gc_data());
+            apply_gc();
         }
 
         if ((uint32_t)m_gc_mode->value() == (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
             if (m_gc_minor_multiplier->draw("Minor GC Multiplier")) {
-                std::scoped_lock _{ m_access_mutex };
-                m_main_state->gc_data_changed(make_gc_data());
+                apply_gc();
             }
 
             if (m_gc_major_multiplier->draw("Major GC Multiplier")) {
-                std::scoped_lock _{ m_access_mutex };
-                m_main_state->gc_data_changed(make_gc_data());
+                apply_gc();
             }
         }
 
         if (m_gc_handler->value() == (int32_t)ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED) {
             if (m_gc_type->draw("Garbage Collection Type")) {
-                std::scoped_lock _{ m_access_mutex };
-                m_main_state->gc_data_changed(make_gc_data());
+                apply_gc();
             }
 
             if ((uint32_t)m_gc_mode->value() != (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
                 if (m_gc_budget->draw("Garbage Collection Budget")) {
-                    std::scoped_lock _{ m_access_mutex };
-                    m_main_state->gc_data_changed(make_gc_data());
+                    apply_gc();
                 }
             }
         }
@@ -1163,61 +1100,25 @@ void ScriptRunner::on_update_transform(RETransform* transform) {
         return;
     }
 
-    std::scoped_lock _{m_access_mutex};
-
-    if (m_states.empty()) {
-        return;
-    }
-
-    if (m_last_online_match_state) {
-        return;
-    }
-
-    for (auto& state : m_states) {
-        state->on_update_transform(transform);
-    }
+    for_each_state([transform](ScriptState& state) { state.on_update_transform(transform); });
 }
 
 void ScriptRunner::on_pre_application_entry(void* entry, const char* name, size_t hash) {
-    std::scoped_lock _{ m_access_mutex };
-
-    if (m_states.empty()) {
-        return;
-    }
-
-    if (m_last_online_match_state) {
-        return;
-    }
-
-    for (auto& state : m_states) {
-        state->on_pre_application_entry(hash);
-    }
+    for_each_state([hash](ScriptState& state) { state.on_pre_application_entry(hash); });
 }
 
 void ScriptRunner::on_application_entry(void* entry, const char* name, size_t hash) {
-    std::scoped_lock _{ m_access_mutex };
-
-    if (m_states.empty()) {
-        return;
-    }
-
-    if (m_last_online_match_state) {
-        return;
-    }
-
-    for (auto& state : m_states) {
-        state->on_application_entry(hash);
-    }
+    for_each_state([hash](ScriptState& state) { state.on_application_entry(hash); });
 }
 
 bool ScriptRunner::on_pre_gui_draw_element(REComponent* gui_element, void* primitive_context) {
-    std::scoped_lock _{ m_access_mutex };
-
-    if (m_last_online_match_state) {
+    if (!m_has_any_gui_draw_element) {
         return true;
     }
-     
-    if (m_main_state == nullptr) {
+
+    std::scoped_lock _{m_access_mutex};
+
+    if (m_last_online_match_state || m_main_state == nullptr) {
         return true;
     }
 
@@ -1233,19 +1134,11 @@ bool ScriptRunner::on_pre_gui_draw_element(REComponent* gui_element, void* primi
 }
 
 void ScriptRunner::on_gui_draw_element(REComponent* gui_element, void* primitive_context) {
-    std::scoped_lock _{ m_access_mutex };
-
-    if (m_last_online_match_state) {
+    if (!m_has_any_gui_draw_element) {
         return;
     }
 
-    if (m_states.empty()) {
-        return;
-    }
-
-    for (auto &state : m_states) {
-        state->on_gui_draw_element(gui_element, primitive_context);
-    }
+    for_each_state([&](ScriptState& state) { state.on_gui_draw_element(gui_element, primitive_context); });
 }
 
 void ScriptRunner::spew_error(const std::string& p) {
@@ -1294,6 +1187,7 @@ void ScriptRunner::reset_scripts() {
     m_states.clear();
 
     m_has_any_transform_updates = false;
+    m_has_any_gui_draw_element = false;
 
     //creating the main lua state
     m_main_state = std::make_shared<ScriptState>(make_gc_data(),true);
@@ -1322,13 +1216,9 @@ void ScriptRunner::reset_scripts() {
     std::filesystem::create_directories(autorun_path);
     spdlog::info("[ScriptRunner] Loading scripts...");
 
-    std::string old_path = m_main_state->lua()["package"]["path"];
-
-    std::string package_path = old_path + ";" + autorun_path.string() + "/?.lua";
-    package_path = package_path + ";" + autorun_path.string() + "/?/init.lua";
-    package_path = package_path + ";" + autorun_path.string() + "/?.dll";
-
-    m_main_state->lua()["package"]["path"] = package_path;
+    auto& main_lua = m_main_state->lua();
+    const std::string old_path = main_lua["package"]["path"];
+    main_lua["package"]["path"] = make_package_path(old_path, autorun_path.string());
 
     for (auto&& entry : std::filesystem::directory_iterator{autorun_path}) {
         auto&& path = entry.path();
