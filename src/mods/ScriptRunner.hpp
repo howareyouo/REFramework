@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <deque>
 #include <vector>
 #include <unordered_map>
@@ -392,7 +393,30 @@ public:
         m_has_any_transform_updates = true;
     }
 
+    void on_add_gui_draw_element() {
+        m_has_any_gui_draw_element = true;
+    }
+
 private:
+    // Dispatches to every live state. Nothing happens while an online match is active
+    // (scripts are unloaded then), and the lock is only taken when there are states to visit.
+    template <typename Fn>
+    void for_each_state(Fn&& fn) {
+        if (m_last_online_match_state.load(std::memory_order_relaxed)) {
+            return;
+        }
+
+        std::scoped_lock _{m_access_mutex};
+
+        for (auto& state : m_states) {
+            fn(*state);
+        }
+    }
+
+    // Returns false while the scene/scene manager are still unavailable, so script
+    // processing should be deferred to a later frame.
+    bool check_scene_ready();
+
     ScriptState::GarbageCollectionData make_gc_data() const {
         ScriptState::GarbageCollectionData data{};
 
@@ -423,10 +447,11 @@ private:
     std::chrono::system_clock::time_point m_scene_check_time{};
     bool m_checked_scene_once{false};
     bool m_scene_okay{false};
-    bool m_has_any_transform_updates{false};
+    std::atomic<bool> m_has_any_transform_updates{false};
+    std::atomic<bool> m_has_any_gui_draw_element{false};
     bool m_console_spawned{false};
     bool m_needs_first_reset{true};
-    bool m_last_online_match_state{false};
+    std::atomic<bool> m_last_online_match_state{false};
     std::optional<uint8_t> m_last_battle_type{};
     const ModToggle::Ptr m_log_to_disk{ ModToggle::create(generate_name("LogToDisk"), false) };
     const ModToggle::Ptr m_script_generated_ui_open_state{ ModToggle::create(generate_name("ScriptGeneratedUIOpenState"), false) };
