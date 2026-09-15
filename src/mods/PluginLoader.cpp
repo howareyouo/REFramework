@@ -24,36 +24,73 @@ namespace reframework {
 REFrameworkRendererData g_renderer_data{
     REFRAMEWORK_RENDERER_D3D12, nullptr, nullptr, nullptr
 };
-}
 
-namespace reframework {
-void log_error(const char* format, ...) {
-    va_list args{};
-    va_start(args, format);
-    auto str = utility::format_string(format, args);
-    va_end(args);
-    spdlog::error("[Plugin] {}", str);
-}
-void log_warn(const char* format, ...) {
-    va_list args{};
-    va_start(args, format);
-    auto str = utility::format_string(format, args);
-    va_end(args);
-    spdlog::warn("[Plugin] {}", str);
-}
-void log_info(const char* format, ...) {
-    va_list args{};
-    va_start(args, format);
-    auto str = utility::format_string(format, args);
-    va_end(args);
-    spdlog::info("[Plugin] {}", str);
-}
+// Plugin-facing logging, prefixed so plugin output is identifiable.
+#define REFRAMEWORK_PLUGIN_LOG(name, level)                                 \
+    void name(const char* format, ...) {                                    \
+        va_list args{};                                                     \
+        va_start(args, format);                                             \
+        spdlog::level("[Plugin] {}", utility::format_string(format, args)); \
+        va_end(args);                                                       \
+    }
+
+REFRAMEWORK_PLUGIN_LOG(log_error, error)
+REFRAMEWORK_PLUGIN_LOG(log_warn, warn)
+REFRAMEWORK_PLUGIN_LOG(log_info, info)
+
+#undef REFRAMEWORK_PLUGIN_LOG
+
 bool is_drawing_ui() {
     return g_framework->is_drawing_ui();
 }
+
+void update_renderer_data() {
+    auto& data = g_renderer_data;
+    data.renderer_type = (int)g_framework->get_renderer_type();
+
+    if (data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
+        auto& d3d11 = g_framework->get_d3d11_hook();
+
+        data.device = d3d11->get_device();
+        data.swapchain = d3d11->get_swap_chain();
+    } else if (data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
+        auto& d3d12 = g_framework->get_d3d12_hook();
+
+        data.device = d3d12->get_device();
+        data.swapchain = d3d12->get_swap_chain();
+        data.command_queue = d3d12->get_command_queue();
+    }
+}
 }
 
-REFrameworkPluginFunctions g_plugin_functions {
+namespace {
+// Writes a range of engine objects into a caller-provided handle buffer with the size/count
+// bookkeeping the C API expects. `to_handle` converts one element into its exposed handle type.
+template <typename THandle, typename TRange, typename TConvert>
+REFrameworkResult write_handle_range(const TRange& range, THandle* out, unsigned int out_size, unsigned int* out_len, TConvert to_handle) {
+    const auto count = range.size();
+
+    if (count == 0) {
+        return REFRAMEWORK_ERROR_NONE;
+    }
+
+    if (count * sizeof(THandle) > out_size) {
+        return REFRAMEWORK_ERROR_OUT_TOO_SMALL;
+    }
+
+    for (const auto& value : range) {
+        *out++ = to_handle(value);
+    }
+
+    if (out_len != nullptr) {
+        *out_len = (unsigned int)count;
+    }
+
+    return REFRAMEWORK_ERROR_NONE;
+}
+}
+
+constexpr REFrameworkPluginFunctions g_plugin_functions {
     reframework_on_lua_state_created,
     reframework_on_lua_state_destroyed,
     reframework_on_present,
@@ -67,7 +104,7 @@ REFrameworkPluginFunctions g_plugin_functions {
     reframework::log_warn,
     reframework::log_info,
     reframework::is_drawing_ui,
-    reframework_create_script_state, 
+    reframework_create_script_state,
     reframework_destroy_script_state,
 
     reframework_on_imgui_frame,
@@ -75,7 +112,7 @@ REFrameworkPluginFunctions g_plugin_functions {
     reframework_on_pre_gui_draw_element,
 };
 
-REFrameworkSDKFunctions g_sdk_functions {
+constexpr REFrameworkSDKFunctions g_sdk_functions {
     []() -> REFrameworkTDBHandle { return (REFrameworkTDBHandle)sdk::RETypeDB::get(); },
     []() { return (REFrameworkResourceManagerHandle)sdk::ResourceManager::get(); },
     []() { return (REFrameworkVMContextHandle)sdk::get_thread_context(); }, // get_vm_context
@@ -92,7 +129,7 @@ REFrameworkSDKFunctions g_sdk_functions {
         if (const auto singleton = (REFrameworkManagedObjectHandle)sdk::get_managed_singleton<void*>(name); singleton != nullptr) {
             return singleton;
         }
-        
+
         return (REFrameworkManagedObjectHandle)reframework::get_globals()->get(name);
     },
     [](const char* name) {
@@ -112,13 +149,13 @@ REFrameworkSDKFunctions g_sdk_functions {
             if (instance == nullptr) {
                 continue;
             }
-            
+
             auto tdef = utility::re_managed_object::get_type_definition(instance);
 
             out[out_written].instance = (REFrameworkManagedObjectHandle)instance;
             out[out_written].t = (REFrameworkTypeDefinitionHandle)tdef;
             out[out_written].type_info = (REFrameworkTypeInfoHandle)tdef->get_type();
-            
+
             ++out_written;
         }
 
@@ -199,13 +236,25 @@ REFrameworkSDKFunctions g_sdk_functions {
     },
 };
 
+// Handle -> engine object casts used by the tables below.
 #define RETYPEDEF(var) ((sdk::RETypeDefinition*)var)
+#define REMETHOD(var) ((sdk::REMethodDefinition*)var)
+#define REFIELD(var) ((sdk::REField*)var)
+#define RETDB(var) ((sdk::RETypeDB*)var)
+#define REMANAGEDOBJECT(var) ((::REManagedObject*)var)
+#define RERESOURCEMGR(var) ((sdk::ResourceManager*)var)
+#define RERESOURCE(var) ((sdk::Resource*)var)
+#define RETYPEINFO(var) ((::REType*)var)
+#define VMCONTEXT(var) ((sdk::VMContext*)var)
+#define REFLMETHOD(var) ((::FunctionDescriptor*)var)
+#define REFLPROP(var) ((::VariableDescriptor*)var)
+#define RE_MODULE(x) ((sdk::REModule*)x)
 
-REFrameworkTDBTypeDefinition g_type_definition_data {
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_index(); }, 
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_size(); }, 
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_valuetype_size(); }, 
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_fqn_hash(); }, 
+constexpr REFrameworkTDBTypeDefinition g_type_definition_data {
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_index(); },
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_size(); },
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_valuetype_size(); },
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_fqn_hash(); },
 
     [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_name(); },
     [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_namespace(); },
@@ -225,8 +274,8 @@ REFrameworkTDBTypeDefinition g_type_definition_data {
         return REFRAMEWORK_ERROR_NONE;
     },
 
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->has_fieldptr_offset(); }, 
-    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_fieldptr_offset(); }, 
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->has_fieldptr_offset(); },
+    [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_fieldptr_offset(); },
 
     [](REFrameworkTypeDefinitionHandle tdef) -> uint32_t { return RETYPEDEF(tdef)->get_methods().size(); },
     [](REFrameworkTypeDefinitionHandle tdef) -> uint32_t { return RETYPEDEF(tdef)->get_fields().size(); },
@@ -246,49 +295,13 @@ REFrameworkTDBTypeDefinition g_type_definition_data {
     [](REFrameworkTypeDefinitionHandle tdef, const char* name) { return (REFrameworkFieldHandle)RETYPEDEF(tdef)->get_field(name); },
     [](REFrameworkTypeDefinitionHandle tdef, const char* name) { return (REFrameworkPropertyHandle)nullptr; },
 
-    [](REFrameworkTypeDefinitionHandle tdef, REFrameworkMethodHandle* out, unsigned int out_size, unsigned int* out_len) { 
-        auto methods = RETYPEDEF(tdef)->get_methods();
-
-        if (methods.size() == 0) {
-            return REFRAMEWORK_ERROR_NONE;
-        }
-
-        if (methods.size() * sizeof(REFrameworkMethodHandle) > out_size) {
-            return REFRAMEWORK_ERROR_OUT_TOO_SMALL;
-        }
-
-        for (auto& method : methods) {
-            *out = (REFrameworkMethodHandle)&method;
-            out++;
-        }
-
-        if (out_len != nullptr) {
-            *out_len = methods.size();
-        }
-
-        return REFRAMEWORK_ERROR_NONE;
+    [](REFrameworkTypeDefinitionHandle tdef, REFrameworkMethodHandle* out, unsigned int out_size, unsigned int* out_len) {
+        return write_handle_range(RETYPEDEF(tdef)->get_methods(), out, out_size, out_len,
+            [](const auto& method) { return (REFrameworkMethodHandle)&method; });
     },
-    [](REFrameworkTypeDefinitionHandle tdef, REFrameworkFieldHandle* out, unsigned int out_size, unsigned int* out_len) { 
-        auto fields = RETYPEDEF(tdef)->get_fields();
-
-        if (fields.size() == 0) {
-            return REFRAMEWORK_ERROR_NONE;
-        }
-
-        if (fields.size() * sizeof(REFrameworkFieldHandle) > out_size) {
-            return REFRAMEWORK_ERROR_OUT_TOO_SMALL;
-        }
-
-        for (auto field : fields) {
-            *out = (REFrameworkFieldHandle)field;
-            out++;
-        }
-
-        if (out_len != nullptr) {
-            *out_len = fields.size();
-        }
-
-        return REFRAMEWORK_ERROR_NONE;
+    [](REFrameworkTypeDefinitionHandle tdef, REFrameworkFieldHandle* out, unsigned int out_size, unsigned int* out_len) {
+        return write_handle_range(RETYPEDEF(tdef)->get_fields(), out, out_size, out_len,
+            [](const auto& field) { return (REFrameworkFieldHandle)field; });
     },
 
     [](REFrameworkTypeDefinitionHandle tdef) { return RETYPEDEF(tdef)->get_instance(); },
@@ -302,9 +315,7 @@ REFrameworkTDBTypeDefinition g_type_definition_data {
     [](REFrameworkTypeDefinitionHandle tdef) { return (REFrameworkManagedObjectHandle)RETYPEDEF(tdef)->get_runtime_type(); }
 };
 
-#define REMETHOD(var) ((sdk::REMethodDefinition*)var)
-
-REFrameworkTDBMethod g_tdb_method_data {
+constexpr REFrameworkTDBMethod g_tdb_method_data {
     [](REFrameworkMethodHandle method, void* thisptr, void** in_args, unsigned int in_args_size, void* out, unsigned int out_size) {
         if (sizeof(reframework::InvokeRet) > out_size) {
             return REFRAMEWORK_ERROR_OUT_TOO_SMALL;
@@ -332,8 +343,8 @@ REFrameworkTDBMethod g_tdb_method_data {
     [](REFrameworkMethodHandle method) { return REMETHOD(method)->get_num_params(); },
     [](REFrameworkMethodHandle method, REFrameworkMethodParameter* out, unsigned int out_size, unsigned int* out_len) {
         const auto num_params = REMETHOD(method)->get_num_params();
-        
-        if (REMETHOD(method)->get_num_params() == 0) {
+
+        if (num_params == 0) {
             return REFRAMEWORK_ERROR_NONE;
         }
 
@@ -363,9 +374,7 @@ REFrameworkTDBMethod g_tdb_method_data {
     [](REFrameworkMethodHandle method) { return REMETHOD(method)->get_invoke_id(); }
 };
 
-#define REFIELD(var) ((sdk::REField*)(var))
-
-REFrameworkTDBField g_tdb_field_data {
+constexpr REFrameworkTDBField g_tdb_field_data {
     [](REFrameworkFieldHandle field) { return REFIELD(field)->get_name(); },
 
     [](REFrameworkFieldHandle field) { return (REFrameworkTypeDefinitionHandle)REFIELD(field)->get_declaring_type(); },
@@ -384,13 +393,11 @@ REFrameworkTDBField g_tdb_field_data {
     [](REFrameworkFieldHandle field) { return REFIELD(field)->get_index(); },
 };
 
-REFrameworkTDBProperty g_tdb_property_data {
+constexpr REFrameworkTDBProperty g_tdb_property_data {
     // todo
 };
 
-#define RETDB(var) ((sdk::RETypeDB*)var)
-
-REFrameworkTDB g_tdb_data {
+constexpr REFrameworkTDB g_tdb_data {
     [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numTypes; },
     [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numMethods; },
     [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->numFields; },
@@ -404,7 +411,7 @@ REFrameworkTDB g_tdb_data {
     [](REFrameworkTDBHandle tdb, const char* name) { return (REFrameworkTypeDefinitionHandle)RETDB(tdb)->find_type(name); },
     [](REFrameworkTDBHandle tdb, unsigned int fqn) { return (REFrameworkTypeDefinitionHandle)RETDB(tdb)->find_type_by_fqn(fqn); },
     [](REFrameworkTDBHandle tdb, unsigned int index) { return (REFrameworkMethodHandle)RETDB(tdb)->get_method(index); },
-    [](REFrameworkTDBHandle tdb, const char* type_name, const char* method_name) -> REFrameworkMethodHandle { 
+    [](REFrameworkTDBHandle tdb, const char* type_name, const char* method_name) -> REFrameworkMethodHandle {
         auto t = RETDB(tdb)->find_type(type_name);
 
         if (t == nullptr) {
@@ -431,9 +438,7 @@ REFrameworkTDB g_tdb_data {
     [](REFrameworkTDBHandle tdb) { return RETDB(tdb)->get_num_modules(); }
 };
 
-#define REMANAGEDOBJECT(var) ((::REManagedObject*)var)
-
-REFrameworkManagedObject g_managed_object_data {
+constexpr REFrameworkManagedObject g_managed_object_data {
     [](REFrameworkManagedObjectHandle obj) { utility::re_managed_object::add_ref(REMANAGEDOBJECT(obj)); },
     [](REFrameworkManagedObjectHandle obj) { utility::re_managed_object::release(REMANAGEDOBJECT(obj)); },
     [](REFrameworkManagedObjectHandle obj) { return (REFrameworkTypeDefinitionHandle)utility::re_managed_object::get_type_definition(REMANAGEDOBJECT(obj)); },
@@ -447,9 +452,7 @@ REFrameworkManagedObject g_managed_object_data {
     [](REFrameworkManagedObjectHandle obj, const char* name) { return (REFrameworkReflectionMethodHandle)utility::re_managed_object::get_method_desc(REMANAGEDOBJECT(obj), name); },
 };
 
-#define RERESOURCEMGR(var) ((sdk::ResourceManager*)var)
-
-REFrameworkResourceManager g_resource_manager_data {
+constexpr REFrameworkResourceManager g_resource_manager_data {
     [](REFrameworkResourceManagerHandle mgr, const char* type_name, const char* name) -> REFrameworkResourceHandle {
         // NOT a type definition.
         auto t = reframework::get_types()->get(type_name);
@@ -481,9 +484,7 @@ REFrameworkResourceManager g_resource_manager_data {
     }
 };
 
-#define RERESOURCE(var) ((sdk::Resource*)var)
-
-REFrameworkResource g_resource_data {
+constexpr REFrameworkResource g_resource_data {
     [](REFrameworkResourceHandle res) { RERESOURCE(res)->add_ref(); },
     [](REFrameworkResourceHandle res) { RERESOURCE(res)->release(); },
     [](REFrameworkResourceHandle res, const char* type_name) -> REFrameworkManagedObjectHandle {
@@ -501,9 +502,7 @@ REFrameworkResource g_resource_data {
     }
 };
 
-#define RETYPEINFO(var) ((::REType*)var)
-
-REFrameworkTypeInfo g_type_info_data {
+constexpr REFrameworkTypeInfo g_type_info_data {
     [](REFrameworkTypeInfoHandle ti) -> const char* { return RETYPEINFO(ti)->name; },
     [](REFrameworkTypeInfoHandle ti) { return (REFrameworkTypeDefinitionHandle)utility::re_type::get_type_definition(RETYPEINFO(ti)); },
     [](REFrameworkTypeInfoHandle ti) { return utility::re_type::is_clr_type(RETYPEINFO(ti)); },
@@ -528,9 +527,7 @@ REFrameworkTypeInfo g_type_info_data {
     }
 };
 
-#define VMCONTEXT(var) ((sdk::VMContext*)var)
-
-REFrameworkVMContext g_vm_context_data {
+constexpr REFrameworkVMContext g_vm_context_data {
     // has exception
     [](REFrameworkVMContextHandle ctx) { return VMCONTEXT(ctx)->unkPtr->unkPtr != nullptr; },
     [](REFrameworkVMContextHandle ctx) { VMCONTEXT(ctx)->unhandled_exception(); },
@@ -538,21 +535,17 @@ REFrameworkVMContext g_vm_context_data {
     [](REFrameworkVMContextHandle ctx, int32_t old) { VMCONTEXT(ctx)->cleanup_after_exception(old); },
 };
 
-#define REFLMETHOD(var) ((::FunctionDescriptor*)var)
-
-REFrameworkReflectionMethod g_reflection_method_data {
+constexpr REFrameworkReflectionMethod g_reflection_method_data {
     [](REFrameworkReflectionMethodHandle method) -> REFrameworkInvokeMethod {
         return (REFrameworkInvokeMethod)REFLMETHOD(method)->functionPtr;
     }
 };
 
-#define REFLPROP(var) ((::VariableDescriptor*)var)
-
-REFrameworkReflectionProperty g_reflection_prop_data {
+constexpr REFrameworkReflectionProperty g_reflection_prop_data {
     [](REFrameworkReflectionPropertyHandle prop) -> REFrameworkReflectionPropertyMethod {
         return (REFrameworkReflectionPropertyMethod)REFLPROP(prop)->function;
     },
-    [](REFrameworkReflectionPropertyHandle prop) { 
+    [](REFrameworkReflectionPropertyHandle prop) {
         return utility::reflection_property::is_static(REFLPROP(prop));
     },
     [](REFrameworkReflectionPropertyHandle prop) {
@@ -560,9 +553,7 @@ REFrameworkReflectionProperty g_reflection_prop_data {
     }
 };
 
-#define RE_MODULE(x) ((sdk::REModule*)x)
-
-REFrameworkModule g_tdb_module_data {
+constexpr REFrameworkModule g_tdb_module_data {
     .get_major = [](REFrameworkModuleHandle mod) { return RE_MODULE(mod)->get_major(); },
     .get_minor = [](REFrameworkModuleHandle mod) { return RE_MODULE(mod)->get_minor(); },
     .get_build = [](REFrameworkModuleHandle mod) { return RE_MODULE(mod)->get_build(); },
@@ -578,7 +569,7 @@ REFrameworkModule g_tdb_module_data {
     .get_member_references = [](REFrameworkModuleHandle mod) { return (uint32_t*)RE_MODULE(mod)->get_member_references().data(); },
 };
 
-REFrameworkSDKData g_sdk_data {
+constexpr REFrameworkSDKData g_sdk_data {
     &g_sdk_functions,
     &g_tdb_data,
     &g_type_definition_data,
@@ -596,33 +587,46 @@ REFrameworkSDKData g_sdk_data {
 };
 
 REFrameworkPluginInitializeParam g_plugin_initialize_param{
-    nullptr, 
-    &g_plugin_version, 
-    &g_plugin_functions, 
+    nullptr,
+    &g_plugin_version,
+    &g_plugin_functions,
     &reframework::g_renderer_data,
     &g_sdk_data
 };
 
+namespace {
+// Sanity check run once before plugin init: every exposed function pointer must be filled in.
 void verify_sdk_pointers() {
-    auto verify = [](auto& g) {
-        spdlog::info("Verifying...");
+    spdlog::info("Verifying SDK pointers...");
 
-        for (auto i = 0; i < sizeof(g) / sizeof(void*); ++i) {
-            if (((void**)&g)[i] == nullptr) {
-                spdlog::error("SDK pointer is null at index {}", i);
+    auto verify = [](const char* name, const void* const* table, size_t count) {
+        for (size_t i = 0; i < count; ++i) {
+            if (table[i] == nullptr) {
+                spdlog::error("SDK pointer is null in {} at index {}", name, i);
             }
         }
     };
 
-    spdlog::info("Verifying SDK pointers...");
+#define REFRAMEWORK_VERIFY_TABLE(table) verify(#table, reinterpret_cast<const void* const*>(&table), sizeof(table) / sizeof(void*))
 
-    verify(g_managed_object_data);
-    verify(g_sdk_data);
-    verify(g_type_definition_data);
-    verify(g_tdb_method_data);
-    verify(g_tdb_field_data);
-    verify(g_tdb_property_data);
-    verify(g_tdb_data);
+    REFRAMEWORK_VERIFY_TABLE(g_plugin_functions);
+    REFRAMEWORK_VERIFY_TABLE(g_sdk_functions);
+    REFRAMEWORK_VERIFY_TABLE(g_sdk_data);
+    REFRAMEWORK_VERIFY_TABLE(g_tdb_data);
+    REFRAMEWORK_VERIFY_TABLE(g_type_definition_data);
+    REFRAMEWORK_VERIFY_TABLE(g_tdb_method_data);
+    REFRAMEWORK_VERIFY_TABLE(g_tdb_field_data);
+    REFRAMEWORK_VERIFY_TABLE(g_tdb_property_data);
+    REFRAMEWORK_VERIFY_TABLE(g_managed_object_data);
+    REFRAMEWORK_VERIFY_TABLE(g_resource_manager_data);
+    REFRAMEWORK_VERIFY_TABLE(g_resource_data);
+    REFRAMEWORK_VERIFY_TABLE(g_type_info_data);
+    REFRAMEWORK_VERIFY_TABLE(g_vm_context_data);
+    REFRAMEWORK_VERIFY_TABLE(g_reflection_method_data);
+    REFRAMEWORK_VERIFY_TABLE(g_reflection_prop_data);
+
+#undef REFRAMEWORK_VERIFY_TABLE
+}
 }
 
 std::shared_ptr<PluginLoader> PluginLoader::get() {
@@ -649,7 +653,7 @@ void PluginLoader::early_init() try {
     }
 
     spdlog::info("[PluginLoader] Loading plugins...");
-    
+
     // Load all dlls in the plugins directory.
     for (auto&& entry : fs::directory_iterator{plugin_path}) {
         auto&& path = entry.path();
@@ -674,29 +678,18 @@ void PluginLoader::early_init() try {
 }
 
 void PluginLoader::on_frame() {
-    init_d3d_pointers();
+    reframework::update_renderer_data();
 
     if (auto error = initialize_plugins(); error.has_value()) {
         spdlog::error("[PluginLoader] Failed to initialize plugins: {}", error.value());
     }
 }
 
-void PluginLoader::init_d3d_pointers() {
-    // Call reframework_plugin_required_version on any dlls that export it.
-    reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
-    
-    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
-        auto& d3d11 = g_framework->get_d3d11_hook();
+PluginLoader::PluginMap::iterator PluginLoader::unload_plugin(PluginMap::iterator it, const char* reason) {
+    m_plugin_load_errors.emplace(it->first, reason);
+    FreeLibrary(it->second);
 
-        reframework::g_renderer_data.device = d3d11->get_device();
-        reframework::g_renderer_data.swapchain = d3d11->get_swap_chain();
-    } else if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
-        auto& d3d12 = g_framework->get_d3d12_hook();
-
-        reframework::g_renderer_data.device = d3d12->get_device();
-        reframework::g_renderer_data.swapchain = d3d12->get_swap_chain();
-        reframework::g_renderer_data.command_queue = d3d12->get_command_queue();
-    }
+    return m_plugins.erase(it);
 }
 
 std::optional<std::string> PluginLoader::initialize_plugins() {
@@ -713,9 +706,10 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
     g_plugin_initialize_param.reframework_module = g_framework->get_reframework_module();
 
+    // Reject plugins that were built against an incompatible REFramework version.
     for (auto it = m_plugins.begin(); it != m_plugins.end();) {
-        auto name = it->first;
-        auto mod = it->second;
+        const auto name = it->first;
+        const auto mod = it->second;
         auto required_version_fn = (REFPluginRequiredVersionFn)GetProcAddress(mod, "reframework_plugin_required_version");
 
         if (required_version_fn == nullptr) {
@@ -731,9 +725,7 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
             required_version_fn(&required_version);
         } catch(...) {
             spdlog::error("[PluginLoader] {} has an exception in reframework_plugin_required_version, skipping...", name);
-            m_plugin_load_errors.emplace(name, "Exception occurred in reframework_plugin_required_version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = unload_plugin(it, "Exception occurred in reframework_plugin_required_version");
             continue;
         }
 
@@ -742,17 +734,13 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
         if (required_version.major != g_plugin_version.major) {
             spdlog::error("[PluginLoader] Plugin {} requires a different major version", name);
-            m_plugin_load_errors.emplace(name, "Requires a different major version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = unload_plugin(it, "Requires a different major version");
             continue;
         }
 
         if (required_version.minor > g_plugin_version.minor) {
             spdlog::error("[PluginLoader] Plugin {} requires a newer minor version", name);
-            m_plugin_load_errors.emplace(name, "Requires a newer minor version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = unload_plugin(it, "Requires a newer minor version");
             continue;
         }
 
@@ -763,9 +751,7 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
         if (required_version.game_name != nullptr && std::string_view{required_version.game_name} != g_plugin_version.game_name) {
             spdlog::error("[PluginLoader] Plugin {} is for a different game {}", name, required_version.game_name);
-            m_plugin_load_errors.emplace(name, "Is for a different game");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = unload_plugin(it, "Is for a different game");
             continue;
         }
 
@@ -774,8 +760,8 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
     // Call reframework_plugin_initialize on any dlls that export it.
     for (auto it = m_plugins.begin(); it != m_plugins.end();) {
-        auto name = it->first;
-        auto mod = it->second;
+        const auto name = it->first;
+        const auto mod = it->second;
         auto init_fn = (REFPluginInitializeFn)GetProcAddress(mod, "reframework_plugin_initialize");
 
         if (init_fn == nullptr) {
@@ -784,23 +770,19 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
         }
 
         spdlog::info("[PluginLoader] Initializing {}...", name);
+
         try {
-            if (!init_fn(&g_plugin_initialize_param)) {
-                spdlog::error("[PluginLoader] Failed to initialize {}", name);
-                m_plugin_load_errors.emplace(name, "Failed to initialize");
-                FreeLibrary(mod);
-                it = m_plugins.erase(it);
+            if (init_fn(&g_plugin_initialize_param)) {
+                ++it;
                 continue;
             }
+
+            spdlog::error("[PluginLoader] Failed to initialize {}", name);
+            it = unload_plugin(it, "Failed to initialize");
         } catch(...) {
             spdlog::error("[PluginLoader] {} has an exception in reframework_plugin_initialize, skipping...", name);
-            m_plugin_load_errors.emplace(name, "Exception occurred in reframework_plugin_initialize");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
-            continue;
+            it = unload_plugin(it, "Exception occurred in reframework_plugin_initialize");
         }
-
-        ++it;
     }
 
     m_plugins_loaded = true;
@@ -824,91 +806,58 @@ void PluginLoader::on_draw_ui() {
             ImGui::Text("No plugins loaded.");
         }
 
-        if (!m_plugin_load_errors.empty()) {
-            ImGui::Spacing();
-            ImGui::Text("Errors:");
-            for (auto&& [name, error] : m_plugin_load_errors) {
-                ImGui::Text("%s - %s", name.c_str(), error.c_str());
+        auto draw_entries = [](const char* label, const auto& entries) {
+            if (entries.empty()) {
+                return;
             }
-        }
 
-        if (!m_plugin_load_warnings.empty()) {
             ImGui::Spacing();
-            ImGui::Text("Warnings:");
-            for (auto&& [name, warning] : m_plugin_load_warnings) {
-                ImGui::Text("%s - %s", name.c_str(), warning.c_str());
+            ImGui::Text("%s:", label);
+
+            for (auto&& [name, text] : entries) {
+                ImGui::Text("%s - %s", name.c_str(), text.c_str());
             }
-        }
+        };
+
+        draw_entries("Errors", m_plugin_load_errors);
+        draw_entries("Warnings", m_plugin_load_warnings);
     }
 }
 
-/// <summary>
-/// Request the creation of a separate script state from the main script state
-/// </summary>
-/// <returns>the lua state of the new script state</returns>
-lua_State* reframework_create_script_state() {
-    return ScriptRunner::get()->create_state();
+namespace {
+// Ignores a null plugin callback, otherwise registers it through APIProxy.
+template <typename TCb>
+bool add_api_callback(TCb cb, bool (APIProxy::*add)(TCb)) {
+    return cb != nullptr && (APIProxy::get().get()->*add)(cb);
 }
-/// <summary>
-/// Request the destruction of the script_state belonging to the lua state in question
-/// </summary>
-void reframework_destroy_script_state(lua_State* lua_state) {
-    ScriptRunner::get()->delete_state(lua_state);
 }
 
 bool reframework_on_lua_state_created(REFLuaStateCreatedCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_lua_state_created(cb);
+    return add_api_callback(cb, &APIProxy::add_on_lua_state_created);
 }
 
 bool reframework_on_lua_state_destroyed(REFLuaStateDestroyedCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
-
-
-    return APIProxy::get()->add_on_lua_state_destroyed(cb);
+    return add_api_callback(cb, &APIProxy::add_on_lua_state_destroyed);
 }
 
-
-
 bool reframework_on_present(REFOnPresentCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_present(cb);
+    return add_api_callback(cb, &APIProxy::add_on_present);
 }
 
 bool reframework_on_pre_application_entry(const char* name, REFOnPreApplicationEntryCb cb) {
-    if (cb == nullptr || name == nullptr) {
+    if (cb == nullptr || name == nullptr || *name == '\0') {
         return false;
     }
 
-    auto cppname = std::string{name};
-
-    if (cppname.empty()) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_pre_application_entry(cppname, cb);
+    return APIProxy::get()->add_on_pre_application_entry(name, cb);
 }
 
 bool reframework_on_post_application_entry(const char* name, REFOnPostApplicationEntryCb cb) {
-    if (cb == nullptr || name == nullptr) {
+    if (cb == nullptr || name == nullptr || *name == '\0') {
         return false;
     }
 
-    auto cppname = std::string{name};
-
-    if (cppname.empty()) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_post_application_entry(cppname, cb);
+    return APIProxy::get()->add_on_post_application_entry(name, cb);
 }
 
 void reframework_lock_lua() {
@@ -920,46 +869,41 @@ void reframework_unlock_lua() {
 }
 
 bool reframework_on_device_reset(REFOnDeviceResetCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_device_reset(cb);
+    return add_api_callback(cb, &APIProxy::add_on_device_reset);
 }
 
 bool reframework_on_message(REFOnMessageCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_message(cb);
+    return add_api_callback(cb, &APIProxy::add_on_message);
 }
 
 bool reframework_on_imgui_frame(REFOnImGuiFrameCb cb) {
     if (cb == nullptr) {
         return false;
     }
-    
-    PluginLoader::get()->init_d3d_pointers();
+
+    reframework::update_renderer_data();
 
     return APIProxy::get()->add_on_imgui_frame(cb);
 }
 
-
-bool reframework_on_imgui_draw_ui(REFOnImGuiFrameCb cb) {
+bool reframework_on_imgui_draw_ui(REFOnImGuiDrawUICb cb) {
     if (cb == nullptr) {
         return false;
     }
 
-    PluginLoader::get()->init_d3d_pointers();
+    reframework::update_renderer_data();
 
     return APIProxy::get()->add_on_imgui_draw_ui(cb);
 }
 
 bool reframework_on_pre_gui_draw_element(REFOnPreGuiDrawElementCb cb) {
-    if (cb == nullptr) {
-        return false;
-    }
+    return add_api_callback(cb, &APIProxy::add_on_pre_gui_draw_element);
+}
 
-    return APIProxy::get()->add_on_pre_gui_draw_element(cb);
+lua_State* reframework_create_script_state() {
+    return ScriptRunner::get()->create_state();
+}
+
+void reframework_destroy_script_state(lua_State* lua_state) {
+    ScriptRunner::get()->delete_state(lua_state);
 }

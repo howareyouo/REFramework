@@ -25,10 +25,15 @@ lua_State* reframework_create_script_state();
 void reframework_destroy_script_state(lua_State*);
 namespace reframework {
 extern REFrameworkRendererData g_renderer_data;
+
+// Refreshes the renderer info (device/swapchain/etc.) exposed to plugins.
+void update_renderer_data();
 }
 
 class PluginLoader : public Mod {
 public:
+    using PluginMap = std::map<std::string, HMODULE>;
+
     static std::shared_ptr<PluginLoader> get();
 
     // This is called prior to most REFramework initialization so that all plugins are at least **loaded** early on. REFramework plugin
@@ -39,14 +44,15 @@ public:
     std::optional<std::string> initialize_plugins();
     void on_frame() override;
     void on_draw_ui() override;
-    
-    void init_d3d_pointers();
-    
+
 private:
+    // Records why a plugin failed and unloads it. Returns the iterator following the removed plugin.
+    PluginMap::iterator unload_plugin(PluginMap::iterator it, const char* reason);
+
     bool m_plugins_loaded{false};
 
     std::mutex m_mux{};
-    std::map<std::string, HMODULE> m_plugins{};
+    PluginMap m_plugins{};
     std::map<std::string, std::string> m_plugin_load_errors{};
     std::map<std::string, std::string> m_plugin_load_warnings{};
 };
