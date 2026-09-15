@@ -2488,8 +2488,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -2657,8 +2655,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -4791,8 +4787,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -4960,8 +4954,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -5129,8 +5121,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -8247,8 +8237,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -8416,8 +8404,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -9569,8 +9555,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -10720,8 +10704,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -11873,8 +11855,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -13026,8 +13006,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -14179,8 +14157,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -15332,8 +15308,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -16485,8 +16459,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -17638,8 +17610,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
@@ -18791,8 +18761,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/utility/d3d12/ComPtr.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
-		"src/utility/d3d12/ResourceCopier.cpp"
-		"src/utility/d3d12/ResourceCopier.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
 	)
