@@ -48,5 +48,12 @@ struct CommandContext {
     bool warned_list_closed{false};
 
     std::wstring internal_name{L"CommandContext object"};
+
+private:
+    // True when the command list may be recorded into; otherwise warns once per
+    // "closed list" streak and returns false.
+    bool ensure_recording();
+    // Resets allocator + list so recording can resume; false if either failed.
+    bool reopen_list();
 };
 }

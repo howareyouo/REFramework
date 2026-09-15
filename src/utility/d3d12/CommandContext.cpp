@@ -7,6 +7,33 @@
 #include "CommandContext.hpp"
 
 namespace d3d12 {
+namespace {
+D3D12_RESOURCE_BARRIER make_transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = resource;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = before;
+    barrier.Transition.StateAfter = after;
+    return barrier;
+}
+
+void record_copy_barriers(
+    ID3D12GraphicsCommandList* cmd_list,
+    ID3D12Resource* src, ID3D12Resource* dst,
+    D3D12_RESOURCE_STATES src_before, D3D12_RESOURCE_STATES src_after,
+    D3D12_RESOURCE_STATES dst_before, D3D12_RESOURCE_STATES dst_after)
+{
+    const D3D12_RESOURCE_BARRIER barriers[2]{
+        make_transition(src, src_before, src_after),
+        make_transition(dst, dst_before, dst_after),
+    };
+
+    cmd_list->ResourceBarrier(2, barriers);
+}
+}
+
 bool CommandContext::setup(const wchar_t* name) {
     std::scoped_lock _{this->mtx};
 
@@ -19,26 +46,28 @@ bool CommandContext::setup(const wchar_t* name) {
     this->cmd_list.Reset();
     this->fence.Reset();
 
-    if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&this->cmd_allocator)))) {
-        spdlog::error("[d3d12] Failed to create command allocator for {}", utility::narrow(name));
+    const auto fail = [&](const char* what) {
+        spdlog::error("[d3d12] Failed to create {} for {}", what, utility::narrow(name));
         return false;
+    };
+
+    if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&this->cmd_allocator)))) {
+        return fail("command allocator");
     }
 
     this->cmd_allocator->SetName(name);
 
     if (FAILED(device->CreateCommandList(
             0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->cmd_allocator.Get(), nullptr, IID_PPV_ARGS(&this->cmd_list)))) {
-        spdlog::error("[d3d12] Failed to create command list for {}", utility::narrow(name));
-        return false;
+        return fail("command list");
     }
-    
+
     this->cmd_list->SetName(name);
     this->list_open = true;
     this->warned_list_closed = false;
 
     if (FAILED(device->CreateFence(this->fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->fence)))) {
-        spdlog::error("[d3d12] Failed to create fence for {}", utility::narrow(name));
-        return false;
+        return fail("fence");
     }
 
     this->fence->SetName(name);
@@ -57,7 +86,6 @@ bool CommandContext::setup(const wchar_t* name) {
 void CommandContext::reset() {
     std::scoped_lock _{this->mtx};
     this->wait(2000);
-    //this->on_post_present(VR::get().get());
 
     this->cmd_allocator.Reset();
     this->cmd_list.Reset();
@@ -71,21 +99,43 @@ void CommandContext::reset() {
     this->list_open = true;
 }
 
+bool CommandContext::reopen_list() {
+    const bool ok = SUCCEEDED(this->cmd_allocator->Reset()) &&
+        SUCCEEDED(this->cmd_list->Reset(this->cmd_allocator.Get(), nullptr));
+
+    if (ok) {
+        this->list_open = true;
+        this->warned_list_closed = false;
+    }
+
+    return ok;
+}
+
+bool CommandContext::ensure_recording() {
+    if (this->cmd_list != nullptr && this->list_open) {
+        return true;
+    }
+
+    if (!this->warned_list_closed) {
+        spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
+        this->warned_list_closed = true;
+    }
+
+    return false;
+}
+
 void CommandContext::wait(uint32_t ms) {
     std::scoped_lock _{this->mtx};
 
-	if (this->fence_event && this->waiting_for_fence) {
-        // Only reclaim the allocator/list once the GPU has actually finished
-        // with them. On timeout the fence hasn't been signaled yet, so resetting
-        // now would be undefined behavior (the GPU may still be executing the
-        // recorded commands); keep waiting_for_fence set so the next wait retries.
-        // Batch1 fast path: query the fence before blocking — in the common case
-        // the GPU signaled long ago and we skip the WaitForSingleObject syscall
-        // entirely (the present thread calls this every frame).
+    if (this->fence_event && this->waiting_for_fence) {
+        // Only reclaim the allocator/list once the GPU has actually finished with
+        // them: on timeout the fence isn't signaled yet, so resetting now would be
+        // undefined behavior. Keeping waiting_for_fence set makes the next wait()
+        // retry instead. Fast path: the fence was usually signaled long ago, so
+        // query it first and skip the WaitForSingleObject syscall (this runs every
+        // frame from the present thread).
         if (this->fence == nullptr || this->fence->GetCompletedValue() < this->fence_value) {
-            auto wait_result = WaitForSingleObject(this->fence_event, ms);
-
-            if (wait_result != WAIT_OBJECT_0) {
+            if (WaitForSingleObject(this->fence_event, ms) != WAIT_OBJECT_0) {
                 spdlog::error("[d3d12] Timed out waiting for fence on {}", utility::narrow(this->internal_name));
                 return;
             }
@@ -94,35 +144,19 @@ void CommandContext::wait(uint32_t ms) {
         ResetEvent(this->fence_event);
         this->waiting_for_fence = false;
 
-        // Only mark the list open again if BOTH resets actually succeeded.
-        // After a device removal / GPU fault these calls fail while the fence
-        // reports completion — blindly setting list_open=true here made us
-        // record into a broken list and retry Close() (spamming errors) every
-        // frame forever.
-        const bool allocator_reset_ok = SUCCEEDED(this->cmd_allocator->Reset());
-        const bool list_reset_ok = SUCCEEDED(this->cmd_list->Reset(this->cmd_allocator.Get(), nullptr));
-
-        if (!allocator_reset_ok || !list_reset_ok) {
+        // After a device removal / GPU fault these resets fail while the fence
+        // reports completion; reopening the list unconditionally there made us
+        // record into a broken list and retry Close() every frame forever.
+        if (!this->reopen_list()) {
             spdlog::error("[d3d12] Failed to reset command allocator/list for {}", utility::narrow(this->internal_name));
-        } else {
-            this->list_open = true;
-            this->warned_list_closed = false;
         }
 
         this->has_commands = false;
     } else if (!this->list_open && this->cmd_list != nullptr) {
-        // Recovery branch: the list is stuck in a closed state with no pending
-        // fence (e.g. after a failed Close()). Without this, wait() would
-        // never touch it again (nothing to wait on) and the context would stay
-        // dead forever. Try to reopen it for future recording.
-        const bool recover_ok = SUCCEEDED(this->cmd_allocator->Reset()) &&
-            SUCCEEDED(this->cmd_list->Reset(this->cmd_allocator.Get(), nullptr));
-
-        if (recover_ok) {
-            this->list_open = true;
-            this->warned_list_closed = false;
-        }
-
+        // Recovery branch: the list is stuck closed with no pending fence
+        // (e.g. after a failed Close()). There is nothing to wait on, so without
+        // this the context would stay dead forever.
+        this->reopen_list();
         this->has_commands = false;
     }
 }
@@ -135,51 +169,20 @@ void CommandContext::copy(ID3D12Resource* src, ID3D12Resource* dst, D3D12_RESOUR
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_recording()) {
         return;
     }
 
-    // Switch src into copy source.
-    D3D12_RESOURCE_BARRIER src_barrier{};
+    // Switch src into copy source and dst into copy destination, copy, switch back.
+    record_copy_barriers(this->cmd_list.Get(), src, dst,
+        src_state, D3D12_RESOURCE_STATE_COPY_SOURCE,
+        dst_state, D3D12_RESOURCE_STATE_COPY_DEST);
 
-    src_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    src_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    src_barrier.Transition.pResource = src;
-    src_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    src_barrier.Transition.StateBefore = src_state;
-    src_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-
-    // Switch dst into copy destination.
-    D3D12_RESOURCE_BARRIER dst_barrier{};
-    dst_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    dst_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    dst_barrier.Transition.pResource = dst;
-    dst_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    dst_barrier.Transition.StateBefore = dst_state;
-    dst_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-
-    {
-        D3D12_RESOURCE_BARRIER barriers[2]{src_barrier, dst_barrier};
-        this->cmd_list->ResourceBarrier(2, barriers);
-    }
-
-    // Copy the resource.
     this->cmd_list->CopyResource(dst, src);
 
-    // Switch back to present.
-    src_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    src_barrier.Transition.StateAfter = src_state;
-    dst_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    dst_barrier.Transition.StateAfter = dst_state;
-
-    {
-        D3D12_RESOURCE_BARRIER barriers[2]{src_barrier, dst_barrier};
-        this->cmd_list->ResourceBarrier(2, barriers);
-    }
+    record_copy_barriers(this->cmd_list.Get(), src, dst,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, src_state,
+        D3D12_RESOURCE_STATE_COPY_DEST, dst_state);
 
     this->has_commands = true;
 }
@@ -192,39 +195,14 @@ void CommandContext::copy_region(ID3D12Resource* src, ID3D12Resource* dst, D3D12
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_recording()) {
         return;
     }
 
-    // Switch src into copy source.
-    D3D12_RESOURCE_BARRIER src_barrier{};
+    record_copy_barriers(this->cmd_list.Get(), src, dst,
+        src_state, D3D12_RESOURCE_STATE_COPY_SOURCE,
+        dst_state, D3D12_RESOURCE_STATE_COPY_DEST);
 
-    src_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    src_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    src_barrier.Transition.pResource = src;
-    src_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    src_barrier.Transition.StateBefore = src_state;
-    src_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-
-    // Switch dst into copy destination.
-    D3D12_RESOURCE_BARRIER dst_barrier{};
-    dst_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    dst_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    dst_barrier.Transition.pResource = dst;
-    dst_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    dst_barrier.Transition.StateBefore = dst_state;
-    dst_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-
-    {
-        D3D12_RESOURCE_BARRIER barriers[2]{src_barrier, dst_barrier};
-        this->cmd_list->ResourceBarrier(2, barriers);
-    }
-
-    // Copy the resource.
     D3D12_TEXTURE_COPY_LOCATION src_loc{};
     src_loc.pResource = src;
     src_loc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -237,16 +215,9 @@ void CommandContext::copy_region(ID3D12Resource* src, ID3D12Resource* dst, D3D12
 
     this->cmd_list->CopyTextureRegion(&dst_loc, 0, 0, 0, &src_loc, src_box);
 
-    // Switch back to present.
-    src_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    src_barrier.Transition.StateAfter = src_state;
-    dst_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    dst_barrier.Transition.StateAfter = dst_state;
-
-    {
-        D3D12_RESOURCE_BARRIER barriers[2]{src_barrier, dst_barrier};
-        this->cmd_list->ResourceBarrier(2, barriers);
-    }
+    record_copy_barriers(this->cmd_list.Get(), src, dst,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, src_state,
+        D3D12_RESOURCE_STATE_COPY_DEST, dst_state);
 
     this->has_commands = true;
 }
@@ -263,22 +234,11 @@ void CommandContext::transition(ID3D12Resource* dst, D3D12_RESOURCE_STATES befor
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_recording()) {
         return;
     }
 
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = dst;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = before_state;
-    barrier.Transition.StateAfter = after_state;
-
+    const auto barrier = make_transition(dst, before_state, after_state);
     this->cmd_list->ResourceBarrier(1, &barrier);
     this->has_commands = true;
 }
@@ -291,39 +251,23 @@ void CommandContext::clear_rtv(ID3D12Resource* dst, D3D12_CPU_DESCRIPTOR_HANDLE 
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_recording()) {
         return;
     }
 
-    // Switch dst into copy destination.
-    D3D12_RESOURCE_BARRIER dst_barrier{};
-    dst_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    dst_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    dst_barrier.Transition.pResource = dst;
-    dst_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    dst_barrier.Transition.StateBefore = dst_state;
-    dst_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
     // No need to switch if we're already in the right state.
-    if (dst_state != dst_barrier.Transition.StateAfter) {
-        D3D12_RESOURCE_BARRIER barriers[1]{dst_barrier};
-        this->cmd_list->ResourceBarrier(1, barriers);
+    const bool needs_transition = dst_state != D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    if (needs_transition) {
+        const auto barrier = make_transition(dst, dst_state, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        this->cmd_list->ResourceBarrier(1, &barrier);
     }
 
-    // Clear the resource.
     this->cmd_list->ClearRenderTargetView(rtv, color, 0, nullptr);
 
-    // Switch back to present.
-    dst_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    dst_barrier.Transition.StateAfter = dst_state;
-
-    if (dst_state != dst_barrier.Transition.StateBefore) {
-        D3D12_RESOURCE_BARRIER barriers[1]{dst_barrier};
-        this->cmd_list->ResourceBarrier(1, barriers);
+    if (needs_transition) {
+        const auto barrier = make_transition(dst, D3D12_RESOURCE_STATE_RENDER_TARGET, dst_state);
+        this->cmd_list->ResourceBarrier(1, &barrier);
     }
 
     this->has_commands = true;
@@ -339,7 +283,7 @@ void CommandContext::clear_rtv(d3d12::TextureContext& tex, const float* color, D
 
 void CommandContext::execute() {
     std::scoped_lock _{this->mtx};
-    
+
     if (this->has_commands) {
         if (FAILED(this->cmd_list->Close())) {
             // Anti-spam: log once per streak, then drop the recorded state so
@@ -355,7 +299,7 @@ void CommandContext::execute() {
         }
 
         this->list_open = false;
-        
+
         auto command_queue = g_framework->get_d3d12_hook()->get_command_queue();
         ID3D12CommandList* const cmd_lists[] = {this->cmd_list.Get()};
         command_queue->ExecuteCommandLists(1, cmd_lists);
