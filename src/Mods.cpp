@@ -31,7 +31,10 @@ Mods::Mods() {
     m_mods.emplace_back(MethodDatabase::get());
     m_mods.emplace_back(Hooks::get());
     m_mods.emplace_back(LooseFileLoader::get());
+
+#if defined(MHWILDS)
     m_mods.emplace_back(FaultyFileDetector::get());
+#endif
 
     m_mods.emplace_back(TemporalUpscaler::get());
 
