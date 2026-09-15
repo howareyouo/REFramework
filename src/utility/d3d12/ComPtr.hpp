@@ -1,6 +1,6 @@
 #pragma once
 
-#include <wrl.h>
+#include <wrl/client.h>
 
 namespace d3d12 {
 template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
