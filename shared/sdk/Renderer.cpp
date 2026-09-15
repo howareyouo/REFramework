@@ -1,4 +1,11 @@
 #include <algorithm>
+#include <array>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <spdlog/spdlog.h>
 
@@ -12,12 +19,34 @@
 
 #include "Renderer.hpp"
 
+namespace sdk {
+namespace renderer {
 namespace detail {
+// ---------------------------------------------------------------------------
+// Engine function/vtable lookups.
+//
+// Everything in this block runs once, lazily, on the first call that needs it -
+// never on a per-frame path. The engine functions are mostly found by scanning
+// for a string they reference and then resolving one of the CALL instructions
+// around it, so these helpers hold the variations of that recipe and each
+// engine function only has to say which string and which call it wants.
+// ---------------------------------------------------------------------------
 using AddSceneViewFn = void (*)(void*);
-AddSceneViewFn get_add_scene_view() {
-    static void (*add_scene_view_fn)(void*) = nullptr;
 
-    if (add_scene_view_fn == nullptr) {
+// Scans for `pattern` and resolves the call target at `call_offset` in it.
+template <typename Fn>
+Fn find_fn_from_sig(std::string_view pattern, size_t call_offset) {
+    const auto ref = utility::scan(utility::get_executable(), std::string{pattern});
+
+    if (!ref) {
+        return nullptr;
+    }
+
+    return (Fn)utility::calculate_absolute(*ref + call_offset);
+}
+
+AddSceneViewFn get_add_scene_view() {
+    static const auto add_scene_view_fn = []() -> AddSceneViewFn {
         spdlog::info("[Renderer] Finding add_scene_view_fn");
 
         /*
@@ -37,119 +66,435 @@ AddSceneViewFn get_add_scene_view() {
         // String refs in the function containing this pattern:
         // L"Renderer::DelayEndTask"
         // L"Renderer::DelayReleaseTask"
-        const auto mod = utility::get_executable();
-        auto ref = utility::scan(mod, "4C 8D 05 ? ? ? ? 48 8D ? ? 48 8D ? 08 E8 ? ? ? ? 48 ? ? FF 15");
+        const auto fn = find_fn_from_sig<AddSceneViewFn>("4C 8D 05 ? ? ? ? 48 8D ? ? 48 8D ? 08 E8 ? ? ? ? 48 ? ? FF 15", 3);
 
-        if (!ref) {
+        if (fn == nullptr) {
             spdlog::error("[Renderer] Failed to find add_scene_view_fn");
             return nullptr;
         }
 
-        add_scene_view_fn = (decltype(add_scene_view_fn))utility::calculate_absolute(*ref + 3);
+        spdlog::info("[Renderer] add_scene_view_fn: {:x}", (uintptr_t)fn);
 
-        spdlog::info("[Renderer] add_scene_view_fn: {:x}", (uintptr_t)add_scene_view_fn);
-    }
+        return fn;
+    }();
 
     return add_scene_view_fn;
 }
+
+// Follows the jmp thunk that some engine versions put in front of native
+// methods. With `scan_instructions` > 0 the jmp is also looked for further into
+// the function, for thunks that have some setup before jumping.
+void* resolve_jmp(void* fn, size_t scan_instructions = 0) {
+    if (fn == nullptr) {
+        return nullptr;
+    }
+
+    if (((uint8_t*)fn)[0] == 0xE9) {
+        return (void*)utility::calculate_absolute((uintptr_t)fn + 1);
+    }
+
+    if (scan_instructions == 0) {
+        return fn;
+    }
+
+    const auto jmp = utility::scan_opcode((uintptr_t)fn, scan_instructions, 0xE9);
+
+    if (!jmp) {
+        return fn;
+    }
+
+    return (void*)utility::calculate_absolute(*jmp + 1);
 }
 
-namespace sdk {
-namespace renderer {
+// Walks `call_index` CALL instructions (1-based) forward from the instruction
+// that references `needle` and resolves the target of the last one. The
+// RenderContext functions all live that many calls behind one of their strings.
+template <typename Fn>
+Fn find_fn_after_string_ref(std::string_view name, std::string_view needle, size_t call_index, bool needle_is_standalone = false) {
+    spdlog::info("[{}] Searching for {}", name, name);
+
+    const auto game = utility::get_executable();
+    std::optional<uintptr_t> string_data{};
+
+    if (needle_is_standalone) {
+        // The string can also be part of a longer one, only accept the copy that
+        // starts right after a NUL byte.
+        const auto all_strings = utility::scan_strings(game, std::string{needle}, true);
+
+        if (all_strings.empty()) {
+            spdlog::error("[{}] Failed to find {} strings", name, needle);
+            return nullptr;
+        }
+
+        for (const auto& str : all_strings) {
+            if (*(uint8_t*)(str - 1) == 0) {
+                string_data = str;
+                break;
+            }
+        }
+
+        if (!string_data) {
+            spdlog::error("[{}] Failed to find correct {} string", name, needle);
+            return nullptr;
+        }
+    } else {
+        string_data = utility::scan_string(game, std::string{needle});
+
+        if (!string_data) {
+            spdlog::error("[{}] Failed to find {} string", name, needle);
+            return nullptr;
+        }
+    }
+
+    const auto string_ref = utility::scan_displacement_reference(game, *string_data);
+
+    if (!string_ref) {
+        spdlog::error("[{}] Failed to find {} reference", name, needle);
+        return nullptr;
+    }
+
+    std::optional<uintptr_t> call{};
+    uintptr_t current_ip{*string_ref + 4};
+
+    for (size_t i = 0; i < call_index; ++i) {
+        call = utility::scan_mnemonic(current_ip, 100, "CALL");
+
+        if (!call) {
+            spdlog::error("[{}] Failed to find next CALL instruction", name);
+            return nullptr;
+        }
+
+        current_ip = *call + 5;
+    }
+
+    const auto result = utility::resolve_displacement(*call);
+
+    if (!result) {
+        spdlog::error("[{}] Failed to resolve displacement", name);
+        return nullptr;
+    }
+
+    spdlog::info("[{}] Found {} at {:x}", name, name, *result);
+
+    return (Fn)*result;
+}
+
+// Resolves the instruction that references `needle`.
+template <typename Str>
+std::optional<uintptr_t> find_string_ref(std::string_view what, const Str& needle, bool zero_terminated = false) {
+    const auto game = utility::get_executable();
+    const auto string = utility::scan_string(game, needle, zero_terminated);
+
+    if (!string) {
+        spdlog::error("Failed to find {} (no string)", what);
+        return std::nullopt;
+    }
+
+    const auto string_ref = utility::scan_displacement_reference(game, *string);
+
+    if (!string_ref) {
+        spdlog::error("Failed to find {} (no string ref)", what);
+        return std::nullopt;
+    }
+
+    return string_ref;
+}
+
+// Scans backwards from a string reference for the `call_index`-th (1-based) CALL
+// instruction and resolves its target.
+std::optional<uintptr_t> find_call_behind(std::string_view what, uintptr_t string_ref, size_t call_index, size_t max_instructions) {
+    uintptr_t ip = string_ref;
+    size_t found = 0;
+
+    for (size_t i = 0; i < max_instructions; ++i) {
+        const auto resolved = utility::resolve_instruction(ip);
+
+        if (!resolved) {
+            spdlog::error("Failed to find {} (could not resolve instruction)", what);
+            return std::nullopt;
+        }
+
+        ip = resolved->addr;
+
+        if (*(uint8_t*)ip == 0xE8 && ++found == call_index) {
+            return utility::calculate_absolute(ip + 1);
+        }
+
+        ip -= 1;
+    }
+
+    return std::nullopt;
+}
+
+// Locates one of the engine's resource factories. They are all found the same
+// way: `call_index` CALL instructions before the code that references `needle`.
+template <typename Fn, typename Str>
+Fn find_factory(std::string_view what, const Str& needle, size_t call_index, size_t max_instructions) {
+    spdlog::info("Searching for {}", what);
+
+    const auto string_ref = find_string_ref(what, needle);
+
+    if (!string_ref) {
+        return nullptr;
+    }
+
+    const auto call = find_call_behind(what, *string_ref, call_index, max_instructions);
+
+    if (!call) {
+        return nullptr;
+    }
+
+    spdlog::info("Found {}: {:x}", what, *call);
+
+    return (Fn)*call;
+}
+
+using AddLayerFn = RenderLayer* (*)(RenderLayer*, ::REType*, uint32_t, uint8_t);
+
+// RenderLayer::AddLayer is the most-called function inside addSceneView, so
+// disassemble it and take the call target that shows up the most.
+AddLayerFn find_add_layer_via_disassembly() {
+    auto add_scene_view_fn = get_add_scene_view();
+
+    if (add_scene_view_fn == nullptr) {
+        return nullptr;
+    }
+
+    spdlog::info("[Renderer] Scanning for RenderLayer::AddLayer using disassembler");
+
+    if (const auto resolved = resolve_jmp(add_scene_view_fn, 4); resolved != add_scene_view_fn) {
+        add_scene_view_fn = (decltype(add_scene_view_fn))resolved;
+        spdlog::info("[Renderer] Jmp detected, add_scene_view_fn: {:x}", (uintptr_t)add_scene_view_fn);
+    }
+
+    uintptr_t ip = (uintptr_t)add_scene_view_fn;
+
+    std::unordered_map<uintptr_t, uint32_t> calls;
+    uintptr_t best_call = 0;
+
+    for (auto i = 0 ; i < 150; ++i) {
+        const auto decoded = utility::decode_one((uint8_t*)ip);
+
+        if (!decoded) {
+            spdlog::error("[Renderer] Failed to decode instruction @ 0x{:x} ({:x})", ip, ip - (uintptr_t)add_scene_view_fn);
+            break;
+        }
+
+        if (std::string_view{decoded->Mnemonic}.starts_with("RET") || std::string_view{decoded->Mnemonic}.starts_with("INT3")) {
+            spdlog::error("[Renderer] Encountering RET or INT3 @ 0x{:x} ({:x})", ip, ip - (uintptr_t)add_scene_view_fn);
+            break;
+        }
+
+        if (*(uint8_t*)ip == 0xE8) {
+            const auto addr = utility::calculate_absolute(ip + 1);
+            calls[addr]++;
+
+            if (best_call != 0) {
+                if (calls[best_call] < calls[addr]) {
+                    best_call = addr;
+                }
+            } else {
+                best_call = addr;
+            }
+
+            if (calls[addr] >= 3) {
+                spdlog::info("[Renderer] Found 3 calls to add_scene_view_fn, stopping scan");
+                break;
+            }
+        }
+
+        ip += decoded->Length;
+    }
+
+    if (best_call == 0) {
+        spdlog::error("[Renderer] Failed to find RenderLayer::AddLayer using a disassembler");
+        return nullptr;
+    }
+
+    spdlog::info("[Renderer] RenderLayer::AddLayer found at {:x}", best_call);
+
+    return (AddLayerFn)best_call;
+}
+
+// Offsets of the members of the renderer object that hold a RenderLayer.
+// Both callers cache the offset themselves, this only does the scan.
+std::optional<size_t> find_render_layer_member_offset(void* renderer) {
+    for (size_t i = 0; i < 0x10000; i += sizeof(void*)) {
+        const auto ptr = *(REManagedObject**)((uintptr_t)renderer + i);
+
+        if (ptr == nullptr) {
+            continue;
+        }
+
+        if (!utility::re_managed_object::is_managed_object(ptr)) {
+            continue;
+        }
+
+        if (utility::re_managed_object::is_a(ptr, "via.render.RenderLayer")) {
+            return i;
+        }
+    }
+
+    return std::nullopt;
+}
+
+// Bruteforces the offset of a member holding an object whose vtable's type info
+// getter (slot 3) returns a RETypeCLR with the name `want_type`. Used for the
+// structures that are not part of the TDB.
+std::optional<size_t> find_type_info_member(void* obj, size_t begin, size_t end, std::string_view want_type, std::string_view log_prefix) {
+    static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
+
+    for (size_t i = begin; i < end; i += sizeof(void*)) try {
+        // Grab vtable.
+        const auto ptr = *(uintptr_t*)((uintptr_t)obj + i);
+
+        if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
+            continue;
+        }
+
+        const auto vtable = *(uintptr_t**)ptr;
+
+        if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
+            continue;
+        }
+
+        const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
+
+        if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
+            continue;
+        }
+
+        if (!utility::get_module_within(get_typeinfo_fn)) {
+            continue;
+        }
+
+        // The generated accessor is a plain "mov rax, [rip+disp32]".
+        if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
+            spdlog::info("[{}] Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", log_prefix, i);
+            continue;
+        }
+
+        const auto type_info = ((sdk::RETypeCLR* (*)())get_typeinfo_fn)();
+
+        if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
+            continue;
+        }
+
+        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
+            continue;
+        }
+
+        const auto type_name = std::string_view{type_info->name};
+
+        if (type_name == want_type) {
+            spdlog::info("[{}] Found {} at offset {:x}", log_prefix, want_type, i);
+            return i;
+        }
+
+        spdlog::info("[{}] Checked offset {:x}, type name: {}", log_prefix, i, type_name);
+    } catch(...) {
+        continue;
+    }
+
+    return std::nullopt;
+}
+
+// via.render.layer.Scene's REType, looked up once.
+::REType* scene_layer_type() {
+    static const auto type = []() -> ::REType* {
+        const auto def = sdk::find_type_definition("via.render.layer.Scene");
+        return def != nullptr ? def->get_type() : nullptr;
+    }();
+
+    return type;
+}
+
+// Visits every direct child layer whose type is exactly `layer_type`. The layer
+// is handed over as it is stored in the parent's array, so the address of its
+// slot can be taken. `fn` returns true to stop the iteration.
+template <typename Fn>
+void for_each_layer_of_type(RenderLayer* self, ::REType* layer_type, Fn&& fn) {
+    for (RenderLayer*& layer : self->get_layers()) {
+        if (layer == nullptr || layer->info == nullptr || layer->info->classInfo == nullptr) {
+            continue;
+        }
+
+        if (utility::re_managed_object::get_type(layer) != layer_type) {
+            continue;
+        }
+
+        if (fn(layer)) {
+            return;
+        }
+    }
+}
+
+// Memoizes the reflection descriptor of a field. Resolving one builds a string
+// and takes a lock, so the per-frame getters must not pay for that every call.
+class FieldRef {
+public:
+    FieldRef(::REType* owner, std::string_view name)
+        : m_owner{owner},
+          m_name{name},
+          m_desc{owner != nullptr ? utility::re_type::get_field_desc(owner, name) : nullptr} {}
+
+    template <typename T>
+    T get(::REManagedObject* obj) const {
+        // Only reuse the descriptor for objects of exactly the cached type,
+        // a derived class may shadow the field.
+        if (m_desc != nullptr && utility::re_managed_object::get_type(obj) == m_owner) {
+            return utility::re_managed_object::get_field<T>(obj, m_desc);
+        }
+
+        return utility::re_managed_object::get_field<T>(obj, m_name);
+    }
+
+private:
+    ::REType* m_owner;
+    std::string_view m_name;
+    VariableDescriptor* m_desc;
+};
+} // namespace detail
+
 RenderLayer* RenderLayer::add_layer(::REType* layer_type, uint32_t priority, uint8_t offset) {
     // can be found inside addSceneView
-    static RenderLayer* (*add_layer_fn)(RenderLayer*, ::REType*, uint32_t, uint8_t) = nullptr;
-    
-    if (add_layer_fn == nullptr) {
+    static const auto add_layer_fn = []() -> detail::AddLayerFn {
         spdlog::info("[Renderer] Finding RenderLayer::AddLayer");
 
         const auto mod = utility::get_executable();
-        
+
         auto ref = utility::scan(mod, "41 B8 00 00 00 05 48 8B F8 E8 ? ? ? ?"); // mov r8d, 5000000h; call add_layer
 
         if (!ref) {
             // Fallback pattern
             ref = utility::scan(mod, "41 B8 00 00 00 05 48 89 C7 E8 ? ? ? ?"); // mov r8d, 5000000h; call add_layer
-
-            if (!ref) {
-                auto add_scene_view_fn = detail::get_add_scene_view();
-
-                if (add_scene_view_fn != nullptr) {
-                    // Use a disassembler to scan through the function
-                    // to find the call to add_scene_view_fn
-                    // the function will be called multiple times, and will be the most called function within AddSceneView
-                    spdlog::info("[Renderer] Scanning for RenderLayer::AddLayer using disassembler");
-                    const auto potential_jmp = utility::scan_opcode((uintptr_t)add_scene_view_fn, 4, 0xE9);
-
-                    if (potential_jmp) {
-                        add_scene_view_fn = (decltype(add_scene_view_fn))utility::calculate_absolute(*potential_jmp + 1);
-                        spdlog::info("[Renderer] Jmp detected, add_scene_view_fn: {:x}", (uintptr_t)add_scene_view_fn);
-                    }
-
-                    uintptr_t ip = (uintptr_t)add_scene_view_fn;
-
-                    std::unordered_map<uintptr_t, uint32_t> calls;
-                    uintptr_t best_call = 0;
-
-                    for (auto i = 0 ; i < 150; ++i) {
-                        const auto decoded = utility::decode_one((uint8_t*)ip);
-
-                        if (!decoded) {
-                            spdlog::error("[Renderer] Failed to decode instruction @ 0x{:x} ({:x})", ip, ip - (uintptr_t)add_scene_view_fn);
-                            break;
-                        }
-
-                        if (std::string_view{decoded->Mnemonic}.starts_with("RET") || std::string_view{decoded->Mnemonic}.starts_with("INT3")) {
-                            spdlog::error("[Renderer] Encountering RET or INT3 @ 0x{:x} ({:x})", ip, ip - (uintptr_t)add_scene_view_fn);
-                            break;
-                        }
-
-                        if (*(uint8_t*)ip == 0xE8) {
-                            const auto addr = utility::calculate_absolute(ip + 1);
-                            calls[addr]++;
-
-                            if (best_call != 0) {
-                                if (calls[best_call] < calls[addr]) {
-                                    best_call = addr;
-                                }
-                            } else {
-                                best_call = addr;
-                            }
-
-                            if (calls[addr] >= 3) {
-                                spdlog::info("[Renderer] Found 3 calls to add_scene_view_fn, stopping scan");
-                                break;
-                            }
-                        }
-
-                        ip += decoded->Length;
-                    }
-
-                    if (best_call != 0) {
-                        spdlog::info("[Renderer] RenderLayer::AddLayer found at {:x}", best_call);
-                        add_layer_fn = (decltype(add_layer_fn))best_call;
-                    } else {
-                        spdlog::error("[Renderer] Failed to find RenderLayer::AddLayer using a disassembler");
-                    }
-                }
-
-                if (!ref && add_layer_fn == nullptr) {
-                    spdlog::error("[Renderer] Failed to find add_layer");
-                    return nullptr;
-                }
-            }
         }
 
-        if (add_layer_fn == nullptr) {
-            add_layer_fn = (decltype(add_layer_fn))utility::calculate_absolute(*ref + 10);
+        if (!ref) {
+            const auto disassembled = detail::find_add_layer_via_disassembly();
 
-            if (add_layer_fn == nullptr || IsBadReadPtr(add_layer_fn, sizeof(add_layer_fn))) {
-                spdlog::error("[Renderer] Failed to calculate add_layer");
+            if (disassembled == nullptr) {
+                spdlog::error("[Renderer] Failed to find add_layer");
                 return nullptr;
             }
+
+            return disassembled;
+        }
+
+        const auto add_layer_fn = (detail::AddLayerFn)utility::calculate_absolute(*ref + 10);
+
+        if (add_layer_fn == nullptr || IsBadReadPtr(add_layer_fn, sizeof(add_layer_fn))) {
+            spdlog::error("[Renderer] Failed to calculate add_layer");
+            return nullptr;
         }
 
         spdlog::info("[Renderer] RenderLayer::AddLayer: {:x}", (uintptr_t)add_layer_fn);
+
+        return add_layer_fn;
+    }();
+
+    if (add_layer_fn == nullptr) {
+        return nullptr;
     }
 
     return add_layer_fn(this, layer_type, priority, offset);
@@ -162,12 +507,12 @@ sdk::NativeArray<RenderLayer*>& RenderLayer::get_layers() {
         spdlog::info("[Renderer] Finding RenderLayer::layers");
 
         const auto root_layer = sdk::renderer::get_root_layer();
-        
+
         if (root_layer == nullptr) {
             spdlog::error("[Renderer] Failed to find root layer");
             throw std::runtime_error("[Renderer] Failed to find root layer");
         }
-        
+
         // Scan through the root layer for a pointer to a RenderLayer object
         for (auto i = 0; i < 0x500; i += sizeof(void*)) {
             auto ptr = *(RenderLayer***)((uintptr_t)root_layer + i);
@@ -199,35 +544,24 @@ sdk::NativeArray<RenderLayer*>& RenderLayer::get_layers() {
 }
 
 RenderLayer** RenderLayer::find_layer(::REType* layer_type) {
-    const auto& layers = get_layers();
+    RenderLayer** out = nullptr;
 
-    for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
+    detail::for_each_layer_of_type(this, layer_type, [&out](RenderLayer*& layer) {
+        out = &layer;
+        return true;
+    });
 
-        const auto t = utility::re_managed_object::get_type(layer);
-
-        if (t == layer_type) {
-            return &layer;
-        }
-    }
-
-    return nullptr;
+    return out;
 }
 
 std::tuple<RenderLayer*, RenderLayer**> RenderLayer::find_layer_recursive(const ::REType* layer_type) {
-    const auto& layers = get_layers();
-
-    for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
+    for (RenderLayer*& layer : get_layers()) {
+        if (layer == nullptr || layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
-        const auto t = utility::re_managed_object::get_type(layer);
-
-        if (t == layer_type) {
-            return std::make_tuple<RenderLayer*, RenderLayer**>(this, &layer);
+        if (utility::re_managed_object::get_type(layer) == layer_type) {
+            return {this, &layer};
         }
 
         if (auto f = layer->find_layer_recursive(layer_type); std::get<0>(f) != nullptr && std::get<1>(f) != nullptr) {
@@ -235,20 +569,20 @@ std::tuple<RenderLayer*, RenderLayer**> RenderLayer::find_layer_recursive(const 
         }
     }
 
-    return std::make_tuple<RenderLayer*, RenderLayer**>(nullptr, nullptr);
+    return {nullptr, nullptr};
 }
 
 std::tuple<RenderLayer*, RenderLayer**> RenderLayer::find_layer_recursive(std::string_view type_name) {
     const auto def = sdk::find_type_definition(type_name);
 
     if (def == nullptr) {
-        return std::make_tuple<RenderLayer*, RenderLayer**>(nullptr, nullptr);
+        return {nullptr, nullptr};
     }
 
     const auto t = def->get_type();
 
     if (t == nullptr) {
-        return std::make_tuple<RenderLayer*, RenderLayer**>(nullptr, nullptr);
+        return {nullptr, nullptr};
     }
 
     return find_layer_recursive(t);
@@ -257,25 +591,16 @@ std::tuple<RenderLayer*, RenderLayer**> RenderLayer::find_layer_recursive(std::s
 std::vector<RenderLayer*> RenderLayer::find_layers(::REType* layer_type) {
     std::vector<RenderLayer*> out{};
 
-    const auto& layers = get_layers();
-
-    for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
-        const auto t = utility::re_managed_object::get_type(layer);
-
-        if (t == layer_type) {
-            out.push_back(layer);
-        }
-    }
+    detail::for_each_layer_of_type(this, layer_type, [&out](RenderLayer*& layer) {
+        out.push_back(layer);
+        return false;
+    });
 
     return out;
 }
 
 std::vector<layer::Scene*> RenderLayer::find_all_scene_layers() {
-    static auto scene_type = sdk::find_type_definition("via.render.layer.Scene")->get_type();
+    const auto scene_type = detail::scene_layer_type();
 
     if (scene_type == nullptr) {
         return {};
@@ -291,61 +616,63 @@ std::vector<layer::Scene*> RenderLayer::find_all_scene_layers() {
 }
 
 std::vector<layer::Scene*> RenderLayer::find_fully_rendered_scene_layers() {
-    auto layers = find_all_scene_layers();
-
-    if (layers.empty()) {
-        return {};
-    }
-
-    std::erase_if(layers, [](auto& layer) {
-        return !layer->is_fully_rendered();
-    });
-
-    std::sort(layers.begin(), layers.end(), [](auto& a, auto& b) {
-        return a->get_view_id() < b->get_view_id();
-    });
-
-    return layers;
+    std::vector<layer::Scene*> out{};
+    find_fully_rendered_scene_layers(out);
+    return out;
 }
 
 void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& out) {
     out.clear();
 
-    static auto scene_type = sdk::find_type_definition("via.render.layer.Scene")->get_type();
+    struct Entry {
+        uint32_t view_id;
+        layer::Scene* scene;
+    };
 
-    if (scene_type == nullptr) {
-        return;
-    }
+    // Reused across calls, so this only allocates on the very first one. The layers are
+    // collected before anything else runs, leaving the tree untouched while the engine getters
+    // further down are called.
+    static thread_local std::vector<Entry> entries{};
+    entries.clear();
 
-    // Single pass straight into the caller's buffer: no intermediate vectors,
-    // no allocations, unlike the by-value overload above.
-    const auto& layers = get_layers();
-
-    for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
-        if (utility::re_managed_object::get_type(layer) == scene_type) {
-            out.push_back((layer::Scene*)layer);
-        }
-    }
-
-    if (out.empty()) {
-        return;
-    }
-
-    std::erase_if(out, [](auto& layer) {
-        return !layer->is_fully_rendered();
+    detail::for_each_layer_of_type(this, detail::scene_layer_type(), [](RenderLayer*& layer) {
+        entries.push_back({0, (layer::Scene*)layer});
+        return false;
     });
 
-    std::sort(out.begin(), out.end(), [](auto& a, auto& b) {
-        return a->get_view_id() < b->get_view_id();
+    std::erase_if(entries, [](Entry& entry) {
+        return !entry.scene->is_fully_rendered();
     });
+
+    // get_view_id() is a reflected function call, so it is fetched once per layer and sorted on,
+    // rather than once per comparison.
+    for (auto& entry : entries) {
+        entry.view_id = entry.scene->get_view_id();
+    }
+
+    // Sorted on the id alone, which is all the previous comparator looked at, so layers sharing
+    // an id still come out in the same order.
+    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+        return a.view_id < b.view_id;
+    });
+
+    out.reserve(entries.size());
+
+    for (const auto& entry : entries) {
+        out.push_back(entry.scene);
+    }
 }
 
 RenderLayer* RenderLayer::get_parent() {
-    return sdk::call_object_func<RenderLayer*>(this, "get_Parent", sdk::get_thread_context(), this);
+    // Cached: call_object_func hashes the method name and takes a lock on every
+    // call, and this is called per frame.
+    static const auto get_parent_method = sdk::find_method_definition("via.render.RenderLayer", "get_Parent");
+
+    if (get_parent_method == nullptr) {
+        return nullptr;
+    }
+
+    return get_parent_method->call<RenderLayer*>(sdk::get_thread_context(), this);
 }
 
 void RenderLayer::set_parent(RenderLayer* layer) {
@@ -448,53 +775,7 @@ void RenderLayer::clone_layers(RenderLayer* other, bool recursive) {
 
 void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_state) {
     using Fn = void (*)(RenderContext*, sdk::renderer::PipelineState*);
-    static Fn set_pipeline_state_fn = []() -> Fn {
-        spdlog::info("[RenderContext::set_pipeline_state] Searching for RenderContext::set_pipeline_state");
-
-        const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "UpdateDepthBlockerState");
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to find UpdateDepthBlockerState string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to find UpdateDepthBlockerState reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        for (size_t i = 0; i < 4; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::set_pipeline_state] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::set_pipeline_state] Found RenderContext::set_pipeline_state at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    static const Fn set_pipeline_state_fn = detail::find_fn_after_string_ref<Fn>("RenderContext::set_pipeline_state", "UpdateDepthBlockerState", 4);
 
     if (set_pipeline_state_fn == nullptr) {
         return;
@@ -502,58 +783,9 @@ void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_st
 
     set_pipeline_state_fn(this, pipeline_state);
 }
-
 void RenderContext::dispatch_ray(uint32_t tgx, uint32_t tgy, uint32_t tgz, Fence& fence) {
     using Fn = void (*)(RenderContext*, uint32_t, uint32_t, uint32_t, Fence*);
-    static auto func = []() -> Fn {
-        spdlog::info("[RenderContext::dispatch_ray] Searching for RenderContext::dispatch_ray");
-
-        const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "PathSpaceRayTracing");
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to find PathSpaceRayTracing string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to find PathSpaceRayTracing reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        // fifth: RenderResource::release
-        // sixth: RenderContext::dispatch_ray
-        for (size_t i = 0; i < 6; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::dispatch_ray] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::dispatch_ray] Found RenderContext::dispatch_ray at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    static const Fn func = detail::find_fn_after_string_ref<Fn>("RenderContext::dispatch_ray", "PathSpaceRayTracing", 6);
 
     if (func == nullptr) {
         return;
@@ -564,55 +796,7 @@ void RenderContext::dispatch_ray(uint32_t tgx, uint32_t tgy, uint32_t tgz, Fence
 
 void RenderContext::dispatch_32bit_constant(uint32_t tgx, uint32_t tgy, uint32_t tgz, uint32_t constant, bool disable_uav_barrier) {
     using Fn = void (*)(RenderContext*, uint32_t, uint32_t, uint32_t, uint32_t, bool);
-    static auto func = []() -> Fn {
-        spdlog::info("[RenderContext::dispatch_32bit_constant] Searching for RenderContext::dispatch_32bit_constant");
-
-        const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "ClearDepthBlockerState");
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find ClearDepthBlockerState string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find ClearDepthBlockerState reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        // fifth: RenderResource::release
-        // sixth: RenderContext::dispatch_32bit_constant
-        for (size_t i = 0; i < 6; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::dispatch_32bit_constant] Found RenderContext::dispatch_32bit_constant at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    static const Fn func = detail::find_fn_after_string_ref<Fn>("RenderContext::dispatch_32bit_constant", "ClearDepthBlockerState", 6);
 
     if (func == nullptr) {
         return;
@@ -623,68 +807,7 @@ void RenderContext::dispatch_32bit_constant(uint32_t tgx, uint32_t tgy, uint32_t
 
 void RenderContext::dispatch(uint32_t tgx, uint32_t tgy, uint32_t tgz, bool disable_uav_barrier) {
     using Fn = void (*)(RenderContext*, uint32_t, uint32_t, uint32_t, bool);
-    static auto func = []() -> Fn {
-        spdlog::info("[RenderContext::dispatch] Searching for RenderContext::dispatch");
-
-        const auto game = utility::get_executable();
-        std::optional<uintptr_t> string_data{};
-        const auto all_strings = utility::scan_strings(game, "Reconstruct", true); // part of path space filter routine
-
-        if (all_strings.empty()) {
-            spdlog::error("[RenderContext::dispatch] Failed to find Reconstruct strings");
-            return nullptr;
-        }
-
-        for (const auto& str : all_strings) {
-            if (*(uint8_t*)(str - 1) == 0) { // Makes sure this string is standalone and not in the middle of another string
-                string_data = str;
-                break;
-            }
-        }
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::dispatch] Failed to find correct Reconstruct string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::dispatch] Failed to find Reconstruct reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        // fifth: RenderResource::release
-        // sixth: RenderContext::dispatch
-        for (size_t i = 0; i < 6; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::dispatch] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::dispatch] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::dispatch] Found RenderContext::dispatch at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    static const Fn func = detail::find_fn_after_string_ref<Fn>("RenderContext::dispatch", "Reconstruct", 6, true);
 
     if (func == nullptr) {
         return;
@@ -696,7 +819,7 @@ void RenderContext::dispatch(uint32_t tgx, uint32_t tgy, uint32_t tgz, bool disa
 sdk::renderer::command::Base* RenderContext::alloc(uint32_t t, uint32_t size) {
     // I am just being very lazy right now and just using a pattern instead of 
     // using copy_texture and scanning through the function for the first call
-    static auto func = []() -> sdk::renderer::command::Base* (*)(RenderContext*, uint32_t, uint32_t) {
+    static const auto func = []() -> sdk::renderer::command::Base* (*)(RenderContext*, uint32_t, uint32_t) {
         spdlog::info("Searching for RenderContext::alloc");
 
         /*
@@ -732,6 +855,10 @@ sdk::renderer::command::Base* RenderContext::alloc(uint32_t t, uint32_t size) {
         return (sdk::renderer::command::Base* (*)(RenderContext*, uint32_t, uint32_t))result;
     }();
 
+    if (func == nullptr) {
+        return nullptr;
+    }
+
     return func(this, t, size);
 }
 
@@ -748,25 +875,14 @@ void RenderContext::clear_rtv(sdk::renderer::RenderTargetView* rtv, float color[
     auto new_command = (command::Clear*)alloc(clear_typeid, sizeof(command::Clear));
 
     if (new_command != nullptr) {
-        const auto protect_frame = get_protect_frame();
-
-        if (rtv->m_render_frame != protect_frame) {
-            rtv->m_render_frame = protect_frame;
-        }
-
         new_command->target = get_render_target();
-
-        if (delay && is_delay_enabled()) {
-            new_command->clear_type = 128;
-        } else {
-            new_command->clear_type = 0;
-        }
-
+        new_command->clear_type = delay && is_delay_enabled() ? 128 : 0;
         new_command->view.rtv = rtv;
         new_command->clear_color[0] = color[0];
         new_command->clear_color[1] = color[1];
         new_command->clear_color[2] = color[2];
         new_command->clear_color[3] = color[3];
+        rtv->m_render_frame = get_protect_frame();
     }
 }
 
@@ -789,38 +905,13 @@ void RenderContext::clear_rtv(sdk::renderer::RenderTargetView* rtv, float color[
 - 0x11 CopyImage
 - 0xD InterleaveNormalDepthHalfWithoutGBuffer
 */
+// In DD2+ there's some extra garbage going on that we don't want to deal with,
+// so the RenderContext::copy_texture function is called directly instead of
+// building a copy command.
 void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
-    // Okay it was actually this simple in older games but it isn't anymore in DD2+
-    // There's some extra garbage going on that I don't want to deal with right now
-    // so will just call the function directly
-/*#if TDB_VER >= 73
-    static const auto copy_texture_typeid = sdk::get_enum_value<uint32_t>("via.render.command.TypeId", "CopyTexture");
-    auto new_command = (command::CopyTexture*)alloc(copy_texture_typeid, sizeof(command::CopyTexture));
-
-    if (new_command != nullptr) {
-        const auto protect_frame = get_protect_frame();
-
-        if (dest->m_render_frame != protect_frame) {
-            dest->m_render_frame = protect_frame;
-        }
-
-        if (src->m_render_frame != protect_frame) {
-            src->m_render_frame = protect_frame;
-        }
-
-        new_command->dst = dest;
-        new_command->src = src;
-        new_command->fence = fence;
-        new_command->dst_subresource = -1;
-        new_command->src_subresource = -1;
-    }
-    
-    return;
-#else*/
-
 #if TDB_VER < 82
     using CopyTexFn = void (*)(RenderContext*, Texture*, Texture*, Fence&);
-    static auto func = []() -> CopyTexFn {
+    static const auto func = []() -> CopyTexFn {
         spdlog::info("Searching for RenderContext::copy_texture");
 
         std::vector<std::string> string_choices {
@@ -832,49 +923,26 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
             "CopyImage",
         };
 
-        const auto game = utility::get_executable();
-
         for (const auto& str_choice : string_choices) {
             spdlog::info("Scanning for string: {}", str_choice);
 
-            const auto string = utility::scan_string(game, str_choice, true);
-
-            if (!string) {
-                spdlog::error("Failed to find copy_texture (no string)");
-                continue;
-            }
-
-            const auto string_ref = utility::scan_displacement_reference(game, *string);
+            const auto string_ref = detail::find_string_ref("copy_texture", str_choice, true);
 
             if (!string_ref) {
-                spdlog::error("Failed to find copy_texture (no string ref)");
                 continue;
             }
 
-            uintptr_t ip = *string_ref;
+            const auto call = detail::find_call_behind("copy_texture", *string_ref, 1, 20);
 
-            for (auto i = 0; i < 20; ++i) {
-                const auto resolved = utility::resolve_instruction(ip);
-
-                if (!resolved) {
-                    spdlog::error("Failed to find copy_texture (could not resolve instruction)");
-                    continue;
-                }
-
-                ip = resolved->addr;
-
-                if (*(uint8_t*)ip == 0xE8) {
-                    const auto result = (CopyTexFn)utility::calculate_absolute(ip + 1);
-
-                    spdlog::info("Found copy_texture: {:x}", (uintptr_t)result);
-                    return result;
-                }
-
-                ip -= 1;
+            if (call) {
+                spdlog::info("Found copy_texture: {:x}", *call);
+                return (CopyTexFn)*call;
             }
         }
 
         spdlog::error("Could not find copy_texture, trying fallback");
+
+        const auto game = utility::get_executable();
 
         // Look for alloc call behind RE_POSTPROCESS_Color
         /*
@@ -902,10 +970,14 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
         return (CopyTexFn)*fn_start;
     }();
 
+    if (func == nullptr) {
+        return;
+    }
+
     func(this, dest, src, fence);
 #else
     using CopyTexFn = void (*)(RenderContext*, Texture*, int32_t, Texture*, int32_t, Fence&);
-    static auto func = []() -> CopyTexFn {
+    static const auto func = []() -> CopyTexFn {
         spdlog::info("Searching for RenderContext::copy_texture (>= TDB82)");
 
         const auto game = utility::get_executable();
@@ -929,15 +1001,18 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
         return (CopyTexFn)*fn_start;
     }();
 
+    if (func == nullptr) {
+        return;
+    }
+
     // src, src_subresource, dst, dst_subresource, fence
     func(this, src, -1, dest, -1, fence);
 #endif
-//#endif
 }
 
 std::optional<uint32_t> Renderer::get_render_frame() const {
-    static auto tdef = sdk::find_type_definition("via.render.Renderer");
-    static auto m = tdef != nullptr ? tdef->get_method("get_RenderFrame") : nullptr;
+    static const auto tdef = sdk::find_type_definition("via.render.Renderer");
+    static const auto m = tdef != nullptr ? tdef->get_method("get_RenderFrame") : nullptr;
 
     if (m == nullptr) {
         return std::nullopt;
@@ -947,8 +1022,8 @@ std::optional<uint32_t> Renderer::get_render_frame() const {
 }
 
 ConstantBuffer* Renderer::get_constant_buffer(std::string_view name) const {
-    static auto tdef = sdk::find_type_definition("via.render.Renderer");
-    static auto t = tdef->get_type();
+    static const auto tdef = sdk::find_type_definition("via.render.Renderer");
+    static const auto t = tdef != nullptr ? tdef->get_type() : nullptr;
     const auto field_desc = utility::re_type::get_field_desc(t, name);
     return utility::re_managed_object::get_field<ConstantBuffer*>((::REManagedObject*)this, field_desc);
 }
@@ -957,67 +1032,64 @@ Renderer* get_renderer() {
     return (Renderer*)sdk::get_native_singleton("via.render.Renderer");
 }
 
+// The rendering entry points are all invoked the same way, through the
+// application's function table.
 void wait_rendering() {
-    static auto wait_rendering_entry = sdk::Application::get()->get_function("WaitRendering");
-
-    return wait_rendering_entry->func(wait_rendering_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("WaitRendering");
+    entry->func(entry->entry);
 }
 
 void begin_rendering() {
-    static auto begin_rendering_entry = sdk::Application::get()->get_function("BeginRendering");
-
-    return begin_rendering_entry->func(begin_rendering_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("BeginRendering");
+    entry->func(entry->entry);
 }
 
 void end_rendering() {
-    static auto end_rendering_entry = sdk::Application::get()->get_function("EndRendering");
-
-    return end_rendering_entry->func(end_rendering_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("EndRendering");
+    entry->func(entry->entry);
 }
 
 void begin_update_primitive() {
-    static auto begin_update_primitive_entry = sdk::Application::get()->get_function("BeginUpdatePrimitive");
-
-    return begin_update_primitive_entry->func(begin_update_primitive_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("BeginUpdatePrimitive");
+    entry->func(entry->entry);
 }
 
 void update_primitive() {
-    static auto update_primitive_entry = sdk::Application::get()->get_function("UpdatePrimitive");
-
-    return update_primitive_entry->func(update_primitive_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("UpdatePrimitive");
+    entry->func(entry->entry);
 }
 
 void end_update_primitive() {
-    static auto end_update_primitive_entry = sdk::Application::get()->get_function("EndUpdatePrimitive");
-
-    return end_update_primitive_entry->func(end_update_primitive_entry->entry);
+    static const auto entry = sdk::Application::get()->get_function("EndUpdatePrimitive");
+    entry->func(entry->entry);
 }
 
 void add_scene_view(void* scene_view) {
-    detail::get_add_scene_view()(scene_view);
+    if (const auto add_scene_view_fn = detail::get_add_scene_view()) {
+        add_scene_view_fn(scene_view);
+    }
 }
 
 void remove_scene_view(void* scene_view) {
-    static void (*remove_scene_view_fn)(void*) = nullptr;
-
-    if (remove_scene_view_fn == nullptr) {
+    static const auto remove_scene_view_fn = []() -> void (*)(void*) {
         spdlog::info("[Renderer] Finding remove_scene_view_fn");
 
         // Almost the same as add_scene_view pattern, is set up right after add_scene_view
-        const auto mod = utility::get_executable();
-        auto ref = utility::scan(mod, "4C 8D 05 ? ? ? ? 48 8D ? ? ? 48 8D ? 28 E8 ? ? ? ? 48 ? ? FF 15");
+        const auto fn = detail::find_fn_from_sig<void (*)(void*)>("4C 8D 05 ? ? ? ? 48 8D ? ? ? 48 8D ? 28 E8 ? ? ? ? 48 ? ? FF 15", 3);
 
-        if (!ref) {
+        if (fn == nullptr) {
             spdlog::error("[Renderer] Failed to find remove_scene_view_fn");
-            return;
+            return nullptr;
         }
 
-        remove_scene_view_fn = (decltype(remove_scene_view_fn))utility::calculate_absolute(*ref + 3);
+        spdlog::info("[Renderer] remove_scene_view_fn: {:x}", (uintptr_t)fn);
 
-        spdlog::info("[Renderer] remove_scene_view_fn: {:x}", (uintptr_t)remove_scene_view_fn);
+        return fn;
+    }();
+
+    if (remove_scene_view_fn != nullptr) {
+        remove_scene_view_fn(scene_view);
     }
-
-    remove_scene_view_fn(scene_view);
 }
 
 RenderLayer* get_root_layer() {
@@ -1039,45 +1111,21 @@ RenderLayer* get_root_layer() {
             spdlog::error("[Renderer] Failed to find getOutputLayer");
 
             // Hacky fix for >= TDB74
-            for (uint32_t i = 0; i < 0x10000; i += sizeof(void*)) {
-                const auto ptr = *(REManagedObject**)((uintptr_t)renderer + i);
+            const auto offset = detail::find_render_layer_member_offset(renderer);
 
-                if (ptr == nullptr) {
-                    continue;
-                }
-
-                if (!utility::re_managed_object::is_managed_object(ptr)) {
-                    continue;
-                }
-
-                if (utility::re_managed_object::is_a(ptr, "via.render.RenderLayer")) {
-                    root_layer_offset = i;
-                    spdlog::info("[Renderer] Found root_layer_offset with fallback: {:x}", root_layer_offset);
-                    return *(RenderLayer**)((uintptr_t)renderer + root_layer_offset);
-                }
+            if (!offset) {
+                spdlog::error("[Renderer] Failed to find root_layer_offset with fallback");
+                return nullptr;
             }
 
-            spdlog::error("[Renderer] Failed to find root_layer_offset with fallback");
+            root_layer_offset = (uint32_t)*offset;
+            spdlog::info("[Renderer] Found root_layer_offset with fallback: {:x}", root_layer_offset);
 
-            return nullptr;
+            return *(RenderLayer**)((uintptr_t)renderer + root_layer_offset);
         }
 
         // Resolve the jmp to the real function
-        if (((uint8_t*)get_output_layer_fn)[0] == 0xE9) {
-            get_output_layer_fn = (decltype(get_output_layer_fn))utility::calculate_absolute((uintptr_t)get_output_layer_fn + 1);
-        } else {
-            // Scan for jump with disassembler
-            spdlog::info("[Renderer] Scanning for getOutputLayer jmp");
-
-            const auto potential_jmp = utility::scan_opcode((uintptr_t)get_output_layer_fn, 10, 0xE9);
-
-            if (potential_jmp) {
-                get_output_layer_fn = (decltype(get_output_layer_fn))utility::calculate_absolute(*potential_jmp + 1);
-                spdlog::info("[Renderer] Found getOutputLayer jmp, new function {:x}", (uintptr_t)get_output_layer_fn);
-            } else {
-                spdlog::info("[Renderer] No jmp found");
-            }
-        }
+        get_output_layer_fn = (decltype(get_output_layer_fn))detail::resolve_jmp(get_output_layer_fn, 10);
 
         spdlog::info("[Renderer] Real getOutputLayer: {:x}", (uintptr_t)get_output_layer_fn);
 
@@ -1121,27 +1169,14 @@ RenderLayer* find_layer(::REType* layer_type) {
     if (layers_offset == 0) {
         spdlog::info("[Renderer] Finding layers_offset");
 
-        for (uint32_t i = 0; i < 0x10000; i += sizeof(void*)) {
-            const auto ptr = *(REManagedObject**)((uintptr_t)renderer + i);
+        const auto offset = detail::find_render_layer_member_offset(renderer);
 
-            if (ptr == nullptr) {
-                continue;
-            }
-
-            if (!utility::re_managed_object::is_managed_object(ptr)) {
-                continue;
-            }
-
-            if (utility::re_managed_object::is_a(ptr, "via.render.RenderLayer")) {
-                layers_offset = i;
-                break;
-            }
-        }
-
-        if (layers_offset == 0) {
+        if (!offset) {
             spdlog::error("[Renderer] Failed to find layers_offset");
             return nullptr;
         }
+
+        layers_offset = (uint32_t)*offset;
 
         spdlog::info("[Renderer] layers_offset: {:x}", layers_offset);
     }
@@ -1149,7 +1184,7 @@ RenderLayer* find_layer(::REType* layer_type) {
     const auto& layers = *(std::array<RenderLayer*, 256>*)((uintptr_t)renderer + layers_offset);
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
+        if (layer == nullptr || layer->info == nullptr || layer->info->classInfo == nullptr) {
             continue;
         }
 
@@ -1171,7 +1206,7 @@ sdk::renderer::layer::Output* get_output_layer() {
         return nullptr;
     }
 
-    static auto get_output_layer_method = renderer_t->get_method("getOutputLayer");
+    static const auto get_output_layer_method = renderer_t->get_method("getOutputLayer");
 
     if (get_output_layer_method == nullptr) {
         auto root = get_root_layer();
@@ -1180,8 +1215,8 @@ sdk::renderer::layer::Output* get_output_layer() {
             return nullptr;
         }
 
-        static auto output_t = sdk::find_type_definition("via.render.layer.Output");
-        static auto output_retype = output_t != nullptr ? output_t->get_type() : nullptr;
+        static const auto output_t = sdk::find_type_definition("via.render.layer.Output");
+        static const auto output_retype = output_t != nullptr ? output_t->get_type() : nullptr;
 
         auto [parent, found] = root->find_layer_recursive(output_retype);
 
@@ -1210,12 +1245,12 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
 
     auto context = sdk::get_thread_context();
 
-    static auto transform_def = sdk::find_type_definition("via.Transform");
-    static auto math_t = sdk::find_type_definition("via.math");
+    static const auto transform_def = sdk::find_type_definition("via.Transform");
+    static const auto math_t = sdk::find_type_definition("via.math");
 
-    static auto get_gameobject_method = transform_def->get_method("get_GameObject");
-    static auto get_axisz_method = transform_def->get_method("get_AxisZ");
-    static auto world_to_screen = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)");
+    static const auto get_gameobject_method = transform_def->get_method("get_GameObject");
+    static const auto get_axisz_method = transform_def->get_method("get_AxisZ");
+    static const auto world_to_screen = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)");
 
     auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
     auto camera_transform = camera_gameobject->transform;
@@ -1263,48 +1298,12 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
 - 0x19 cbGenerateBasePoints
 */
 ConstantBuffer* create_constant_buffer(void* desc) {
-    static auto fn = []() -> ConstantBuffer* (*)(void*, void*) {
-        spdlog::info("Searching for create_constant_buffer");
+    using Fn = ConstantBuffer* (*)(void*, void*);
+    static const auto fn = detail::find_factory<Fn>("create_constant_buffer", "cbTransformBasePoints", 1, 20);
 
-        const auto game = utility::get_executable();
-        const auto string = utility::scan_string(game, "cbTransformBasePoints");
-
-        if (!string) {
-            spdlog::error("Failed to find create_constant_buffer (no string)");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string);
-
-        if (!string_ref) {
-            spdlog::error("Failed to find create_constant_buffer (no string ref)");
-            return nullptr;
-        }
-
-        uintptr_t ip = *string_ref;
-
-        for (auto i = 0; i < 20; ++i) {
-            const auto resolved = utility::resolve_instruction(ip);
-
-            if (!resolved) {
-                spdlog::error("Failed to find create_constant_buffer (could not resolve instruction)");
-                return nullptr;
-            }
-
-            ip = resolved->addr;
-
-            if (*(uint8_t*)ip == 0xE8) {
-                const auto result = (ConstantBuffer* (*)(void*, void*))utility::calculate_absolute(ip + 1);
-
-                spdlog::info("Found create_constant_buffer: {:x}", (uintptr_t)result);
-                return result;
-            }
-
-            ip -= 1;
-        }
-
+    if (fn == nullptr) {
         return nullptr;
-    }();
+    }
 
     return fn(nullptr, desc);
 }
@@ -1327,54 +1326,13 @@ ConstantBuffer* create_constant_buffer(void* desc) {
 - 0x3F CircularDOF_SceneMipTexture
 */
 TargetState* create_target_state(TargetState::Desc* desc) {
-    static auto fn = []() -> TargetState* (*)(void*, TargetState::Desc*) {
-        spdlog::info("Searching for create_target_state");
+    using Fn = TargetState* (*)(void*, TargetState::Desc*);
+    // third call back from this string reference is the one we want
+    static const auto fn = detail::find_factory<Fn>("create_target_state", "CircularDOF_SceneMipTexture", 3, 50);
 
-        const auto game = utility::get_executable();
-        const auto string = utility::scan_string(game, "CircularDOF_SceneMipTexture");
-
-        if (!string) {
-            spdlog::error("Failed to find create_target_state (no string)");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string);
-
-            spdlog::error("Failed to find create_target_state (no string ref)");
-        if (!string_ref) {
-            return nullptr;
-        }
-
-        uintptr_t ip = *string_ref;
-        uint32_t found_count = 0;
-
-        for (auto i = 0; i < 50; ++i) {
-            const auto resolved = utility::resolve_instruction(ip);
-
-            if (!resolved) {
-                spdlog::error("Failed to find create_target_state (could not resolve instruction)");
-                return nullptr;
-            }
-
-            ip = resolved->addr;
-
-            if (*(uint8_t*)ip == 0xE8) {
-                ++found_count;
-            }
-
-            // third call back from this string reference is the one we want
-            if (*(uint8_t*)ip == 0xE8 && found_count == 3) {
-                const auto result = (TargetState* (*)(void*, TargetState::Desc*))utility::calculate_absolute(ip + 1);
-
-                spdlog::info("Found create_target_state: {:x}", (uintptr_t)result);
-                return result;
-            }
-
-            ip -= 1;
-        }
-
+    if (fn == nullptr) {
         return nullptr;
-    }();
+    }
 
     return fn(nullptr, desc);
 }
@@ -1397,47 +1355,21 @@ TargetState* create_target_state(TargetState::Desc* desc) {
 - 0x18 width=%u,height=%u,depth=%u,mip=%u,array=%u,format=%u,usage=%u,bind=%u
 */
 Texture* create_texture(Texture::Desc* desc) {
-    static auto fn = []() -> Texture* (*)(void*, Texture::Desc*) {
-        spdlog::info("Searching for create_texture");
+    using Fn = Texture* (*)(void*, Texture::Desc*);
+    static constexpr auto needle = L"width=%u,height=%u,depth=%u,mip=%u,array=%u,format=%u,usage=%u,bind=%u";
 
-        const auto game = utility::get_executable();
-        const auto string = utility::scan_string(game, L"width=%u,height=%u,depth=%u,mip=%u,array=%u,format=%u,usage=%u,bind=%u");
-
-        if (!string) {
-            spdlog::error("Failed to find create_texture (no string)");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string);
-
-        if (!string_ref) {
-            spdlog::error("Failed to find create_texture (no string ref)");
-            return nullptr;
-        }
-
-        uintptr_t ip = *string_ref;
-
-        for (auto i = 0; i < 20; ++i) {
-            const auto resolved = utility::resolve_instruction(ip);
-
-            if (!resolved) {
-                spdlog::error("Failed to find create_texture (could not resolve instruction)");
-                return nullptr;
-            }
-
-            ip = resolved->addr;
-
-            if (*(uint8_t*)ip == 0xE8) {
-                const auto result = (Texture* (*)(void*, Texture::Desc*))utility::calculate_absolute(ip + 1);
-
-                spdlog::info("Found create_texture: {:x}", (uintptr_t)result);
-                return result;
-            }
-
-            ip -= 1;
+    static const auto fn = []() -> Fn {
+        if (const auto fn = detail::find_factory<Fn>("create_texture", needle, 1, 20)) {
+            return fn;
         }
 
         spdlog::error("Failed to find create_texture, trying fallback");
+
+        const auto string_ref = detail::find_string_ref("create_texture", needle);
+
+        if (!string_ref) {
+            return nullptr;
+        }
 
         const auto fn_start = utility::find_function_start_with_call(*string_ref);
 
@@ -1460,17 +1392,21 @@ Texture* create_texture(Texture::Desc* desc) {
             return nullptr;
         }
 
-        auto result = (Texture* (*)(void*, Texture::Desc*))utility::calculate_absolute(*second_call + 1);
+        const auto result = (Texture* (*)(void*, Texture::Desc*))utility::calculate_absolute(*second_call + 1);
 
         spdlog::info("Found create_texture (fallback): {:x}", (uintptr_t)result);
 
         return result;
     }();
 
-    static auto renderer = sdk::renderer::get_renderer();
+    static const auto renderer = sdk::renderer::get_renderer();
+
+    if (fn == nullptr || renderer == nullptr) {
+        return nullptr;
+    }
+
     return fn(renderer->get_device(), desc);
 }
-
 /*
 + 0x20A Wrinkle_DrawAreaToTexture2
 + 0x1E6 Wrinkle_DrawAreaToTexture2_MaxMode
@@ -1519,32 +1455,30 @@ E8 ? ? ? ?                                    call    create_render_target_view
 4C 89 BF F0 04 00 00                          mov     [rdi+4F0h], r15
 */
 RenderTargetView* create_render_target_view(sdk::renderer::RenderResource* resource, void* desc) {
-    static auto fn = []() -> RenderTargetView* (*)(void*, sdk::renderer::RenderResource* resource, void*) {
+    using Fn = RenderTargetView* (*)(void*, sdk::renderer::RenderResource* resource, void*);
+    static const auto fn = []() -> Fn {
         spdlog::info("Searching for create_render_target_view");
 
-        const auto game = utility::get_executable();
-        const auto ref = utility::scan(game, "44 89 7C 24 2C C7 44 24 20 1C 00 00 00 E8 ? ? ? ?");
+        auto result = detail::find_fn_from_sig<Fn>("44 89 7C 24 2C C7 44 24 20 1C 00 00 00 E8 ? ? ? ?", 14);
 
-        if (!ref) {
+        if (result == nullptr) {
             spdlog::info("Could not find first ref, performing fallback scan");
-            const auto ref2 = utility::scan(game, "4C 8D 45 B8 49 8B CE E8 ? ? ? ?");
+            result = detail::find_fn_from_sig<Fn>("4C 8D 45 B8 49 8B CE E8 ? ? ? ?", 8);
+        }
 
-            if (ref2) {
-                const auto result = (RenderTargetView* (*)(void*, sdk::renderer::RenderResource*, void*))utility::calculate_absolute(*ref2 + 8);
-                spdlog::info("Found create_render_target_view: {:x}", (uintptr_t)result);
-
-                return result;
-            }
-
+        if (result == nullptr) {
             spdlog::error("Failed to find create_render_target_view (no ref)");
             return nullptr;
         }
 
-        const auto result = (RenderTargetView* (*)(void*, sdk::renderer::RenderResource*, void*))utility::calculate_absolute(*ref + 14);
         spdlog::info("Found create_render_target_view: {:x}", (uintptr_t)result);
 
         return result;
     }();
+
+    if (fn == nullptr) {
+        return nullptr;
+    }
 
     return fn(nullptr, resource, desc);
 }
@@ -1560,12 +1494,8 @@ ID3D12Resource* TargetState::get_native_resource_d3d12() const {
     const auto tex = rtv->get_texture_d3d12();
 
     if (tex == nullptr) {
-        /*auto target_state = rtv->get_target_state_d3d12();
-
-        if (target_state != nullptr && target_state != this) {
-            return target_state->get_native_resource_d3d12();
-        }*/
-
+        // An indirect target state owns no texture, its resource can be reached
+        // through get_target_state_d3d12(). Not needed so far.
         return nullptr;
     }
 
@@ -1584,73 +1514,16 @@ DirectXResource<ID3D12Resource>* Texture::get_d3d12_resource_container() {
 #else
     static std::optional<size_t> offset = std::nullopt;
 
-    if (offset) {
-        return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
+    if (!offset) {
+        spdlog::info("Searching for Texture D3D12Resource offset (via.render.RenderResource bruteforce)");
+        offset = detail::find_type_info_member(this, 0x98, 0x200, "via.render.RenderResource", "Texture");
     }
 
-    static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
-
-    spdlog::info("Searching for Texture D3D12Resource offset (via.render.RenderResource bruteforce)");
-
-    for (size_t i = 0x98; i < 0x200; i += sizeof(void*)) try {
-        const auto ptr = *(uintptr_t*)((uintptr_t)this + i);
-
-        if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
-            continue;
-        }
-
-        const auto vtable = *(uintptr_t**)ptr;
-
-        if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
-            continue;
-        }
-
-        const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
-
-        if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
-            continue;
-        }
-
-        if (!utility::get_module_within(get_typeinfo_fn)) {
-            continue;
-        }
-
-        // Check if this is a mov rax, [rip+disp32] instruction
-        if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
-            spdlog::info("[Texture] Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", i);
-            continue;
-        }
-
-        using type_info_fn_t = sdk::RETypeCLR* (*)();
-        const auto type_info_fn = (type_info_fn_t)get_typeinfo_fn;
-        const auto type_info = type_info_fn();
-
-        if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
-            continue;
-        }
-
-        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
-            continue;
-        }
-
-        const auto type_name = std::string_view{type_info->name};
-
-        if (type_name == "via.render.RenderResource") {
-            spdlog::info("[Texture] Found D3D12Resource container at offset {:x}", i);
-            offset = i;
-            return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
-        }
-
-        spdlog::info("[Texture] Checked offset {:x}, type name: {}", i, type_name);
-    } catch(...) {
-        continue;
+    if (!offset) {
+        return nullptr;
     }
 
-    if (offset) {
-        return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
-    }
-
-    return nullptr;
+    return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
 #endif
 }
 
@@ -1743,32 +1616,15 @@ sdk::intrusive_ptr<TargetState>& RenderTargetView::get_target_state_d3d12() cons
 }
 
 sdk::intrusive_ptr<TargetState> TargetState::clone() const {
-    auto cloned_desc = get_desc();
-
-    if (cloned_desc.num_rtv > 0) {
-        cloned_desc.rtvs = (decltype(cloned_desc.rtvs))sdk::memory::allocate(cloned_desc.num_rtv * sizeof(void*));
-
-        for (auto i = 0; i < cloned_desc.num_rtv; ++i) {
-            auto rtv = get_rtv(i);
-
-            if (rtv == nullptr) {
-                continue;
-            }
-
-            cloned_desc.rtvs[i] = rtv->clone();
-        }
-    } else {
-        cloned_desc.rtvs = nullptr;
-    }
-
-    return sdk::renderer::create_target_state(&cloned_desc);
+    // Cloning without dimension overrides, the desc is copied as is.
+    return clone(std::vector<std::array<uint32_t, 2>>{});
 }
 
 sdk::intrusive_ptr<TargetState> TargetState::clone(const std::vector<std::array<uint32_t, 2>>& new_dimensions) const {
     auto cloned_desc = get_desc();
 
     if (cloned_desc.num_rtv > 0) {
-        cloned_desc.rtvs = (decltype(cloned_desc.rtvs))sdk::memory::allocate(cloned_desc.num_rtv * sizeof(void*), true);
+        cloned_desc.rtvs = (decltype(cloned_desc.rtvs))sdk::memory::allocate(cloned_desc.num_rtv * sizeof(void*));
 
         for (auto i = 0; i < cloned_desc.num_rtv; ++i) {
             auto rtv = get_rtv(i);
@@ -1809,9 +1665,7 @@ void*& layer::Output::get_present_state() {
         }
 
         // Resolve the jmp to the real function
-        if (((uint8_t*)get_scene_view_fn)[0] == 0xE9) {
-            get_scene_view_fn = (decltype(get_scene_view_fn))utility::calculate_absolute((uintptr_t)get_scene_view_fn + 1);
-        }
+        get_scene_view_fn = (decltype(get_scene_view_fn))detail::resolve_jmp(get_scene_view_fn);
 
         // Find the offset to the output target
         // First instruction is a mov, so we don't need to pattern scan for it
@@ -1868,7 +1722,7 @@ REManagedObject*& layer::Output::get_scene_view() {
 }
 
 uint32_t layer::Scene::get_view_id() const {
-    static auto get_view_id_method = sdk::find_method_definition("via.render.layer.Scene", "get_ViewID");
+    static const auto get_view_id_method = sdk::find_method_definition("via.render.layer.Scene", "get_ViewID");
 
     if (get_view_id_method == nullptr) {
         return 0;
@@ -1878,7 +1732,7 @@ uint32_t layer::Scene::get_view_id() const {
 }
 
 RECamera* layer::Scene::get_camera() const {
-    static auto get_camera_method = sdk::find_method_definition("via.render.layer.Scene", "get_Camera");
+    static const auto get_camera_method = sdk::find_method_definition("via.render.layer.Scene", "get_Camera");
 
     if (get_camera_method == nullptr) {
         return nullptr;
@@ -1902,7 +1756,7 @@ RECamera* layer::Scene::get_main_camera_if_possible() const {
 
     const auto name = utility::re_string::get_view(camera_gameobject->name);
 
-    static const std::vector<std::wstring> camera_names = {
+    static constexpr std::array<std::wstring_view, 10> camera_names {
         L"MainCamera",
         L"Main Camera",
         L"GameCamera", // DMC5
@@ -1925,7 +1779,7 @@ RECamera* layer::Scene::get_main_camera_if_possible() const {
 }
 
 REManagedObject* layer::Scene::get_mirror() const {
-    static auto get_mirror_method = sdk::find_method_definition("via.render.layer.Scene", "get_Mirror");
+    static const auto get_mirror_method = sdk::find_method_definition("via.render.layer.Scene", "get_Mirror");
 
     if (get_mirror_method == nullptr) {
         return nullptr;
@@ -1935,7 +1789,7 @@ REManagedObject* layer::Scene::get_mirror() const {
 }
 
 bool layer::Scene::is_enabled() const {
-    static auto is_enabled_method = sdk::find_method_definition("via.render.layer.Scene", "get_Enable");
+    static const auto is_enabled_method = sdk::find_method_definition("via.render.layer.Scene", "get_Enable");
 
     if (is_enabled_method == nullptr) {
         return false;
@@ -1945,106 +1799,61 @@ bool layer::Scene::is_enabled() const {
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "SceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "SceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_depth_distortion_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "DepthDistortionSceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "DepthDistortionSceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_filter_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "FilterSceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "FilterSceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_jitter_disable_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "JitterDisableSceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "JitterDisableSceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_jitter_disable_post_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "JitterDisablePostSceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "JitterDisablePostSceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_z_prepass_scene_info() {
-    return utility::re_managed_object::get_field<SceneInfo*>(this, "ZPrepassSceneInfo");
+    static const detail::FieldRef field{detail::scene_layer_type(), "ZPrepassSceneInfo"};
+    return field.get<SceneInfo*>(this);
 }
 
 std::optional<size_t> layer::PrepareOutput::get_output_state_offset() {
-    static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
     static std::optional<size_t> s_output_state_offset = std::nullopt;
 
-    if (s_output_state_offset) {
-        return *s_output_state_offset;
+    if (!s_output_state_offset) {
+        s_output_state_offset = detail::find_type_info_member(this, 0x10, 0x500, "via.render.TargetState", "PrepareOutput");
+
+        if (!s_output_state_offset) {
+            spdlog::warn("[PrepareOutput] Failed to find output state offset, trying next time...");
+        }
     }
-    for (size_t offset = 0x10; offset < 0x500; offset += sizeof(void*)) try {
-        // Grab vtable.
-        const auto ptr = *(uintptr_t*)((uintptr_t)this + offset);
-        if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
-            continue;
-        }
-
-        const auto vtable = *(uintptr_t**)ptr;
-        if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
-            continue;
-        }
-
-        const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
-
-        if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
-            continue;
-        }
-
-        if (!utility::get_module_within(get_typeinfo_fn)) {
-            continue;
-        }
-
-        using type_info_fn_t = sdk::RETypeCLR* (*)();
-        
-        const auto type_info_fn = (type_info_fn_t)get_typeinfo_fn;
-        // if this is essentially a mov rax, return it.
-        if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
-            spdlog::info("[PrepareOutput] Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", offset);
-            continue;
-        }
-
-        const auto type_info = type_info_fn();
-
-        if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
-            continue;
-        }
-
-        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
-            continue;
-        }
-
-        const auto type_name = std::string_view{type_info->name};
-
-        if (type_name == "via.render.TargetState") {
-            s_output_state_offset = offset;
-            spdlog::info("[PrepareOutput] Found output state offset: {:x}", offset);
-            return *s_output_state_offset;
-            break;
-        }
-
-        spdlog::info("[PrepareOutput] Checked offset {:x}, type name: {}", offset, type_name);
-    } catch(...) {
-        continue;
-    }
-
-    spdlog::warn("[PrepareOutput] Failed to find output state offset, trying next time...");
 
     return s_output_state_offset;
 }
 
 Texture* layer::Scene::get_depth_stencil() {
-    return utility::re_managed_object::get_field<::sdk::renderer::Texture*>(this, "DepthStencilTex");;
+    static const detail::FieldRef field{detail::scene_layer_type(), "DepthStencilTex"};
+    return field.get<::sdk::renderer::Texture*>(this);
 }
 
 TargetState* layer::Scene::get_motion_vectors_state() {
-    return utility::re_managed_object::get_field<::sdk::renderer::TargetState*>(this, "VelocityTarget");
+    static const detail::FieldRef field{detail::scene_layer_type(), "VelocityTarget"};
+    return field.get<::sdk::renderer::TargetState*>(this);
 }
 
 ID3D12Resource* layer::Scene::get_depth_stencil_d3d12() {
-    const auto tex = utility::re_managed_object::get_field<::sdk::renderer::Texture*>(this, "DepthStencilTex");
+    const auto tex = get_depth_stencil();
 
     if (tex == nullptr) {
         return nullptr;
