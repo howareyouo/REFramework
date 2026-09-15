@@ -366,8 +366,19 @@ void TemporalUpscaler::on_early_present() {
     }
 
     if (m_wants_reinitialize) {
+        // release_upscale_features() zeroes the cached render size, and on_view_get_size()
+        // (render thread) refresh()es it from GetRenderWidth() whenever it reads zero — which
+        // mid-teardown is the *previous* feature's size, latched for good. Carry the last
+        // known size across the teardown so that window never opens; init_upscale_features()
+        // publishes the new feature's size once it exists.
+        const auto saved_w = m_cached_render_size[0].load(std::memory_order_relaxed);
+        const auto saved_h = m_cached_render_size[1].load(std::memory_order_relaxed);
+
         release_upscale_features();
         m_wants_reinitialize = false;
+
+        m_cached_render_size[0].store(saved_w, std::memory_order_relaxed);
+        m_cached_render_size[1].store(saved_h, std::memory_order_relaxed);
 
         if (init_upscale_features()) {
             return;
@@ -616,6 +627,17 @@ bool TemporalUpscaler::init_upscale_features() {
     }
 
     update_motion_scale();
+
+    // Publish the render size of the feature that was just created. GetRenderWidth() only
+    // becomes valid once InitUpscaler() has run, and the lazy refresh in on_view_get_size()
+    // runs on the render thread: it can sample the previous feature mid-teardown and latch
+    // the *previous* quality's size, which is then never re-queried. The module would keep
+    // feeding the plugin a render size that does not match the new feature, DLSS answers
+    // NVSDK_NGX_Result_FAIL_InvalidParameter and writes nothing, and the copy path blits that
+    // blank output over the backbuffer — the black screen seen after a quality change.
+    // Re-publishing here (after InitUpscaler, so GetRenderWidth() reflects the new feature)
+    // keeps the module and the feature in agreement.
+    refresh_cached_render_size();
 
     const auto desc = m_upscaled_texture->GetDesc();
     spdlog::info("[TemporalUpscaler] Upscaled texture size: {}x{}", desc.Width, desc.Height);
