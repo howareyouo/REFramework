@@ -12,30 +12,23 @@ void render_srv_to_rtv(
     const auto dst_desc = dst.texture->GetDesc();
     const auto src_desc = src.texture->GetDesc();
 
-    D3D12_VIEWPORT viewport{};
-    viewport.Width = (float)dst_desc.Width;
-    viewport.Height = (float)dst_desc.Height;
-    viewport.MinDepth = D3D12_MIN_DEPTH;
-    viewport.MaxDepth = D3D12_MAX_DEPTH;
-    
+    const D3D12_VIEWPORT viewport{ 0.0f, 0.0f, (float)dst_desc.Width, (float)dst_desc.Height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+    const RECT rect{ 0, 0, (LONG)dst_desc.Width, (LONG)dst_desc.Height };
+
     batch->SetViewport(viewport);
 
-    D3D12_RECT scissor_rect{};
-    scissor_rect.left = 0;
-    scissor_rect.top = 0;
-    scissor_rect.right = (LONG)dst_desc.Width;
-    scissor_rect.bottom = (LONG)dst_desc.Height;
-
-    // Transition dst to D3D12_RESOURCE_STATE_RENDER_TARGET
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = dst.texture.Get();
+    const auto transition = [&](D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+        D3D12_RESOURCE_BARRIER barrier{};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource = dst.texture.Get();
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        barrier.Transition.StateBefore = before;
+        barrier.Transition.StateAfter = after;
+        command_list->ResourceBarrier(1, &barrier);
+    };
 
     if (dst_state != D3D12_RESOURCE_STATE_RENDER_TARGET) {
-        barrier.Transition.StateBefore = dst_state;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        command_list->ResourceBarrier(1, &barrier);
+        transition(dst_state, D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
     // Set RTV to backbuffer
@@ -44,11 +37,9 @@ void render_srv_to_rtv(
 
     // Setup viewport and scissor rects
     command_list->RSSetViewports(1, &viewport);
-    command_list->RSSetScissorRects(1, &scissor_rect);
+    command_list->RSSetScissorRects(1, &rect);
 
     batch->Begin(command_list, DirectX::DX12::SpriteSortMode::SpriteSortMode_Immediate);
-
-    RECT dest_rect{ 0, 0, (LONG)dst_desc.Width, (LONG)dst_desc.Height };
 
     // Set descriptor heaps
     ID3D12DescriptorHeap* game_heaps[] = { src.srv_heap->Heap() };
@@ -56,16 +47,14 @@ void render_srv_to_rtv(
 
     batch->Draw(src.get_srv_gpu(), 
         DirectX::XMUINT2{ (uint32_t)src_desc.Width, (uint32_t)src_desc.Height },
-        dest_rect,
+        rect,
         DirectX::Colors::White);
 
     batch->End();
 
     // Transition dst to dst_state
     if (dst_state != D3D12_RESOURCE_STATE_RENDER_TARGET) {
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        barrier.Transition.StateAfter = dst_state;
-        command_list->ResourceBarrier(1, &barrier);
+        transition(D3D12_RESOURCE_STATE_RENDER_TARGET, dst_state);
     }
-} 
+}
 }
