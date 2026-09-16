@@ -140,22 +140,7 @@ bool utility::re_type::is_singleton(::REType* t) {
     return (t->flags & (uint16_t)via::dti::decl::Singleton) != 0;
 }
 
-void* utility::re_type::get_singleton_instance(::REType* t) {
-    if (!is_singleton(t)) {
-        return nullptr;
-    }
-
-    using SingletonFunc = void (*)(::REType*, void**, void*);
-
-    auto f = (*(SingletonFunc**)t)[1];
-
-    void* out = nullptr;
-    f(t, &out, nullptr);
-
-    return out;
-}
-
-void* utility::re_type::create_instance(::REType* t) {
+static void* call_instance_func(::REType* t) {
     using InstanceFunc = void (*)(::REType*, void**, void*);
 
     auto f = (*(InstanceFunc**)t)[1];
@@ -164,6 +149,18 @@ void* utility::re_type::create_instance(::REType* t) {
     f(t, &out, nullptr);
 
     return out;
+}
+
+void* utility::re_type::get_singleton_instance(::REType* t) {
+    if (!is_singleton(t)) {
+        return nullptr;
+    }
+
+    return call_instance_func(t);
+}
+
+void* utility::re_type::create_instance(::REType* t) {
+    return call_instance_func(t);
 }
 
 VariableDescriptor* utility::re_type::get_field_desc(::REType* t, std::string_view field) {

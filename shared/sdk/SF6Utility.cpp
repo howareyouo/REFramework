@@ -5,24 +5,22 @@
 
 namespace sdk {
 namespace sf6 {
+static ::REManagedObject* get_backing_field(::REManagedObject* obj, std::string_view name) {
+    if (obj == nullptr) {
+        return nullptr;
+    }
+
+    const auto field = sdk::get_object_field<::REManagedObject*>(obj, name);
+
+    return field != nullptr ? *field : nullptr;
+}
+
 REManagedObject* get_gui_manager() {
     return sdk::get_managed_singleton<REManagedObject>("app.GuiManager");
 }
 
 REManagedObject* get_gui_hud_manager() {
-    const auto gui_manager = get_gui_manager();
-
-    if (gui_manager == nullptr) {
-        return nullptr;
-    }
-
-    const auto hud = sdk::get_object_field<::REManagedObject*>(gui_manager, "<Hud>k__BackingField");
-
-    if (hud == nullptr) {
-        return nullptr;
-    }
-
-    return *hud;
+    return get_backing_field(get_gui_manager(), "<Hud>k__BackingField");
 }
 
 REManagedObject* get_hud_manager_base(HUD_GROUP_TYPE t) {
@@ -56,34 +54,11 @@ REManagedObject* get_hud_manager_base(HUD_GROUP_TYPE t) {
 }
 
 ::REManagedObject* get_battle_desc() {
-    const auto hud_manager = get_hud_manager_base(HUD_GROUP_TYPE::BATTLE);
-
-    if (hud_manager == nullptr) {
-        return nullptr;
-    }
-
-    const auto desc = sdk::get_object_field<::REManagedObject*>(hud_manager, "<BattleDesc>k__BackingField");
-
-    if (desc == nullptr) {
-        return nullptr;
-    }
-
-    return *desc;
+    return get_backing_field(get_hud_manager_base(HUD_GROUP_TYPE::BATTLE), "<BattleDesc>k__BackingField");
 }
 
-
 ::REManagedObject* get_battle_rule(::REManagedObject* battle_desc) {
-    if (battle_desc == nullptr) {
-        return nullptr;
-    }
-
-    const auto rule = sdk::get_object_field<::REManagedObject*>(battle_desc, "Rule");
-
-    if (rule == nullptr) {
-        return nullptr;
-    }
-
-    return *rule;
+    return get_backing_field(battle_desc, "Rule");
 }
 
 REManagedObject* get_network_manager() {
@@ -91,51 +66,15 @@ REManagedObject* get_network_manager() {
 }
 
 REManagedObject* get_network_session_manager() {
-    const auto network_manager = get_network_manager();
-
-    if (network_manager == nullptr) {
-        return nullptr;
-    }
-
-    const auto session_manager = sdk::get_object_field<::REManagedObject*>(network_manager, "<Session>k__BackingField");
-
-    if (session_manager == nullptr) {
-        return nullptr;
-    }
-
-    return *session_manager;
+    return get_backing_field(get_network_manager(), "<Session>k__BackingField");
 }
 
 REManagedObject* get_network_fg_battle() {
-    const auto session_manager = get_network_session_manager();
-
-    if (session_manager == nullptr) {
-        return nullptr;
-    }
-
-    const auto fg_battle = sdk::get_object_field<::REManagedObject*>(session_manager, "<FGBattle>k__BackingField");
-
-    if (fg_battle == nullptr) {
-        return nullptr;
-    }
-
-    return *fg_battle;
+    return get_backing_field(get_network_session_manager(), "<FGBattle>k__BackingField");
 }
 
 REManagedObject* get_network_battle_rule() {
-    const auto network_fg_battle = get_network_fg_battle();
-
-    if (network_fg_battle == nullptr) {
-        return nullptr;
-    }
-
-    const auto battle_rule = sdk::get_object_field<::REManagedObject*>(network_fg_battle, "<BattleRule>k__BackingField");
-
-    if (battle_rule == nullptr) {
-        return nullptr;
-    }
-
-    return *battle_rule;
+    return get_backing_field(get_network_fg_battle(), "<BattleRule>k__BackingField");
 }
 
 std::optional<uint8_t*> get_network_game_mode() {

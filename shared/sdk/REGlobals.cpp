@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <spdlog/spdlog.h>
 
 #include "utility/Scan.hpp"
@@ -260,8 +261,8 @@ void REGlobals::refresh_natives() {
         m_native_singleton_map[t->name] = t;
     }
 
-    std::sort(m_native_singleton_types.begin(), m_native_singleton_types.end(), [](auto a, auto b) {
-        return std::string{ a->name } < std::string{ b->name };
+    std::sort(m_native_singleton_types.begin(), m_native_singleton_types.end(), [](const auto* a, const auto* b) {
+        return std::strcmp(a->name, b->name) < 0;
     });
 }
 

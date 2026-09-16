@@ -2196,17 +2196,9 @@ T call_object_func(::REManagedObject* obj, std::string_view name, Args... args) 
 
 template <typename T, typename... Args> 
 T call_object_func_easy(::REManagedObject* obj, std::string_view name, Args... args) {
-    if constexpr (sizeof(T) > sizeof(void*)) {
-        auto def = utility::re_managed_object::get_type_definition(obj);
-
-        T out{};
-        call_native_func<T*>((void*)obj, def, name, &out, sdk::get_thread_context(), obj, args...);
-
-        return out;
-    }
-
     auto def = utility::re_managed_object::get_type_definition(obj);
-    return call_native_func<T>((void*)obj, def, name, sdk::get_thread_context(), obj, args...);
+
+    return call_native_func_easy<T>((void*)obj, def, name, args...);
 }
 
 template<typename T>

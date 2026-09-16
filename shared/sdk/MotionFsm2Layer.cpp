@@ -12,6 +12,21 @@
 
 namespace sdk {
 namespace behaviortree {
+template <typename Out, typename Field, typename MapFn>
+static std::vector<Out> map_field_indices(const Field& field, MapFn&& map, bool keep_null) {
+    std::vector<Out> out{};
+
+    for (auto i = 0; i < field.count; ++i) {
+        auto value = map(field.data[i]);
+
+        if (keep_null || value != nullptr) {
+            out.push_back(value);
+        }
+    }
+
+    return out;
+}
+
 std::vector<TreeNode*> TreeNode::get_children() const {
     const auto tree_data = get_data();
 
@@ -25,19 +40,7 @@ std::vector<TreeNode*> TreeNode::get_children() const {
         return {};
     }
     
-    std::vector<TreeNode*> out{};
-
-    for (auto i = 0; i < tree_data->children.count; ++i) {
-        const auto child_index = tree_data->children.data[i];
-
-        auto node = tree_owner->get_node(child_index);
-
-        if (node != nullptr) {
-            out.push_back(node);
-        }
-    }
-
-    return out;
+    return map_field_indices<TreeNode*>(tree_data->children, [tree_owner](auto index) { return tree_owner->get_node(index); }, false);
 }
 
 std::vector<::REManagedObject*> TreeNode::get_unloaded_actions() const {
@@ -54,16 +57,7 @@ std::vector<::REManagedObject*> TreeNode::get_unloaded_actions() const {
         return {};
     }
     
-    std::vector<::REManagedObject*> out{};
-
-    for (auto i = 0; i < tree_data->actions.count; ++i) {
-        const auto action_index = tree_data->actions.data[i];
-        const auto action = tree_owner->get_unloaded_action(action_index);
-
-        out.push_back(action);
-    }
-
-    return out;
+    return map_field_indices<::REManagedObject*>(tree_data->actions, [tree_owner](auto index) { return tree_owner->get_unloaded_action(index); }, true);
 #else
     return {};
 #endif
@@ -82,18 +76,8 @@ std::vector<::REManagedObject*> TreeNode::get_actions() const {
         return {};
     }
     
-    std::vector<::REManagedObject*> out{};
-
-    for (auto i = 0; i < tree_data->actions.count; ++i) {
-        const auto action_index = tree_data->actions.data[i];
-        const auto action = tree_owner->get_action(action_index);
-
-        // Push it back even if it's null, because the action may not be loaded
-        // and we may want to compare indices, or just want to know what the action is before it's loaded.
-        out.push_back(action);
-    }
-
-    return out;
+    // Push even null actions: they may simply not be loaded yet.
+    return map_field_indices<::REManagedObject*>(tree_data->actions, [tree_owner](auto index) { return tree_owner->get_action(index); }, true);
 }
 
 std::vector<::REManagedObject*> TreeNode::get_transition_conditions() const {
@@ -109,16 +93,7 @@ std::vector<::REManagedObject*> TreeNode::get_transition_conditions() const {
         return {};
     }
     
-    std::vector<::REManagedObject*> out{};
-
-    for (auto i = 0; i < tree_data->transition_conditions.count; ++i) {
-        const auto transition_index = tree_data->transition_conditions.data[i];
-        const auto transition = tree_owner->get_condition(transition_index);
-
-        out.push_back(transition);
-    }
-
-    return out;
+    return map_field_indices<::REManagedObject*>(tree_data->transition_conditions, [tree_owner](auto index) { return tree_owner->get_condition(index); }, true);
 }
 
 std::vector<::REManagedObject*> TreeNode::get_transition_events() const {
@@ -134,16 +109,7 @@ std::vector<::REManagedObject*> TreeNode::get_transition_events() const {
         return {};
     }
 
-    std::vector<::REManagedObject*> out{};
-
-    for (auto i = 0; i < tree_data->start_transitions.count; ++i) {
-        const auto transition_index = tree_data->start_transitions.data[i];
-        const auto transition = tree_owner->get_transition(transition_index);
-
-        out.push_back(transition);
-    }
-
-    return out;
+    return map_field_indices<::REManagedObject*>(tree_data->start_transitions, [tree_owner](auto index) { return tree_owner->get_transition(index); }, true);
 }
 
 std::vector<::REManagedObject*> TreeNode::get_conditions() const {
@@ -159,16 +125,7 @@ std::vector<::REManagedObject*> TreeNode::get_conditions() const {
         return {};
     }
 
-    std::vector<::REManagedObject*> out{};
-
-    for (auto i = 0; i < tree_data->conditions.count; ++i) {
-        const auto condition_index = tree_data->conditions.data[i];
-        const auto condition = tree_owner->get_condition(condition_index);
-
-         out.push_back(condition);
-    }
-
-    return out;
+    return map_field_indices<::REManagedObject*>(tree_data->conditions, [tree_owner](auto index) { return tree_owner->get_condition(index); }, true);
 }
 
 std::vector<TreeNode*> TreeNode::get_states() const {
@@ -184,17 +141,7 @@ std::vector<TreeNode*> TreeNode::get_states() const {
         return {};
     }
     
-    std::vector<TreeNode*> out{};
-
-    for (auto i = 0; i < tree_data->states.count; ++i) {
-        const auto state_index = tree_data->states.data[i];
-
-        auto node = tree_owner->get_node(state_index);
-
-        out.push_back(node);
-    }
-
-    return out;
+    return map_field_indices<TreeNode*>(tree_data->states, [tree_owner](auto index) { return tree_owner->get_node(index); }, true);
 }
 
 std::vector<TreeNode*> TreeNode::get_start_states() const {
@@ -210,17 +157,7 @@ std::vector<TreeNode*> TreeNode::get_start_states() const {
         return {};
     }
     
-    std::vector<TreeNode*> out{};
-
-    for (auto i = 0; i < tree_data->start_states.count; ++i) {
-        const auto state_index = tree_data->start_states.data[i];
-
-        auto node = tree_owner->get_node(state_index);
-
-        out.push_back(node);
-    }
-
-    return out;
+    return map_field_indices<TreeNode*>(tree_data->start_states, [tree_owner](auto index) { return tree_owner->get_node(index); }, true);
 }
 
 void TreeNode::append_action(uint32_t action_index) {

@@ -1,113 +1,98 @@
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+
 #include <utility/Scan.hpp>
 #include <utility/Module.hpp>
 #include <spdlog/spdlog.h>
 
 #include "Memory.hpp"
 
-namespace sdk {
-namespace memory {
-void* allocate(size_t size, bool zero_memory) {
-    using allocate_fn_t = void* (*)(size_t);
-    static allocate_fn_t allocate_fn = []() -> allocate_fn_t {
-        spdlog::info("[via::memory::allocate] Finding allocate function...");
+namespace sdk::memory {
+namespace {
+using allocate_fn_t = void* (*)(size_t);
+using deallocate_fn_t = void (*)(void*);
 
-        // this pattern literally works back to the very first version of the RE Engine!
-        // it is within the startup function that creates the window/application
-        // Relevant string references:
-        // "RE ENGINE [%ls] %ls port:%3d"
-        auto ref = utility::scan(utility::get_executable(), "B9 ? ? ? ? E8 ? ? ? ? 45 33 F6 48 85 C0");
+// Works back to the very first RE Engine build. It sits inside the startup routine
+// that creates the window/application and references "RE ENGINE [%ls] %ls port:%3d".
+constexpr auto ALLOCATE_PATTERN = "B9 ? ? ? ? E8 ? ? ? ? 45 33 F6 48 85 C0";
+
+struct Allocator {
+    allocate_fn_t allocate{};
+    deallocate_fn_t deallocate{};
+};
+
+// Resolved lazily on first use: the executable must be mapped and spdlog up by then.
+const Allocator& allocator() {
+    static const Allocator instance = []() -> Allocator {
+        Allocator result{};
+
+        const auto ref = utility::scan(utility::get_executable(), ALLOCATE_PATTERN);
 
         if (!ref) {
-            spdlog::error("[via::memory::allocate] Failed to find allocate function!");
-            return nullptr;
+            spdlog::error("[sdk::memory] Failed to find allocate function!");
+            return result;
         }
 
-        spdlog::info("[via::memory::allocate] Ref {:x}", (uintptr_t)*ref);
+        result.allocate = (allocate_fn_t)utility::calculate_absolute(*ref + 6);
 
-        auto fn = (allocate_fn_t)utility::calculate_absolute(*ref + 6);
-
-        if (!fn) {
-            spdlog::error("[via::memory::allocate] Failed to calculate allocate function!");
-            return nullptr;
+        if (result.allocate == nullptr) {
+            spdlog::error("[sdk::memory] Failed to calculate allocate function!");
+            return result;
         }
 
-        spdlog::info("[via::memory::allocate] Found allocate function at {:x}", (uintptr_t)fn);
+        spdlog::info("[sdk::memory] Found allocate function at {:x}", (uintptr_t)result.allocate);
 
-        return fn;
+        // In every RE Engine game, deallocate is the next jmp after the allocate prologue.
+        const auto first_insn = utility::decode_one((uint8_t*)result.allocate);
+        const auto jmp = utility::scan_opcode((uintptr_t)result.allocate + (first_insn ? first_insn->Length : 1), 50, 0xE9);
+
+        if (!jmp) {
+            spdlog::error("[sdk::memory] Failed to find deallocate function!");
+            return result;
+        }
+
+        result.deallocate = (deallocate_fn_t)*jmp;
+        spdlog::info("[sdk::memory] Found deallocate function at {:x}", (uintptr_t)result.deallocate);
+
+        return result;
     }();
 
-    if (allocate_fn == nullptr) {
-        spdlog::error("[via::memory::allocate] allocate function not found, falling back to malloc");
-        auto* result = std::malloc(size);
-        if (zero_memory && result != nullptr) {
-            memset(result, 0, size);
-        }
-        return result;
+    return instance;
+}
+}
+
+void* allocate(size_t size, bool zero_memory) {
+    const auto allocate_fn = allocator().allocate;
+
+    void* result = nullptr;
+
+    if (allocate_fn != nullptr) {
+        result = allocate_fn(size);
+    } else {
+        spdlog::error("[sdk::memory] allocate function not found, falling back to malloc");
+        result = std::malloc(size);
     }
 
-    auto result = allocate_fn(size);
-
     if (zero_memory && result != nullptr) {
-        memset(result, 0, size);
+        std::memset(result, 0, size);
     }
 
     return result;
 }
 
 void deallocate(void* ptr) {
-    // In every RE Engine game, the deallocate function is the next function in the disassembly for some reason.
-    static decltype(sdk::memory::deallocate)* deallocate_fn = []() -> decltype(sdk::memory::deallocate)* {
-        spdlog::info("[via::memory::deallocate] Finding deallocate function...");
+    const auto deallocate_fn = allocator().deallocate;
 
-        // this pattern literally works back to the very first version of the RE Engine!
-        // it is within the startup function that creates the window/application
-        // Relevant string references:
-        // "RE ENGINE [%ls] %ls port:%3d"
-        auto ref = utility::scan(utility::get_executable(), "B9 ? ? ? ? E8 ? ? ? ? 45 33 F6 48 85 C0");
-
-        if (!ref) {
-            spdlog::error("[via::memory::deallocate] Failed to find allocate function!");
-            return nullptr;
-        }
-
-        auto allocate_fn = utility::calculate_absolute(*ref + 6);
-
-        if (!allocate_fn) {
-            spdlog::error("[via::memory::deallocate] Failed to calculate allocate function!");
-            return nullptr;
-        }
-
-        spdlog::info("[via::memory::deallocate] Found allocate function at {:x}", (uintptr_t)allocate_fn);
-
-        const auto decoded_insn = utility::decode_one((uint8_t*)allocate_fn);
-        const auto first_insn_size = decoded_insn.has_value() ? decoded_insn->Length : 1;
-
-        // Scan until we hit a jmp.
-        ref = utility::scan_opcode((uintptr_t)allocate_fn + first_insn_size, 50, 0xE9);
-
-        if (!ref) {
-            spdlog::error("[via::memory::deallocate] Failed to find deallocate function!");
-            return nullptr;
-        }
-
-        auto fn = (decltype(sdk::memory::deallocate)*)*ref;
-
-        spdlog::info("[via::memory::deallocate] Found deallocate function at {:x}", (uintptr_t)fn);
-
-        return fn;
-    }();
-
-    if (deallocate_fn == nullptr) {
-        spdlog::error("[via::memory::deallocate] deallocate function not found, falling back to free");
+    if (deallocate_fn != nullptr) {
+        deallocate_fn(ptr);
+    } else {
+        spdlog::error("[sdk::memory] deallocate function not found, falling back to free");
         std::free(ptr);
-        return;
     }
-
-    deallocate_fn(ptr);
 }
 
-// so this is a bit strange that we need the old size
-// but its because we dont know the size of the memory block as we havent mapped out the memory allocator
+// old_size is required because the engine allocator doesn't expose the size of a block.
 void* reallocate(void* ptr, size_t old_size, size_t size) {
     if (ptr == nullptr) {
         return allocate(size);
@@ -117,12 +102,14 @@ void* reallocate(void* ptr, size_t old_size, size_t size) {
         return ptr;
     }
 
-    // There is no function for this so we have to do it manually
-    auto new_mem = allocate(size);
+    // No realloc equivalent is available, so allocate + copy + free manually.
+    auto* new_mem = (uint8_t*)allocate(size);
 
-    const auto final_size = std::min<size_t>(old_size, size);
-    memcpy(new_mem, ptr, final_size);
+    if (new_mem == nullptr) {
+        return nullptr;
+    }
 
+    std::memcpy(new_mem, ptr, std::min<size_t>(old_size, size));
     deallocate(ptr);
 
     return new_mem;
@@ -131,7 +118,6 @@ void* reallocate(void* ptr, size_t old_size, size_t size) {
 namespace detail {
 void* allocate_plugin_loader(size_t size) {
     return allocate(size);
-}
 }
 }
 }

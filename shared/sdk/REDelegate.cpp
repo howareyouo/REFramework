@@ -8,12 +8,8 @@ void Delegate::invoke() {
         if (method.func == nullptr) {
             continue;
         }
-        
-        if (method.object != nullptr) {
-            method.func(ctx, method.object);
-        } else {
-            method.func(ctx, nullptr);
-        }
+
+        method.func(ctx, method.object);
     }
 }
 }

@@ -16,8 +16,56 @@ RETypeDB* RETypeDB::get() {
     return vm->get_type_db();
 }
 
-static std::shared_mutex g_tdb_type_mtx{};
-static std::unordered_map<std::string, sdk::RETypeDefinition*> g_tdb_type_map{};
+namespace {
+std::shared_mutex g_tdb_type_mtx{};
+std::unordered_map<std::string, sdk::RETypeDefinition*> g_tdb_type_map{};
+bool g_tdb_type_populated = false;
+
+std::shared_mutex g_tdb_fqn_mtx{};
+std::unordered_map<uint32_t, sdk::RETypeDefinition*> g_tdb_fqn_map{};
+bool g_tdb_fqn_populated = false;
+
+// Double-checked, lazily-populated lookup shared by find_type/find_type_by_fqn.
+template <typename Map, typename Key>
+sdk::RETypeDefinition* find_cached_type(Map& map, std::shared_mutex& mtx, bool& populated, Key key, auto&& populate) {
+    {
+        std::shared_lock lock{ mtx };
+
+        if (const auto it = map.find(key); it != map.end()) {
+            return it->second;
+        }
+
+        if (populated) {
+            return nullptr;
+        }
+    }
+
+    {
+        std::unique_lock lock{ mtx };
+
+        if (const auto it = map.find(key); it != map.end()) {
+            return it->second;
+        }
+
+        if (populated) {
+            return nullptr;
+        }
+
+        populated = true;
+        populate(map);
+    }
+
+    {
+        std::shared_lock lock{ mtx };
+
+        if (const auto it = map.find(key); it != map.end()) {
+            return it->second;
+        }
+    }
+
+    return nullptr;
+}
+}
 
 reframework::InvokeRet invoke_object_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, std::vector<void*>& args) {
     const auto method = t->get_method(name);
@@ -55,103 +103,27 @@ sdk::REModule* RETypeDB::get_module(uint32_t index) const {
 }
 
 sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
-    static bool map_populated = false;
-
-    {
-        std::shared_lock _{ g_tdb_type_mtx };
-
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
-            return it->second;
-        }
-
-        if (map_populated) {
-            return nullptr;
-        }
-    }
-
-    {
-        std::unique_lock _{ g_tdb_type_mtx };
-
-        // Double-checked: another thread may have populated while we waited
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
-            return it->second;
-        }
-
-        if (map_populated) {
-            return nullptr;
-        }
-
-        map_populated = true;
-
+    return find_cached_type(g_tdb_type_map, g_tdb_type_mtx, g_tdb_type_populated, name.data(), [this](auto& map) {
         for (uint32_t i = 0; i < this->numTypes; ++i) {
             auto t = get_type(i);
 
-            g_tdb_type_map[t->get_full_name()] = t;
+            if (t != nullptr) {
+                map[t->get_full_name()] = t;
+            }
         }
-    }
-
-    // Re-check the map after population
-    {
-        std::shared_lock _{ g_tdb_type_mtx };
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
-            return it->second;
-        }
-    }
-
-    return nullptr;
+    });
 }
 
-// Cache for find_type_by_fqn
-static std::shared_mutex g_tdb_fqn_mtx{};
-static std::unordered_map<uint32_t, sdk::RETypeDefinition*> g_tdb_fqn_map{};
-static bool g_tdb_fqn_populated = false;
-
 sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
-    {
-        std::shared_lock _{ g_tdb_fqn_mtx };
-
-        if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
-            return it->second;
-        }
-
-        if (g_tdb_fqn_populated) {
-            return nullptr;
-        }
-    }
-
-    {
-        std::unique_lock _{ g_tdb_fqn_mtx };
-
-        // Double-checked
-        if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
-            return it->second;
-        }
-
-        if (g_tdb_fqn_populated) {
-            return nullptr;
-        }
-
-        g_tdb_fqn_populated = true;
-
+    return find_cached_type(g_tdb_fqn_map, g_tdb_fqn_mtx, g_tdb_fqn_populated, fqn, [this](auto& map) {
         for (uint32_t i = 0; i < this->numTypes; ++i) {
             auto t = get_type(i);
 
-            if (t == nullptr) {
-                continue;
+            if (t != nullptr) {
+                map[t->get_fqn_hash()] = t;
             }
-
-            g_tdb_fqn_map[t->get_fqn_hash()] = t;
         }
-    }
-
-    {
-        std::shared_lock _{ g_tdb_fqn_mtx };
-        if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
-            return it->second;
-        }
-    }
-
-    return nullptr;
+    });
 }
 
 sdk::REMethodDefinition* get_object_method(::REManagedObject* object, std::string_view name) {
