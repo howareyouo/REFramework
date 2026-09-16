@@ -358,7 +358,7 @@ private:
     std::unique_ptr<D3DHookMonitor> m_hook_monitor;
     std::unique_ptr<InputManager> m_input_manager;
 
-    std::shared_mutex m_hook_monitor_mutex{};
+    std::recursive_mutex m_hook_monitor_mutex{};
     std::recursive_mutex m_startup_mutex{};
     std::unique_ptr<std::jthread> m_d3d_monitor_thread{};
     std::atomic<std::chrono::steady_clock::time_point> m_last_present_time{};
@@ -477,7 +477,7 @@ extern std::unique_ptr<REFramework> g_framework;
 // 统一安全的钩子监视器互斥锁访问。
 // 在 g_framework 尚未初始化完成（构造函数尚未返回）时，后面的调用者自旋等待，
 // 避免其他线程（如 D3D11/D3D12 钩子）因空指针解引用导致崩溃。
-inline std::shared_mutex& get_hook_monitor_mutex_safe() {
+inline std::recursive_mutex& get_hook_monitor_mutex_safe() {
     while (g_framework == nullptr) {
         std::this_thread::yield(); // 自旋等待启动线程完成
     }

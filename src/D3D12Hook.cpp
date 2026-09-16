@@ -91,7 +91,7 @@ void* D3D12Hook::Streamline::link_swapchain_to_cmd_queue(void* rcx, void* rdx, v
         return hook->get_original<decltype(link_swapchain_to_cmd_queue)>()(rcx, rdx, r8, r9);
     }
 
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("[Streamline] linkSwapchainToCmdQueue: {:x}", (uintptr_t)_ReturnAddress());
 
@@ -124,7 +124,7 @@ HRESULT WINAPI D3D12Hook::create_swapchain(IDXGIFactory4* factory, IUnknown* dev
 
     spdlog::info("create_swapchain called");
 
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     bool hook_was_nullptr = g_d3d12_hook == nullptr;
 
@@ -609,7 +609,7 @@ bool D3D12Hook::hook_impl() {
 }
 
 bool D3D12Hook::unhook() {
-    std::unique_lock<std::shared_mutex> _(get_hook_monitor_mutex_safe());
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     if (!m_hooked) {
         return true;
@@ -629,7 +629,7 @@ bool D3D12Hook::unhook() {
 thread_local int32_t g_present_depth = 0;
 
 HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_interval, uint64_t flags, void* r9) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     auto d3d12 = g_d3d12_hook;
 
@@ -743,7 +743,7 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
 thread_local int32_t g_resize_buffers_depth = 0;
 
 HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("D3D12 resize buffers called");
     spdlog::info(" Parameters: buffer_count {} width {} height {} new_format {} swap_chain_flags {}", buffer_count, width, height, new_format, swap_chain_flags);
@@ -779,7 +779,7 @@ HRESULT WINAPI D3D12Hook::resize_buffers(IDXGISwapChain3* swap_chain, UINT buffe
 thread_local int32_t g_resize_target_depth = 0;
 
 HRESULT WINAPI D3D12Hook::resize_target(IDXGISwapChain3* swap_chain, const DXGI_MODE_DESC* new_target_parameters) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     spdlog::info("D3D12 resize target called");
     spdlog::info(" Parameters: new_target_parameters {:x}", (uintptr_t)new_target_parameters);

@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <shared_mutex>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <utility/Thread.hpp>
 #include <utility/Module.hpp>
@@ -152,7 +152,7 @@ thread_local bool g_inside_d3d11_present = false;
 thread_local HRESULT last_d3d11_present_result = S_OK;
 
 HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     auto d3d11 = g_d3d11_hook;
     auto present_fn = d3d11->m_present_hook->get_original<decltype(D3D11Hook::present)*>();
@@ -210,7 +210,7 @@ thread_local HRESULT last_d3d11_resize_buffers_result = S_OK;
 
 HRESULT WINAPI D3D11Hook::resize_buffers(
     IDXGISwapChain* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     auto d3d11 = g_d3d11_hook;
     auto resize_buffers_fn = d3d11->m_resize_buffers_hook->get_original<decltype(D3D11Hook::resize_buffers)*>();
@@ -241,7 +241,7 @@ HRESULT WINAPI D3D11Hook::resize_buffers(
 
 void WINAPI D3D11Hook::set_render_targets(
     ID3D11DeviceContext* context, UINT num_views, ID3D11RenderTargetView* const* rtvs, ID3D11DepthStencilView* dsv) {
-    std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
+    std::scoped_lock _{get_hook_monitor_mutex_safe()};
 
     auto d3d11 = g_d3d11_hook;
 

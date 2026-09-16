@@ -1,5 +1,6 @@
 #include "FrameRenderer.hpp"
 #include "REFramework.hpp"
+#include "core/D3DHookMonitor.hpp"
 
 #include <spdlog/spdlog.h>
 #include <imgui.h>
@@ -371,6 +372,10 @@ void on_frame_d3d11(REFramework& fw) {
 void on_post_present_d3d11(REFramework& fw) {
     const auto now = std::chrono::steady_clock::now();
 
+    if (fw.m_hook_monitor != nullptr) {
+        fw.m_hook_monitor->on_present_received();
+    }
+
     if (!fw.m_error.empty() || !fw.m_initialized || !fw.m_game_data_initialized) {
         if (fw.m_last_present_time.load() <= now) {
             fw.m_last_present_time.store(now);
@@ -531,6 +536,10 @@ void on_frame_d3d12(REFramework& fw) {
 
 void on_post_present_d3d12(REFramework& fw) {
     const auto now = std::chrono::steady_clock::now();
+
+    if (fw.m_hook_monitor != nullptr) {
+        fw.m_hook_monitor->on_present_received();
+    }
 
     if (!fw.m_error.empty() || !fw.m_initialized || !fw.m_game_data_initialized) {
         if (fw.m_last_present_time.load() <= now) {

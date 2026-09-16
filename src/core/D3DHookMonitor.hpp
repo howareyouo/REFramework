@@ -17,9 +17,6 @@ public:
     // Resets all timeout bookkeeping to "healthy" state.
     void reset_chance_times();
 
-    // Thread-safety for the monitor itself.
-    std::shared_mutex& mutex() { return m_mutex; }
-
     // Notified by the present path to keep hooks alive.
     void on_present_received();
     void on_message_received();
@@ -39,7 +36,6 @@ private:
     void check_message_hook();
 
     REFramework& m_framework;
-    std::shared_mutex m_mutex{};
 
     std::atomic<State> m_state{State::Healthy};
     std::chrono::steady_clock::time_point m_state_entered{std::chrono::steady_clock::now()};

@@ -40,6 +40,10 @@ bool CommandContext::setup(const wchar_t* name) {
     this->internal_name = name;
 
     auto& hook = g_framework->get_d3d12_hook();
+    if (hook == nullptr) {
+        spdlog::error("[d3d12] D3D12Hook is null during setup");
+        return false;
+    }
     auto device = hook->get_device();
 
     this->cmd_allocator.Reset();
@@ -300,7 +304,11 @@ void CommandContext::execute() {
 
         this->list_open = false;
 
-        auto command_queue = g_framework->get_d3d12_hook()->get_command_queue();
+        auto& hook = g_framework->get_d3d12_hook();
+        if (hook == nullptr) {
+            return;
+        }
+        auto command_queue = hook->get_command_queue();
         ID3D12CommandList* const cmd_lists[] = {this->cmd_list.Get()};
         command_queue->ExecuteCommandLists(1, cmd_lists);
         command_queue->Signal(this->fence.Get(), ++this->fence_value);

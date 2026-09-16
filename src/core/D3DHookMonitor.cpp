@@ -102,11 +102,11 @@ void D3DHookMonitor::tick() {
         return;
     }
 
-    if (!m_mutex.try_lock()) {
+    if (!m_framework.get_hook_monitor_mutex().try_lock()) {
         reset_chance_times();
         return;
     }
-    std::lock_guard _{m_mutex, std::adopt_lock};
+    std::lock_guard _{m_framework.get_hook_monitor_mutex(), std::adopt_lock};
 
     const auto now = std::chrono::steady_clock::now();
 
