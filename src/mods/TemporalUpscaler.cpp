@@ -77,26 +77,22 @@ const Reflection& reflection() {
     static const Reflection api = [] {
         Reflection api{};
 
+        auto method = [](sdk::RETypeDefinition* t, const char* n) -> sdk::REMethodDefinition* {
+            return t ? t->get_method(n) : nullptr;
+        };
+
         api.renderer = sdk::find_type_definition("via.render.Renderer");
         api.render_config = sdk::find_type_definition("via.render.RenderConfig");
         api.camera = sdk::find_type_definition("via.Camera");
 
-        if (api.renderer != nullptr) {
-            api.renderer_get_render_config = api.renderer->get_method("get_RenderConfig");
-        }
-
-        if (api.render_config != nullptr) {
-            api.render_config_get_aa = api.render_config->get_method("get_AntiAliasing");
-            api.render_config_set_aa = api.render_config->get_method("set_AntiAliasing");
-            api.render_config_get_iqr = api.render_config->get_method("get_ImageQualityRate");
-            api.render_config_set_iqr = api.render_config->get_method("set_ImageQualityRate");
-        }
-
-        if (api.camera != nullptr) {
-            api.camera_get_near = api.camera->get_method("get_NearClipPlane");
-            api.camera_get_far = api.camera->get_method("get_FarClipPlane");
-            api.camera_get_projection = api.camera->get_method("get_ProjectionMatrix");
-        }
+        api.renderer_get_render_config  = method(api.renderer, "get_RenderConfig");
+        api.render_config_get_aa        = method(api.render_config, "get_AntiAliasing");
+        api.render_config_set_aa        = method(api.render_config, "set_AntiAliasing");
+        api.render_config_get_iqr       = method(api.render_config, "get_ImageQualityRate");
+        api.render_config_set_iqr       = method(api.render_config, "set_ImageQualityRate");
+        api.camera_get_near             = method(api.camera, "get_NearClipPlane");
+        api.camera_get_far              = method(api.camera, "get_FarClipPlane");
+        api.camera_get_projection       = method(api.camera, "get_ProjectionMatrix");
 
         if (const auto scene_layer = sdk::find_type_definition("via.render.layer.Scene"); scene_layer != nullptr) {
             api.scene_layer_type = scene_layer->get_type();
@@ -257,15 +253,15 @@ void TemporalUpscaler::on_draw_ui() {
 
     if (m_use_native_resolution->draw("Use Native Res (DLAA)")) {
         // The render size depends on the mode, so re-query it and the motion scale.
-        invalidate_render_size();
+        m_cached_render_size.invalidate();
         update_motion_scale();
     }
 
     needs_reinit |= m_sharpness->draw("Sharpness");
     m_sharpness_amount->draw("Sharpness Amount");
 
-    const auto w = (float)get_render_width();
-    const auto h = (float)get_render_height();
+    const auto [rw, rh] = get_render_size();
+    const auto w = (float)rw, h = (float)rh;
 
     if (ImGui::Combo("Upscale Type", (int*)&m_available_upscale_type, m_combo_labels.data(), (int)m_combo_labels.size())) {
         m_available_upscale_type = (uint32_t)std::min<size_t>(m_available_upscale_type, m_methods.size() - 1);
@@ -327,25 +323,24 @@ void TemporalUpscaler::apply_setting_changes() {
     m_wants_reinitialize = true;
 }
 
+// Unified helper: resolves the engine's RenderConfig object.
+// Returns nullptr if reflection is incomplete or the renderer has no config.
+::REManagedObject* TemporalUpscaler::get_render_config() {
+    const auto& r = reflection();
+    if (r.renderer == nullptr || r.renderer_get_render_config == nullptr) return nullptr;
+    return r.renderer_get_render_config->call<::REManagedObject*>(sdk::get_thread_context(), r.renderer->get_instance());
+}
+
 void TemporalUpscaler::restore_engine_aa() {
-    if (!m_taa_disabled) {
-        return;
-    }
+    if (!m_taa_disabled) return;
 
     m_taa_disabled = false;
 
     const auto& refl = reflection();
+    if (refl.render_config_set_aa == nullptr) return;
 
-    if (refl.renderer == nullptr || refl.renderer_get_render_config == nullptr || refl.render_config_set_aa == nullptr) {
-        return;
-    }
-
-    auto context = sdk::get_thread_context();
-    auto renderer = refl.renderer->get_instance();
-    auto render_config = refl.renderer_get_render_config->call<::REManagedObject*>(context, renderer);
-
-    if (render_config != nullptr) {
-        refl.render_config_set_aa->call<void*>(context, render_config, m_original_antialiasing);
+    if (auto render_config = get_render_config(); render_config != nullptr) {
+        refl.render_config_set_aa->call<void*>(sdk::get_thread_context(), render_config, m_original_antialiasing);
         spdlog::info("[TemporalUpscaler] TAA restored to {}", (int)m_original_antialiasing);
     }
 }
@@ -367,14 +362,13 @@ void TemporalUpscaler::on_early_present() {
         // mid-teardown is the *previous* feature's size, latched for good. Carry the last
         // known size across the teardown so that window never opens; init_upscale_features()
         // publishes the new feature's size once it exists.
-        const auto saved_w = m_cached_render_size[0].load(std::memory_order_relaxed);
-        const auto saved_h = m_cached_render_size[1].load(std::memory_order_relaxed);
+        const auto saved_w = m_cached_render_size.width();
+        const auto saved_h = m_cached_render_size.height();
 
         release_upscale_features();
         m_wants_reinitialize = false;
 
-        m_cached_render_size[0].store(saved_w, std::memory_order_relaxed);
-        m_cached_render_size[1].store(saved_h, std::memory_order_relaxed);
+        m_cached_render_size.store(saved_w, saved_h);
 
         if (init_upscale_features()) {
             return;
@@ -401,9 +395,10 @@ void TemporalUpscaler::on_early_present() {
     }
 
     // Cached so that a per-frame GetRenderWidth/Height (a cross-DLL call into the plugin)
-    // is only paid after invalidate_render_size() zeroes it.
-    if (m_cached_render_size[0].load(std::memory_order_relaxed) == 0) {
-        refresh_cached_render_size();
+    // is only paid after m_cached_render_size.invalidate() zeroes it.
+    if (m_cached_render_size.width() == 0) {
+        auto [rw, rh] = get_render_size();
+        m_cached_render_size.store(rw, rh);
     }
 
     auto& hook = g_framework->get_d3d12_hook();
@@ -448,8 +443,8 @@ void TemporalUpscaler::on_early_present() {
         params.destination = nullptr;
         params.motionScaleX = m_motion_scale[0];
         params.motionScaleY = m_motion_scale[1];
-        params.renderSizeX = (float)m_cached_render_size[0].load(std::memory_order_relaxed);
-        params.renderSizeY = (float)m_cached_render_size[1].load(std::memory_order_relaxed);
+        params.renderSizeX = (float)m_cached_render_size.width();
+        params.renderSizeY = (float)m_cached_render_size.height();
         params.jitterOffsetX = state.jitter_offset[0];
         params.jitterOffsetY = state.jitter_offset[1];
         params.sharpness = m_sharpness_amount->value();
@@ -524,7 +519,7 @@ bool TemporalUpscaler::ensure_first_frame() {
     // Lift the resolution spoof immediately so the engine renders at its real size while
     // we retry, instead of being fed the dead backend's cached render size.
     m_set_view.store(false, std::memory_order_relaxed);
-    invalidate_render_size();
+    m_cached_render_size.invalidate();
 
     // Give up after a wall-clock budget, not a frame count: at low fps (loading screens) a
     // frame-based threshold can stretch the retry phase to many minutes.
@@ -633,7 +628,10 @@ bool TemporalUpscaler::init_upscale_features() {
     // blank output over the backbuffer — the black screen seen after a quality change.
     // Re-publishing here (after InitUpscaler, so GetRenderWidth() reflects the new feature)
     // keeps the module and the feature in agreement.
-    refresh_cached_render_size();
+    {
+        auto [rw, rh] = get_render_size();
+        m_cached_render_size.store(rw, rh);
+    }
 
     const auto desc = m_upscaled_texture->GetDesc();
     spdlog::info("[TemporalUpscaler] Upscaled texture size: {}x{}", desc.Width, desc.Height);
@@ -661,7 +659,7 @@ void TemporalUpscaler::release_upscale_features() {
 
 void TemporalUpscaler::invalidate_caches() {
     // Render size and motion scale are derived from the plugin and the scene view size.
-    invalidate_render_size();
+    m_cached_render_size.invalidate();
 
     // Engine-side state that has to be re-queried: the camera parameters, the render config
     // assertion and the layer pointers may all be stale, and the D3D12 inputs and their
@@ -709,12 +707,13 @@ void TemporalUpscaler::on_view_get_size(REManagedObject* scene_view, float* resu
 
     // Spoof the size to the upscaler's render size. The cache keeps GetRenderWidth/Height
     // (each a cross-DLL call into PDPerfPlugin) off this path.
-    if (m_cached_render_size[0].load(std::memory_order_relaxed) == 0 || m_cached_render_size[1].load(std::memory_order_relaxed) == 0) {
-        refresh_cached_render_size();
+    if (m_cached_render_size.width() == 0 || m_cached_render_size.height() == 0) {
+        auto [rw, rh] = get_render_size();
+        m_cached_render_size.store(rw, rh);
     }
 
-    result[0] = (float)m_cached_render_size[0].load(std::memory_order_relaxed);
-    result[1] = (float)m_cached_render_size[1].load(std::memory_order_relaxed);
+    result[0] = (float)m_cached_render_size.width();
+    result[1] = (float)m_cached_render_size.height();
 
     m_set_view.store(true, std::memory_order_relaxed);
 }
@@ -744,8 +743,8 @@ void TemporalUpscaler::on_scene_layer_update(sdk::renderer::layer::Scene* layer,
         utility::re_managed_object::get_field<sdk::renderer::SceneInfo*>((::REManagedObject*)layer, refl.z_prepass_desc),
     };
 
-    const auto w = (float)m_cached_render_size[0].load(std::memory_order_relaxed);
-    const auto h = (float)m_cached_render_size[1].load(std::memory_order_relaxed);
+    const auto w = (float)m_cached_render_size.width();
+    const auto h = (float)m_cached_render_size.height();
 
     float x = 0.0f;
     float y = 0.0f;
@@ -960,15 +959,11 @@ void TemporalUpscaler::update_camera_params() {
 
 void TemporalUpscaler::sync_render_config() {
     const auto& refl = reflection();
-
-    if (refl.renderer == nullptr || refl.renderer_get_render_config == nullptr ||
-        refl.render_config_get_aa == nullptr || refl.render_config_set_aa == nullptr) {
-        return;
-    }
+    if (refl.render_config_get_aa == nullptr || refl.render_config_set_aa == nullptr) return;
 
     auto context = sdk::get_thread_context();
-    auto renderer = refl.renderer->get_instance();
-    auto render_config = refl.renderer_get_render_config->call<::REManagedObject*>(context, renderer);
+    auto render_config = get_render_config();
+    if (render_config == nullptr) return;
 
     const auto antialiasing = refl.render_config_get_aa->call<via::render::RenderConfig::AntiAliasingType>(context, render_config);
 
@@ -981,7 +976,6 @@ void TemporalUpscaler::sync_render_config() {
     }
 
     if (!m_allow_taa) {
-        // The engine's own TAA cannot be used together with the upscaler.
         if (antialiasing == via::render::RenderConfig::AntiAliasingType::TAA ||
             antialiasing == via::render::RenderConfig::AntiAliasingType::FXAA_TAA) {
             refl.render_config_set_aa->call<void*>(context, render_config, via::render::RenderConfig::AntiAliasingType::NONE);
@@ -994,9 +988,8 @@ void TemporalUpscaler::sync_render_config() {
 
     // The image quality rate has to be forced to 1.0, otherwise the motion and depth
     // buffers become misaligned with the color buffer.
-    if (refl.render_config_get_iqr != nullptr) {
+    if (refl.render_config_get_iqr != nullptr && refl.render_config_set_iqr != nullptr) {
         const auto image_quality_rate = refl.render_config_get_iqr->call<float>(context, render_config);
-
         if (image_quality_rate != 1.0f) {
             refl.render_config_set_iqr->call<void*>(context, render_config, 1.0f);
             spdlog::info("[TemporalUpscaler] Image quality rate set to 1.0");
@@ -1023,54 +1016,35 @@ ID3D12Resource* TemporalUpscaler::get_backbuffer_d3d12(uint32_t index) {
         }
 
         const auto desc = backbuffer->GetDesc();
-        m_backbuffer_size[0].store((uint32_t)desc.Width, std::memory_order_relaxed);
-        m_backbuffer_size[1].store((uint32_t)desc.Height, std::memory_order_relaxed);
+        m_backbuffer_size.store((uint32_t)desc.Width, (uint32_t)desc.Height);
     }
 
     return backbuffer.Get();
 }
 
-uint32_t TemporalUpscaler::get_render_width() const {
+std::pair<uint32_t, uint32_t> TemporalUpscaler::get_render_size() const {
     if (m_use_native_resolution->value()) {
         // 1 is subtracted from the native resolution because the game then creates a
         // separate color buffer we can use; without it that buffer stays null.
-        return m_backbuffer_size[0].load(std::memory_order_relaxed) - 1;
+        return {m_backbuffer_size.width() - 1, m_backbuffer_size.height() - 1};
     }
-
-    return GetRenderWidth(VIEW_ID);
-}
-
-uint32_t TemporalUpscaler::get_render_height() const {
-    if (m_use_native_resolution->value()) {
-        return m_backbuffer_size[1].load(std::memory_order_relaxed) - 1;
-    }
-
-    return GetRenderHeight(VIEW_ID);
+    return {GetRenderWidth(VIEW_ID), GetRenderHeight(VIEW_ID)};
 }
 
 void TemporalUpscaler::update_motion_scale() {
+    const auto [w, h] = get_render_size();
 #if TDB_VER > 67
-    m_motion_scale[0] = (float)get_render_width() / 2.0f;
-    m_motion_scale[1] = -1.0f * ((float)get_render_height() / 2.0f);
+    m_motion_scale[0] = (float)w / 2.0f;
+    m_motion_scale[1] = -1.0f * ((float)h / 2.0f);
 #else
     // I have no idea. Would need to take a look at the texture in RenderDoc.
     // Might need a shader to fix this?
     m_motion_scale[0] = 0.01f;
-    m_motion_scale[1] = -1.0f * ((float)get_render_height() / 2.0f);
+    m_motion_scale[1] = -1.0f * ((float)h / 2.0f);
 #endif
 
     SetMotionScaleX(VIEW_ID, m_motion_scale[0]);
     SetMotionScaleY(VIEW_ID, m_motion_scale[1]);
-}
-
-void TemporalUpscaler::invalidate_render_size() {
-    m_cached_render_size[0].store(0, std::memory_order_relaxed);
-    m_cached_render_size[1].store(0, std::memory_order_relaxed);
-}
-
-void TemporalUpscaler::refresh_cached_render_size() {
-    m_cached_render_size[0].store(get_render_width(), std::memory_order_relaxed);
-    m_cached_render_size[1].store(get_render_height(), std::memory_order_relaxed);
 }
 
 void TemporalUpscaler::warn_missing_input(WarnSource source) {

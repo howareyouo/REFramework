@@ -172,19 +172,17 @@ private:
     // called after anything that can change the swapchain, the render size, the layer
     // tree or the upscaler's inputs.
     void invalidate_caches();
-    void invalidate_render_size();
-    void refresh_cached_render_size();
-    // Cached swapchain backbuffer for the given index, filling the cache (and
-    // m_backbuffer_size) on first access.
+    // Cached swapchain backbuffer for the given index, filling m_backbuffer_size on first access.
     ID3D12Resource* get_backbuffer_d3d12(uint32_t index);
-    uint32_t get_render_width() const;
-    uint32_t get_render_height() const;
+    std::pair<uint32_t, uint32_t> get_render_size() const;
     void update_motion_scale();
 
     // UI.
     // Applies whatever the user changed in on_draw_ui, in one place.
     void apply_setting_changes();
     void restore_engine_aa();
+    // Unified helper: resolves engine's RenderConfig via reflection.
+    ::REManagedObject* get_render_config();
 
     bool m_initialized{false};
     bool m_backend_loaded{false};
@@ -213,9 +211,18 @@ private:
     // published through these flags, only their own values are consumed.
     std::atomic<bool> m_rendering{false};
     std::atomic<bool> m_set_view{false};
-    // Render size, cached to avoid per-call PDPerfPlugin queries. Zero means "re-query".
-    std::array<std::atomic<uint32_t>, 2> m_cached_render_size{};
-    std::array<std::atomic<uint32_t>, 2> m_backbuffer_size{};
+    // Relaxed-atomic width/height pair. Zero means "not cached / needs re-query".
+    struct AtomicSize {
+        std::atomic<uint32_t> w{0}, h{0};
+        uint32_t width()  const { return w.load(std::memory_order_relaxed); }
+        uint32_t height() const { return h.load(std::memory_order_relaxed); }
+        void store(uint32_t nw, uint32_t nh) { w.store(nw, std::memory_order_relaxed); h.store(nh, std::memory_order_relaxed); }
+        void invalidate() { store(0, 0); }
+    };
+
+    // Render size, cached to avoid per-call PDPerfPlugin queries.
+    AtomicSize m_cached_render_size{};
+    AtomicSize m_backbuffer_size{};
 
     std::array<uint32_t, WARN_COUNT> m_missing_input_warn_counters{};
 
