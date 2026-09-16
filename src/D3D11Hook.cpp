@@ -5,15 +5,55 @@
 #include <utility/Module.hpp>
 
 #include "REFramework.hpp"
-
 #include "WindowFilter.hpp"
-
 #include "D3D11Hook.hpp"
 
 using namespace std;
 
 static D3D11Hook* g_d3d11_hook = nullptr;
 
+namespace {
+    // RAII: 临时还原被 hook 的函数字节，析构时自动恢复 hooked 状态
+    class ScopedFunctionUnhook {
+    public:
+        ScopedFunctionUnhook(void* func, const std::vector<uint8_t>& original_bytes)
+            : m_func(func), m_size(original_bytes.size()) {
+            m_hooked_bytes.resize(m_size);
+            memcpy(m_hooked_bytes.data(), func, m_size);
+            ProtectionOverride prot{func, m_size, PAGE_EXECUTE_READWRITE};
+            memcpy(func, original_bytes.data(), m_size);
+        }
+
+        ~ScopedFunctionUnhook() {
+            ProtectionOverride prot{m_func, m_size, PAGE_EXECUTE_READWRITE};
+            memcpy(m_func, m_hooked_bytes.data(), m_size);
+        }
+
+        ScopedFunctionUnhook(const ScopedFunctionUnhook&) = delete;
+        ScopedFunctionUnhook& operator=(const ScopedFunctionUnhook&) = delete;
+
+    private:
+        void* m_func;
+        std::vector<uint8_t> m_hooked_bytes;
+        size_t m_size;
+    };
+
+    // 提取：present / resize_buffers 共用的窗口过滤检查
+    inline bool is_swapchain_filtered(IDXGISwapChain* swap_chain) {
+        DXGI_SWAP_CHAIN_DESC desc{};
+        swap_chain->GetDesc(&desc);
+        return WindowFilter::is_hwnd_filtered_fast(desc.OutputWindow);
+    }
+
+    // RAII: 管理重入标志和上一次结果，比手动 set/reset 更健壮
+    struct ReentrancyScope {
+        bool& flag;
+        HRESULT& stored;
+        ReentrancyScope(bool& f, HRESULT& r) : flag(f), stored(r) { flag = true; }
+        void store(HRESULT hr) { stored = hr; }
+        ~ReentrancyScope() { flag = false; }
+    };
+} // namespace
 
 D3D11Hook::~D3D11Hook() {
     unhook();
@@ -30,10 +70,7 @@ bool D3D11Hook::hook() {
     ID3D11DeviceContext* context = nullptr;
 
     D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;
-    DXGI_SWAP_CHAIN_DESC swap_chain_desc;
-
-    ZeroMemory(&swap_chain_desc, sizeof(swap_chain_desc));
-
+    DXGI_SWAP_CHAIN_DESC swap_chain_desc{}; // C++ value-init，替代 ZeroMemory
     swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     swap_chain_desc.BufferCount = 1;
     swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -46,32 +83,25 @@ bool D3D11Hook::hook() {
 
     const auto original_bytes = utility::get_original_bytes(&D3D11CreateDeviceAndSwapChain);
 
-    // Temporarily unhook D3D11CreateDeviceAndSwapChain
-    // it allows compatibility with ReShade and other overlays that hook it
-    // this is just a dummy device anyways, we don't want the other overlays to be able to use it
+    // 提取重复的设备创建调用
+    auto create_device = [&]() -> HRESULT {
+        return D3D11CreateDeviceAndSwapChain(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+            &feature_level, 1, D3D11_SDK_VERSION, &swap_chain_desc,
+            &swap_chain, &device, nullptr, &context);
+    };
+
     if (original_bytes) {
         spdlog::info("D3D11CreateDeviceAndSwapChain appears to be hooked, temporarily unhooking");
+        ScopedFunctionUnhook unhooker(&D3D11CreateDeviceAndSwapChain, *original_bytes);
 
-        std::vector<uint8_t> hooked_bytes(original_bytes->size());
-        memcpy(hooked_bytes.data(), &D3D11CreateDeviceAndSwapChain, original_bytes->size());
-
-        ProtectionOverride protection_override{ &D3D11CreateDeviceAndSwapChain, original_bytes->size(), PAGE_EXECUTE_READWRITE };
-        memcpy(&D3D11CreateDeviceAndSwapChain, original_bytes->data(), original_bytes->size());
-        
-        if (FAILED(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &feature_level, 1, D3D11_SDK_VERSION,
-                &swap_chain_desc, &swap_chain, &device, nullptr, &context))) 
-        {
+        if (FAILED(create_device())) {
             spdlog::error("Failed to create D3D11 device");
-            memcpy(&D3D11CreateDeviceAndSwapChain, hooked_bytes.data(), hooked_bytes.size());
             return false;
         }
-        
         spdlog::info("Restoring hooked bytes for D3D11CreateDeviceAndSwapChain");
-        memcpy(&D3D11CreateDeviceAndSwapChain, hooked_bytes.data(), hooked_bytes.size());
     } else {
-        if (FAILED(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &feature_level, 1, D3D11_SDK_VERSION,
-                &swap_chain_desc, &swap_chain, &device, nullptr, &context))) 
-        {
+        if (FAILED(create_device())) {
             spdlog::error("Failed to create D3D11 device");
             return false;
         }
@@ -97,9 +127,9 @@ bool D3D11Hook::hook() {
 
     suspender.resume();
 
-    device->Release();
-    context->Release();
-    swap_chain->Release();
+    if (device) device->Release();
+    if (context) context->Release();
+    if (swap_chain) swap_chain->Release();
     return m_hooked;
 }
 
@@ -125,14 +155,9 @@ HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval
     std::shared_lock<std::shared_mutex> _{get_hook_monitor_mutex_safe()};
 
     auto d3d11 = g_d3d11_hook;
-
-    // This line must be called before calling our detour function because we might have to unhook the function inside our detour.
     auto present_fn = d3d11->m_present_hook->get_original<decltype(D3D11Hook::present)*>();
 
-    DXGI_SWAP_CHAIN_DESC swap_desc{};
-    swap_chain->GetDesc(&swap_desc);
-
-    if (WindowFilter::is_hwnd_filtered_fast(swap_desc.OutputWindow)) {
+    if (is_swapchain_filtered(swap_chain)) {
         return present_fn(swap_chain, sync_interval, flags);
     }
 
@@ -145,31 +170,11 @@ HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval
         d3d11->m_swapchain_1 = swap_chain;
     }
 
-    /*if (d3d11->m_swap_chain != d3d11->m_swapchain_0) {
-        d3d11->m_inside_present = false;
-        return present_fn(swap_chain, sync_interval, flags);
-    }*/
-
     if (d3d11->m_device == nullptr) {
         swap_chain->GetDevice(IID_PPV_ARGS(&d3d11->m_device));
     }
 
-    /*if (d3d11->m_set_render_targets_hook == nullptr) {
-        ComPtr<ID3D11DeviceContext> context{};
-
-        d3d11->m_device->GetImmediateContext(&context);
-        auto& set_render_targets_fn = (*(void***)context.Get())[33];
-        d3d11->m_set_render_targets_hook = std::make_unique<PointerHook>(&set_render_targets_fn, (void*)&set_render_targets);
-        OutputDebugString("Hooked ID3D11DeviceContext::SetRenderTargets");
-    }*/
-
-    /*if (GetAsyncKeyState(VK_INSERT) & 1) {
-        OutputDebugString(fmt::format("Depth stencil @ {:p} used", (void*)d3d11->m_last_depthstencil_used.Get()).c_str());
-    }*/
-
-    // Restore the original bytes
-    // if an infinite loop occurs, this will prevent the game from crashing
-    // while keeping our hook intact
+    // 保留原始顺序：先检查重入，再执行 on_present
     if (g_inside_d3d11_present) {
         return last_d3d11_present_result;
     }
@@ -179,17 +184,16 @@ HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval
     }
 
     HRESULT result = S_OK;
-    g_inside_d3d11_present = true;
-
-    if (!d3d11->m_ignore_next_present) {
-        result = present_fn(swap_chain, sync_interval, flags);
-        last_d3d11_present_result = result;
-    } else {
-        d3d11->m_ignore_next_present = false;
-        last_d3d11_present_result = S_OK;
+    {
+        ReentrancyScope guard(g_inside_d3d11_present, last_d3d11_present_result);
+        if (!d3d11->m_ignore_next_present) {
+            result = present_fn(swap_chain, sync_interval, flags);
+            guard.store(result);
+        } else {
+            d3d11->m_ignore_next_present = false;
+            guard.store(S_OK);
+        }
     }
-
-    g_inside_d3d11_present = false;
 
     if (d3d11->m_on_post_present) {
         d3d11->m_on_post_present(*d3d11);
@@ -211,10 +215,7 @@ HRESULT WINAPI D3D11Hook::resize_buffers(
     auto d3d11 = g_d3d11_hook;
     auto resize_buffers_fn = d3d11->m_resize_buffers_hook->get_original<decltype(D3D11Hook::resize_buffers)*>();
 
-    DXGI_SWAP_CHAIN_DESC swap_desc{};
-    swap_chain->GetDesc(&swap_desc);
-
-    if (WindowFilter::is_hwnd_filtered_fast(swap_desc.OutputWindow)) {
+    if (is_swapchain_filtered(swap_chain)) {
         return resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
     }
 
@@ -223,6 +224,7 @@ HRESULT WINAPI D3D11Hook::resize_buffers(
     d3d11->m_swapchain_1 = nullptr;
     d3d11->m_last_depthstencil_used.Reset();
 
+    // 保留原始顺序：先执行 on_resize_buffers，再检查重入
     if (d3d11->m_on_resize_buffers) {
         d3d11->m_on_resize_buffers(*d3d11);
     }
@@ -231,13 +233,10 @@ HRESULT WINAPI D3D11Hook::resize_buffers(
         return last_d3d11_resize_buffers_result;
     }
 
-    g_inside_d3d11_resize_buffers = true;
-
-    last_d3d11_resize_buffers_result = resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
-
-    g_inside_d3d11_resize_buffers = false;
-
-    return last_d3d11_resize_buffers_result;
+    ReentrancyScope guard(g_inside_d3d11_resize_buffers, last_d3d11_resize_buffers_result);
+    HRESULT result = resize_buffers_fn(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
+    guard.store(result);
+    return result;
 }
 
 void WINAPI D3D11Hook::set_render_targets(
@@ -247,23 +246,14 @@ void WINAPI D3D11Hook::set_render_targets(
     auto d3d11 = g_d3d11_hook;
 
     if (dsv != nullptr) {
-        //auto obj_name = fmt::format("Depthstencil @ {:p}", (void*)d3d11->m_last_depthstencil_used.Get());
-        //d3d11->m_last_depthstencil_used->SetPrivateData(WKPDID_D3DDebugObjectName, obj_name.size(), obj_name.c_str());
-        //OutputDebugString(fmt::format("Depth stencil @ {:p} used", (void*)d3d11->m_last_depthstencil_used.Get()).c_str());
-
         D3D11_DEPTH_STENCIL_VIEW_DESC desc{};
         dsv->GetDesc(&desc);
 
         if (desc.Flags & D3D11_DSV_FLAG::D3D11_DSV_READ_ONLY_DEPTH) {
             dsv->GetResource((ID3D11Resource**)d3d11->m_last_depthstencil_used.GetAddressOf());
-
-            //OutputDebugString(fmt::format("Flags: {}", desc.Flags).c_str());
-            //OutputDebugString(fmt::format("Format: {}", desc.Format).c_str());
-            //OutputDebugString(fmt::format("ViewDimension: {}", desc.ViewDimension).c_str());   
         }
     }
 
     auto set_render_targets_fn = d3d11->m_set_render_targets_hook->get_original<decltype(set_render_targets)*>();
-
     return set_render_targets_fn(context, num_views, rtvs, dsv);
 }
