@@ -296,31 +296,39 @@ void Graphics::on_frame() {
 }
 
 void Graphics::on_draw_ui() {
-    ImGui::SetNextItemOpen(false, ImGuiCond_::ImGuiCond_FirstUseEver);
-    if (!ImGui::CollapsingHeader(get_name().data())) {
+    if (!begin_draw_ui()) {
         return;
     }
 
+    draw_scope_tweaks();
+    draw_ultrawide_options();
+    draw_gui_options();
+#if TDB_VER >= 69
+    draw_ray_tracing_tweaks();
+    draw_shader_playground();
+#endif
+}
+
+void Graphics::draw_scope_tweaks() {
 #ifdef RE4
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("RE4 Scope Tweaks")) {
         m_scope_tweaks->draw("Enable Scope Tweaks");
-
         if (m_scope_tweaks->value()) {
             m_scope_interlaced_rendering->draw("Enable Interlaced Rendering");
             m_scope_image_quality->draw("Scope Image Quality");
         }
-
         ImGui::TreePop();
     }
 #endif
+}
 
+void Graphics::draw_ultrawide_options() {
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("Ultrawide/FOV Options")) {
         if (m_ultrawide_fix->draw("Ultrawide/FOV/Aspect Ratio Fix") && m_ultrawide_fix->value() == false) {
             do_ultrawide_fov_restore(true);
         }
-
         if (m_ultrawide_fix->value()) {
 #ifndef MHWILDS
             m_ultrawide_constrain_ui->draw("Ultrawide: Constrain UI to 16:9");
@@ -334,37 +342,37 @@ void Graphics::on_draw_ui() {
             m_ultrawide_custom_fov->draw("Ultrawide: Override FOV");
             m_ultrawide_fov_multiplier->draw("Ultrawide: FOV Multiplier");
         }
-
         m_force_render_res_to_window->draw("Force Render Resolution to Window Size");
-
         ImGui::TreePop();
     }
+}
 
+void Graphics::draw_gui_options() {
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("GUI Options")) {
         m_disable_gui->draw("Hide GUI");
         m_disable_gui_key->draw("Hide GUI key");
         ImGui::TreePop();
     }
+}
 
 #if TDB_VER >= 69
+void Graphics::draw_ray_tracing_tweaks() {
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("Ray Tracing Tweaks")) {
         m_ray_tracing_tweaks->draw("Enable Ray Tracing Tweaks");
-
         if (m_ray_tracing_tweaks->value()) {
             m_ray_trace_disable_raster_shadows->draw("Disable Raster Shadows (with PT)");
             m_ray_trace_always_recreate_rt_component->draw("Always Recreate RT Component");
-            // Description of the above option
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Recreates the RT component. Useful if Ray Tracing Tweaks is not working.");
             }
             m_ray_trace_type->draw("Ray Trace Type");
 
-            const auto clone_tooltip = 
-                    "Can draw another RT pass over the main RT pass. Useful for hybrid rendering.\n"
-                    "Example: Set Ray Trace Type to Pure and Ray Trace Clone Type to ASVGF. This adds RTGI to the path traced image.\n"
-                    "Path Space Filter is also another good alternative for RTGI but it costs more performance.\n";
+            const auto clone_tooltip =
+                "Can draw another RT pass over the main RT pass. Useful for hybrid rendering.\n"
+                "Example: Set Ray Trace Type to Pure and Ray Trace Clone Type to ASVGF. This adds RTGI to the path traced image.\n"
+                "Path Space Filter is also another good alternative for RTGI but it costs more performance.\n";
 
             struct CloneCombo {
                 const ModCombo::Ptr* combo;
@@ -382,43 +390,38 @@ void Graphics::on_draw_ui() {
 
             for (const auto& [combo, label, tooltip] : clone_combos) {
                 (*combo)->draw(label);
-
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip(tooltip);
                 }
             }
 
-            // Hybrid/pure
             if (is_pt_type(m_ray_trace_type->value()) || is_pt_type(m_ray_trace_clone_type_true->value())) {
                 m_bounce_count->draw("Bounce Count");
                 m_samples_per_pixel->draw("Samples Per Pixel");
             }
         }
-
         ImGui::TreePop();
     }
+}
 
+void Graphics::draw_shader_playground() {
     ImGui::SetNextItemOpen(true, ImGuiCond_::ImGuiCond_Once);
     if (ImGui::TreeNode("Shader Playground")) {
         m_shader_playground->draw("Enable Shader Playground");
-
-        if (m_shader_playground->value()) {  
+        if (m_shader_playground->value()) {
             int j = 0;
             for (auto& intercepted : m_intercepted_shaders) {
                 uint32_t i = 0;
                 ImGui::PushID(j++);
-
                 const auto interception_node_open = ImGui::TreeNode("");
                 ImGui::SameLine();
                 if (ImGuiInputTextResizing("Interception Shader", intercepted.name)) {
                     intercepted.hash = sdk::murmur_hash::calc32_as_utf8(intercepted.name.data());
                 }
-
                 if (interception_node_open) {
                     if (ImGuiInputTextResizing("Replace Shader", intercepted.replace_with_name)) {
                         intercepted.replace_with_hash = sdk::murmur_hash::calc32_as_utf8(intercepted.replace_with_name.data());
                     }
-
                     for (auto& replacement : intercepted.replacement_shaders) {
                         i++;
                         ImGui::PushID(static_cast<int>(i));
@@ -427,34 +430,26 @@ void Graphics::on_draw_ui() {
                         if (ImGuiInputTextResizing("Custom Shader", replacement.shader)) {
                             replacement.hash = sdk::murmur_hash::calc32_as_utf8(replacement.shader.data());
                         }
-
                         if (node_open) {
                             ImGui::Combo("Dispatch Mode", (int*)&replacement.dispatch_mode, s_shader_dispatch_modes.data(), s_shader_dispatch_modes.size());
-
                             ImGui::InputInt("Thread Group X", (int32_t*)&replacement.thread_group_x);
                             ImGui::InputInt("Thread Group Y", (int32_t*)&replacement.thread_group_y);
                             ImGui::InputInt("Thread Group Z", (int32_t*)&replacement.thread_group_z);
                             ImGui::InputInt("Constant", (int32_t*)&replacement.constant);
-
                             ImGui::Checkbox("Valid hash", &replacement.valid_hash);
-
                             ImGui::TreePop();
                         }
-
                         ImGui::PopID();
                     }
-
                     ImGui::TreePop();
                 }
-
                 ImGui::PopID();
             }
         }
-
         ImGui::TreePop();
     }
-#endif
 }
+#endif
 
 void Graphics::on_present() {
     if (!m_ultrawide_fix->value() && !m_force_render_res_to_window->value()) {

@@ -219,7 +219,7 @@ void TemporalUpscaler::on_config_save(utility::Config& cfg) {
 }
 
 void TemporalUpscaler::on_draw_ui() {
-    if (!ImGui::CollapsingHeader(this->get_name().data())) {
+    if (!begin_draw_ui()) {
         return;
     }
 

@@ -65,6 +65,13 @@ private:
     void do_ultrawide_fov_restore(bool force = false);
     void set_ultrawide_fov(bool enable);
 
+    // UI sub-pages (keep on_draw_ui readable)
+    void draw_scope_tweaks();
+    void draw_ultrawide_options();
+    void draw_gui_options();
+    void draw_ray_tracing_tweaks();
+    void draw_shader_playground();
+
 #if TDB_VER >= 69
     void setup_path_trace_hook();
     void setup_shader_interception_hook();

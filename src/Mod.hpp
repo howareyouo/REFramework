@@ -28,6 +28,18 @@ public:
     virtual void config_save(utility::Config& cfg) = 0;
 };
 
+namespace detail {
+// RAII wrapper: PushID at entry, PopID at exit, returning fn's result.
+// Eliminates the repetitive PushID/PopID boilerplate in every ModValue::draw.
+template <typename F>
+bool with_id(const void* id, F&& fn) {
+    ImGui::PushID(id);
+    const bool ret = fn();
+    ImGui::PopID();
+    return ret;
+}
+} // namespace detail
+
 // Convenience classes for imgui
 template <typename T>
 class ModValue : public IModValue {
@@ -95,11 +107,7 @@ public:
     }
 
     bool draw(std::string_view name) override {
-        ImGui::PushID(this);
-        auto ret = ImGui::Checkbox(name.data(), &m_value);
-        ImGui::PopID();
-
-        return ret;
+        return detail::with_id(this, [&] { return ImGui::Checkbox(name.data(), &m_value); });
     }
 
     void draw_value(std::string_view name) override {
@@ -123,11 +131,7 @@ public:
     }
 
     bool draw(std::string_view name) override {
-        ImGui::PushID(this);
-        auto ret = ImGui::InputFloat(name.data(), &m_value);
-        ImGui::PopID();
-
-        return ret;
+        return detail::with_id(this, [&] { return ImGui::InputFloat(name.data(), &m_value); });
     }
 
     void draw_value(std::string_view name) override {
@@ -150,11 +154,7 @@ public:
     }
 
     bool draw(std::string_view name) override {
-        ImGui::PushID(this);
-        auto ret = ImGui::SliderFloat(name.data(), &m_value, m_range.x, m_range.y);
-        ImGui::PopID();
-
-        return ret;
+        return detail::with_id(this, [&] { return ImGui::SliderFloat(name.data(), &m_value, m_range.x, m_range.y); });
     }
 
     void draw_value(std::string_view name) override {
@@ -183,11 +183,7 @@ public:
     }
 
     bool draw(std::string_view name) override {
-        ImGui::PushID(this);
-        auto ret = ImGui::SliderInt(name.data(), &m_value, 5, 40);
-        ImGui::PopID();
-
-        return ret;
+        return detail::with_id(this, [&] { return ImGui::SliderInt(name.data(), &m_value, 5, 40); });
     }
 
     void draw_value(std::string_view name) override {
@@ -213,14 +209,8 @@ public:
     }
 
     bool draw(std::string_view name) override {
-        // clamp m_value to valid range
         m_value = std::clamp<int32_t>(m_value, 0, static_cast<int32_t>(m_options.size()) - 1);
-
-        ImGui::PushID(this);
-        auto ret = ImGui::Combo(name.data(), &m_value, m_options.data(), static_cast<int32_t>(m_options.size()));
-        ImGui::PopID();
-
-        return ret;
+        return detail::with_id(this, [&] { return ImGui::Combo(name.data(), &m_value, m_options.data(), static_cast<int32_t>(m_options.size())); });
     }
 
     void draw_value(std::string_view name) override {
@@ -294,16 +284,12 @@ public:
     };
 
     bool draw(std::string_view name) override {
-        // clamp m_value to valid range
         index = std::clamp<int32_t>(index, 0, static_cast<int32_t>(m_options.size()) - 1);
-
-        ImGui::PushID(this);
-        auto ret = ImGui::Combo(name.data(), &index, m_options.data(), static_cast<int32_t>(m_options.size()));
-        ImGui::PopID();
-
-        m_value = m_options[index];
-
-        return ret;
+        return detail::with_id(this, [&] {
+            auto ret = ImGui::Combo(name.data(), &index, m_options.data(), static_cast<int32_t>(m_options.size()));
+            m_value = m_options[index];
+            return ret;
+        });
     }
 
     void draw_value(std::string_view name) override {
@@ -347,44 +333,43 @@ public:
             return false;
         }
 
-        ImGui::PushID(this);
-        ImGui::Button(name.data());
+        return detail::with_id(this, [&] {
+            ImGui::Button(name.data());
 
-        if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[0]) {
-            m_waiting_for_new_key = true;
-        }
-
-        if (m_waiting_for_new_key) {
-            const auto &keys = g_framework->get_keyboard_state();
-            for (int32_t k{ 0 }; k < keys.size(); ++k) {
-                if (k == VK_LBUTTON || k == VK_RBUTTON) {
-                    continue;
-                }
-
-                if (keys[k]) {
-                    m_value = is_erase_key(k) ? UNBOUND_KEY : k;
-                    m_waiting_for_new_key = false;
-                    break;
-                }
+            if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[0]) {
+                m_waiting_for_new_key = true;
             }
 
-            ImGui::SameLine();
-            ImGui::Text("Press any key...");
-        }
-        else {
-            ImGui::SameLine();
+            if (m_waiting_for_new_key) {
+                const auto &keys = g_framework->get_keyboard_state();
+                for (int32_t k{ 0 }; k < keys.size(); ++k) {
+                    if (k == VK_LBUTTON || k == VK_RBUTTON) {
+                        continue;
+                    }
 
-            if (m_value >= 0 && m_value <= 255) {
-                ImGui::Text("%i", m_value);
+                    if (keys[k]) {
+                        m_value = is_erase_key(k) ? UNBOUND_KEY : k;
+                        m_waiting_for_new_key = false;
+                        break;
+                    }
+                }
+
+                ImGui::SameLine();
+                ImGui::Text("Press any key...");
             }
             else {
-                ImGui::Text("Not bound");
+                ImGui::SameLine();
+
+                if (m_value >= 0 && m_value <= 255) {
+                    ImGui::Text("%i", m_value);
+                }
+                else {
+                    ImGui::Text("Not bound");
+                }
             }
-        }
 
-        ImGui::PopID();
-
-        return true;
+            return true;
+        });
     }
 
     bool is_key_down() const {
@@ -469,6 +454,14 @@ public:
     virtual void on_present() {}; // actual present frame, CANNOT be used for imgui
     virtual void on_post_frame() {}; // after imgui rendering is done
     virtual void on_post_present() {}; // actually after present gets called
+
+    // Returns true if the mod's collapsing header is open.
+    // Call this at the start of on_draw_ui(); if it returns false, return early.
+    bool begin_draw_ui(bool default_open = false) const {
+        ImGui::SetNextItemOpen(default_open, ImGuiCond_FirstUseEver);
+        return ImGui::CollapsingHeader(get_name().data());
+    }
+
     virtual void on_draw_ui() {};
     virtual void on_device_reset() {};
     virtual bool on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param) { return true; };

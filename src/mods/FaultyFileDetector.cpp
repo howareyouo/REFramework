@@ -412,9 +412,7 @@ void FaultyFileDetector::try_add_to_faulty_list(std::wstring_view filename, Faul
 }
 
 void FaultyFileDetector::on_draw_ui() {
-    ImGui::SetNextItemOpen(false, ImGuiCond_::ImGuiCond_FirstUseEver);
-
-    if (!ImGui::CollapsingHeader(get_name().data())) {
+    if (!begin_draw_ui()) {
         return;
     }
 
