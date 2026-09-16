@@ -20,9 +20,13 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM Detect sccache compile cache (prefer bundled copy next to BuildTools, then PATH)
-set "SCCACHE_DIR=%BUILD_TOOLS%\sccache"
-if exist "%SCCACHE_DIR%\sccache.exe" set "PATH=%SCCACHE_DIR%;%PATH%"
+REM Locate sccache executable (prefer bundled copy next to BuildTools, then PATH)
+set "SCCACHE_HOME=%BUILD_TOOLS%\sccache"
+if exist "%SCCACHE_HOME%\sccache.exe" set "PATH=%SCCACHE_HOME%;%PATH%"
+
+REM The cache directory is intentionally not configured here: sccache uses its own
+REM default (AppData\Roaming\Mozilla\sccache) and that directory belongs to the
+REM background sccache server, which is shared by every project on this machine.
 
 where sccache >nul 2>&1
 if %ERRORLEVEL%==0 (
@@ -47,6 +51,11 @@ if %ERRORLEVEL% neq 0 (
     echo ERROR: Build failed!
     pause
     exit /b 1
+)
+
+if defined SCCACHE_ARGS (
+    echo [info] sccache stats for this build:
+    sccache --show-stats 2>nul | findstr /C:"Compile requests" /C:"Cache hits" /C:"Cache misses"
 )
 
 echo.
