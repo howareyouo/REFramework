@@ -361,7 +361,6 @@ public:
 private: // D3D12 members
     struct D3D12 {
         std::vector<std::unique_ptr<d3d12::CommandContext>> cmd_ctxs{};
-        uint32_t cmd_ctx_index{0};
 
         enum class RTV : int{
             BACKBUFFER_0,

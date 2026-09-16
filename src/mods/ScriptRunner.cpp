@@ -47,6 +47,15 @@ void debug(const char* str) {
 }
 }
 
+namespace {
+// Same thread_local caching as HookManager::HookedFn::get_storage: the hash is
+// constant per thread, so compute it once instead of on every hook dispatch.
+size_t cached_thread_hash() {
+    static thread_local const size_t hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    return hash;
+}
+}
+
 namespace api::thread {
 size_t get_hash() {
     return std::hash<std::thread::id>{}(std::this_thread::get_id());
@@ -624,7 +633,7 @@ void ScriptState::install_hooks() {
                 auto result = PreHookResult::CALL_ORIGINAL;
 
                 try {
-                    state->push_hook_storage(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+                    state->push_hook_storage(cached_thread_hash());
 
                     if (pre_cb.is<sol::nil_t>()) {
                         return result;
@@ -671,7 +680,7 @@ void ScriptState::install_hooks() {
                 }
 
                 auto _ = state->scoped_lock();
-                const auto thash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+                const auto thash = cached_thread_hash();
                 utility::ScopeGuard sg{[state, thash] { state->pop_hook_storage(thash); }};
 
                 try {

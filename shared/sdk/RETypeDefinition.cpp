@@ -3,6 +3,7 @@
 #include <shared_mutex>
 #include <execution>
 #include <sstream>
+#include <array>
 
 #include <spdlog/spdlog.h>
 
@@ -402,13 +403,55 @@ sdk::RETypeDefinition* RETypeDefinition::get_generic_type_definition() const {
 static std::shared_mutex g_field_mtx{};
 static std::unordered_map<const sdk::RETypeDefinition*, std::unordered_map<size_t, sdk::REField*>> g_field_map{};
 
+namespace {
+// Per-thread memo sitting in front of the shared g_field_map/g_method_map caches.
+// Repeat (type, name) resolutions from one thread skip the shared_lock and the
+// double map walk entirely. Keyed by name hash only, mirroring the shared maps,
+// so collision behavior is identical to the existing caches. Same pattern as
+// the DescriptorCache memo in shared/sdk/REType.cpp.
+template <typename T>
+class ResolutionMemo {
+public:
+    struct Entry {
+        const sdk::RETypeDefinition* type{};
+        size_t name_hash{};
+        T* value{};
+    };
+
+    static Entry& slot_for(const sdk::RETypeDefinition* type, size_t name_hash) {
+        return slots()[bucket(type, name_hash)];
+    }
+
+private:
+    static constexpr size_t bucket_count = 64;
+    static_assert((bucket_count & (bucket_count - 1)) == 0, "bucket_count must be a power of two");
+
+    static std::array<Entry, bucket_count>& slots() {
+        static thread_local std::array<Entry, bucket_count> entries{};
+        return entries;
+    }
+
+    static size_t bucket(const sdk::RETypeDefinition* type, size_t name_hash) {
+        return ((reinterpret_cast<uintptr_t>(type) >> 4) ^ name_hash) & (bucket_count - 1);
+    }
+};
+} // namespace
+
 sdk::REField* RETypeDefinition::get_field(std::string_view name) const {
     const auto name_hash = std::hash<std::string_view>{}(name);
+
+    auto& memo = ResolutionMemo<sdk::REField>::slot_for(this, name_hash);
+
+    if (memo.type == this && memo.name_hash == name_hash) {
+        return memo.value;
+    }
+
     {
         std::shared_lock _{ g_field_mtx };
 
         if (auto it = g_field_map.find(this); it != g_field_map.end()) {
             if (auto it2 = it->second.find(name_hash); it2 != it->second.end()) {
+                memo = {this, name_hash, it2->second};
                 return it2->second;
             }
         }
@@ -421,13 +464,15 @@ sdk::REField* RETypeDefinition::get_field(std::string_view name) const {
                 std::unique_lock _{ g_field_mtx };
 
                 g_field_map[this][name_hash] = f;
-                return g_field_map[this][name_hash];
+                memo = {this, name_hash, f};
+                return f;
             }
         }
     }
 
     std::unique_lock _{ g_field_mtx };
     g_field_map[this][name_hash] = nullptr;
+    memo = {this, name_hash, nullptr};
     return nullptr;
 }
 
@@ -437,11 +482,18 @@ static std::unordered_map<const sdk::RETypeDefinition*, std::unordered_map<size_
 sdk::REMethodDefinition* RETypeDefinition::get_method(std::string_view name) const {
     const auto name_hash = std::hash<std::string_view>{}(name);
 
+    auto& memo = ResolutionMemo<sdk::REMethodDefinition>::slot_for(this, name_hash);
+
+    if (memo.type == this && memo.name_hash == name_hash) {
+        return memo.value;
+    }
+
     {
         std::shared_lock _{g_method_mtx};
 
         if (auto it = g_method_map.find(this); it != g_method_map.end()) {
             if (auto it2 = it->second.find(name_hash); it2 != it->second.end()) {
+                memo = {this, name_hash, it2->second};
                 return it2->second;
             }
         }
@@ -483,7 +535,8 @@ sdk::REMethodDefinition* RETypeDefinition::get_method(std::string_view name) con
                 std::unique_lock _{g_method_mtx};
 
                 g_method_map[this][name_hash] = &m;
-                return g_method_map[this][name_hash];
+                memo = {this, name_hash, &m};
+                return &m;
             }
         }
     }
@@ -516,13 +569,16 @@ sdk::REMethodDefinition* RETypeDefinition::get_method(std::string_view name) con
                 std::unique_lock _{g_method_mtx};
 
                 g_method_map[this][name_hash] = &m;
-                return g_method_map[this][name_hash];
+                memo = {this, name_hash, &m};
+                return &m;
             }
         }
     }
 
     std::unique_lock _{g_method_mtx};
-    return g_method_map[this][name_hash] = nullptr;
+    g_method_map[this][name_hash] = nullptr;
+    memo = {this, name_hash, nullptr};
+    return nullptr;
 }
 
 std::vector<sdk::REMethodDefinition*> RETypeDefinition::get_methods(std::string_view name) const {

@@ -862,8 +862,6 @@ bool REFramework::on_frame_common_init() {
 void REFramework::on_frame_d3d11() {
     std::scoped_lock _{ m_imgui_mtx };
 
-    spdlog::debug("on_frame (D3D11)");
-
     m_renderer_type = RendererType::D3D11;
 
     if (!m_initialized) {
@@ -1025,14 +1023,17 @@ void REFramework::on_frame_d3d12() {
         return;
     }
 
-    auto& cmd_ctx = m_d3d12.cmd_ctxs[m_d3d12.cmd_ctx_index++ % m_d3d12.cmd_ctxs.size()];
+    auto swapchain = m_d3d12_hook->get_swap_chain();
+    const auto bb_index = swapchain->GetCurrentBackBufferIndex();
+
+    // Rotate command contexts by backbuffer index (same scheme as BackBufferRenderer):
+    // a context is only reused once the same backbuffer comes around again, so it
+    // can never still be in flight from an unrelated backbuffer's frame.
+    auto& cmd_ctx = m_d3d12.cmd_ctxs[bb_index % m_d3d12.cmd_ctxs.size()];
 
     if (cmd_ctx == nullptr) {
         return;
     }
-
-    auto swapchain = m_d3d12_hook->get_swap_chain();
-    const auto bb_index = swapchain->GetCurrentBackBufferIndex();
 
     // Test if our RT for this index is valid.
     if (m_d3d12.get_rt((D3D12::RTV)bb_index) == nullptr) {

@@ -162,7 +162,7 @@ public:
     void push_hook_storage(size_t thread_hash) {
         auto it = m_hook_storage.find(thread_hash);
         if (it == m_hook_storage.end()) {
-            it = m_hook_storage.emplace(thread_hash, std::list<TablePool::TableGuard>{}).first;
+            it = m_hook_storage.emplace(thread_hash, std::vector<TablePool::TableGuard>{}).first;
         }
 
         it->second.push_back(m_table_pool.acquire(m_lua));
@@ -236,8 +236,10 @@ public:
                 m_tables.push_back(lua.create_table());
             }
 
-            auto table = m_tables.front();
-            m_tables.pop_front();
+            // LIFO: the most recently released table is reused first, so the
+            // hot table stays warm in cache. Vector keeps this node-alloc-free.
+            auto table = m_tables.back();
+            m_tables.pop_back();
 
             // Clear for re-use
             table.clear();
@@ -246,7 +248,7 @@ public:
         }
 
     private:
-        std::list<sol::table> m_tables{};
+        std::vector<sol::table> m_tables{};
     };
 
     TablePool& get_table_pool() {
@@ -300,9 +302,10 @@ private:
     std::deque<HookDef> m_hooks_to_add{};
     std::unordered_map<sdk::REMethodDefinition*, std::vector<HookManager::HookId>> m_hooks{};
 
-    // Using std::list rather than deque because the elements need to remain valid even if the list is resized.
+    // Vector is fine here: only table handles are copied out (into sol::reference),
+    // no pointers to the TableGuard elements themselves escape. TableGuard is nothrow-movable.
     // Using sol::reference instead of sol::table to keep a guaranteed reference to the table.
-    std::unordered_map<size_t, std::list<TablePool::TableGuard>> m_hook_storage{};
+    std::unordered_map<size_t, std::vector<TablePool::TableGuard>> m_hook_storage{};
     sol::reference m_current_hook_storage{};
 
     struct DelegateStorage {

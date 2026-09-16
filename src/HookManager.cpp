@@ -59,17 +59,11 @@ HookManager::HookedFn::~HookedFn() {
 }
 
 HookManager::PreHookResult HookManager::HookedFn::on_pre_hook() {
-    //std::shared_lock _{this->access_mux};
-
     auto any_skipped = false;
 
     auto storage = get_storage(this);
 
-    if (storage->pre_depth == 0) {
-        // afaik, shared locks are not reentrant, so only lock it
-        // if we're not already in a pre-hook.
-        this->access_mux.lock_shared();
-    } else if (!storage->pre_warned_recursion) {
+    if (storage->pre_depth != 0 && !storage->pre_warned_recursion) {
         const auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
         const auto declaring_type = fn_def->get_declaring_type();
         const auto decltype_name = declaring_type != nullptr ? declaring_type->get_full_name() : "unknownclass";
@@ -88,34 +82,25 @@ HookManager::PreHookResult HookManager::HookedFn::on_pre_hook() {
     ++storage->pre_depth;
     const auto ret_addr_pre = storage->ret_addr_pre;
 
-    for (const auto& cb : cbs) {
-        if (cb.pre_fn) {
-            if (cb.pre_fn(storage->args_impl, arg_tys, ret_addr_pre) == PreHookResult::SKIP_ORIGINAL) {
-                any_skipped = true;
-            }
+    // Lock-free snapshot of the callback lists; concurrent add/remove swaps in a new one.
+    const auto cbs = this->cbs.load(std::memory_order_acquire);
+
+    for (const auto& [id, pre_fn] : cbs->pre) {
+        if (pre_fn(storage->args_impl, arg_tys, ret_addr_pre) == PreHookResult::SKIP_ORIGINAL) {
+            any_skipped = true;
         }
     }
 
     ++storage->overall_depth;
     --storage->pre_depth;
 
-    if (storage->pre_depth == 0) {
-        this->access_mux.unlock_shared();
-    }
-
     return any_skipped ? PreHookResult::SKIP_ORIGINAL : PreHookResult::CALL_ORIGINAL;
 }
 
 void HookManager::HookedFn::on_post_hook() {
-    //std::shared_lock _{this->access_mux};
-
     auto storage = get_storage(this);
 
-    if (storage->post_depth == 0) {
-        // afaik, shared locks are not reentrant, so only lock it
-        // if we're not already in a post-hook.
-        this->access_mux.lock_shared();
-    } else if (!storage->post_warned_recursion) {
+    if (storage->post_depth != 0 && !storage->post_warned_recursion) {
         const auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
         const auto declaring_type = fn_def->get_declaring_type();
         const auto decltype_name = declaring_type != nullptr ? declaring_type->get_full_name() : "unknownclass";
@@ -129,22 +114,18 @@ void HookManager::HookedFn::on_post_hook() {
     auto& ret_val = storage->ret_val;
     //auto& ret_addr = storage->ret_addr_post;
 
+    const auto cbs = this->cbs.load(std::memory_order_acquire);
+
     // Iterate in reverse because it helps with the hook storage we use in Lua
     // It should help with any other system that wants to use a stack-based storage system.
-    for (const auto& cb : cbs | std::views::reverse) {
-        if (cb.post_fn) {
-            // Valid return address in recursion scenario is no longer supported with this API.
-            // We just pass ret_addr_pre for now, even though it's not accurate.
-            // Hooks will not have much use for the return address anyway.
-            cb.post_fn(ret_val, ret_ty, storage->ret_addr_pre); 
-        }
+    for (const auto& [id, post_fn] : cbs->post | std::views::reverse) {
+        // Valid return address in recursion scenario is no longer supported with this API.
+        // We just pass ret_addr_pre for now, even though it's not accurate.
+        // Hooks will not have much use for the return address anyway.
+        post_fn(ret_val, ret_ty, storage->ret_addr_pre);
     }
 
     --storage->post_depth;
-
-    if (storage->post_depth == 0) {
-        this->access_mux.unlock_shared();
-    }
 }
 
 void HookManager::create_jitted_facilitator(std::unique_ptr<HookManager::HookedFn>& hook, sdk::REMethodDefinition* fn, std::function<uintptr_t ()> hook_initialization, std::function<void ()> hook_create) {
@@ -566,7 +547,7 @@ HookManager::HookId HookManager::add(sdk::REMethodDefinition* fn, HookManager::P
 
         spdlog::info("[HookManager] Hook assigned ID {}", hook_id);
 
-        hook->cbs.emplace_back(hook_id, std::move(pre_fn), std::move(post_fn));
+        hook->add_callback(hook_id, std::move(pre_fn), std::move(post_fn));
 
         spdlog::info("[HookManager] Hook {} added for '{}' @ {:p}", hook_id, fn->get_name(), target_fn);
 
@@ -584,7 +565,7 @@ HookManager::HookId HookManager::add(sdk::REMethodDefinition* fn, HookManager::P
     spdlog::info("[HookManager] Hook assigned ID {}", hook_id);
 
     hook->target_fn = target_fn;
-    hook->cbs.emplace_back(hook_id, std::move(pre_fn), std::move(post_fn));
+    hook->add_callback(hook_id, std::move(pre_fn), std::move(post_fn));
     hook->arg_tys = fn->get_param_types();
     hook->ret_ty = fn->get_return_type();
     
@@ -673,7 +654,7 @@ HookManager::HookId HookManager::add_vtable(::REManagedObject* obj, sdk::REMetho
         std::unique_lock _{hook_fn->access_mux};
 
         auto hook_id = m_next_hook_id++;
-        hook_fn->cbs.emplace_back(hook_id, std::move(pre_fn), std::move(post_fn));
+        hook_fn->add_callback(hook_id, std::move(pre_fn), std::move(post_fn));
 
         spdlog::info("[HookManager] VT Hook {} added for '{}' @ {:p}", hook_id, fn->get_name(), fn->get_function());
 
@@ -692,7 +673,7 @@ HookManager::HookId HookManager::add_vtable(::REManagedObject* obj, sdk::REMetho
     spdlog::info("[HookManager] VT Hook assigned ID {}", hook_id);
 
     hook_fn->target_fn = fn->get_function();
-    hook_fn->cbs.emplace_back(hook_id, std::move(pre_fn), std::move(post_fn));
+    hook_fn->add_callback(hook_id, std::move(pre_fn), std::move(post_fn));
     hook_fn->arg_tys = fn->get_param_types();
     hook_fn->ret_ty = fn->get_return_type();
     
@@ -726,10 +707,9 @@ void HookManager::remove(sdk::REMethodDefinition* fn, HookId id) {
         spdlog::info("[HookManager] Removing hook ID {} from '{}'", id, fn->get_name());
 
         auto& hook = search->second;
-        auto& cbs = hook->cbs;
         std::scoped_lock _{hook->mux};
         std::unique_lock __{hook->access_mux};
-        cbs.erase(std::remove_if(cbs.begin(), cbs.end(), [id](const HookCallback& cb) { return cb.id == id; }), cbs.end());
+        hook->remove_callback(id);
     } else {
         std::vector<::REManagedObject*> queued_vtable_deletions{};
 
@@ -741,12 +721,10 @@ void HookManager::remove(sdk::REMethodDefinition* fn, HookId id) {
                 spdlog::info("[HookManager] Removing VT method hook ID {} from '{}'", id, fn->get_name());
 
                 auto& hook_fn = search->second;
-                auto& cbs = hook_fn->cbs;
                 std::scoped_lock _{hook->mux};
                 std::unique_lock __{hook_fn->access_mux};
-                cbs.erase(std::remove_if(cbs.begin(), cbs.end(), [id](const HookCallback& cb) { return cb.id == id; }), cbs.end());
 
-                if (cbs.empty()) {
+                if (hook_fn->remove_callback(id)) {
                     queued_vtable_deletions.push_back(it.first);
                 }
             }

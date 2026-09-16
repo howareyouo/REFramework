@@ -18,7 +18,18 @@ RETypeDB* RETypeDB::get() {
 
 namespace {
 std::shared_mutex g_tdb_type_mtx{};
-std::unordered_map<std::string, sdk::RETypeDefinition*> g_tdb_type_map{};
+
+// Transparent hash so lookups by std::string_view don't materialize a temporary
+// std::string (heap-allocated for names longer than the SSO buffer).
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+};
+
+std::unordered_map<std::string, sdk::RETypeDefinition*, TransparentStringHash, std::equal_to<>> g_tdb_type_map{};
 bool g_tdb_type_populated = false;
 
 std::shared_mutex g_tdb_fqn_mtx{};
@@ -103,7 +114,7 @@ sdk::REModule* RETypeDB::get_module(uint32_t index) const {
 }
 
 sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
-    return find_cached_type(g_tdb_type_map, g_tdb_type_mtx, g_tdb_type_populated, name.data(), [this](auto& map) {
+    return find_cached_type(g_tdb_type_map, g_tdb_type_mtx, g_tdb_type_populated, name, [this](auto& map) {
         for (uint32_t i = 0; i < this->numTypes; ++i) {
             auto t = get_type(i);
 

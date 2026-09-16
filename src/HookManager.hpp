@@ -6,6 +6,9 @@
 #include <memory>
 #include <mutex>
 #include <stack>
+#include <atomic>
+#include <utility>
+#include <thread>
 
 #include <asmjit/asmjit.h>
 
@@ -27,12 +30,6 @@ public:
     using PostHookFn = std::function<void(uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr)>;
     using HookId = size_t;
 
-    struct HookCallback {
-        HookId id{};
-        PreHookFn pre_fn{};
-        PostHookFn post_fn{};
-    };
-
     struct HookedFn;
 
     struct HookedVTable {
@@ -46,7 +43,6 @@ public:
     struct HookedFn {
         HookManager& hookman;
         void* target_fn{};
-        std::vector<HookCallback> cbs{}; 
         HookId next_hook_id{};
         std::unique_ptr<FunctionHook> fn_hook{};
         uintptr_t facilitator_fn{};
@@ -58,7 +54,56 @@ public:
         sdk::REMethodDefinition* fn_def{};
         sdk::RETypeDefinition* ret_ty{};
         std::recursive_mutex mux{};
+        // Serializes writers (add/remove) only. The hot dispatch path never touches it.
         std::shared_mutex access_mux{};
+
+        // Callback lists are read-copy-update: readers atomically load a snapshot
+        // (no lock on the hot path), writers copy-modify-store under access_mux.
+        // Pre and post callbacks are split so each dispatch only iterates what it calls.
+        struct CallbackLists {
+            std::vector<std::pair<HookId, PreHookFn>> pre{};
+            std::vector<std::pair<HookId, PostHookFn>> post{};
+
+            bool empty() const { return pre.empty() && post.empty(); }
+        };
+
+        std::atomic<std::shared_ptr<const CallbackLists>> cbs{std::make_shared<CallbackLists>()};
+
+        // Call with access_mux exclusively held, or before the hook is published.
+        void add_callback(HookId id, PreHookFn pre_fn, PostHookFn post_fn) {
+            auto next = std::make_shared<CallbackLists>(*cbs.load(std::memory_order_relaxed));
+
+            if (pre_fn) {
+                next->pre.emplace_back(id, std::move(pre_fn));
+            }
+
+            if (post_fn) {
+                next->post.emplace_back(id, std::move(post_fn));
+            }
+
+            cbs.store(std::move(next), std::memory_order_release);
+        }
+
+        // Call with access_mux exclusively held. Returns true if no callbacks remain.
+        // Drains in-flight dispatches of the previous snapshot, so teardown callers
+        // (e.g. mod unload) cannot be re-entered after this returns.
+        bool remove_callback(HookId id) {
+            auto old = cbs.load(std::memory_order_relaxed);
+            auto next = std::make_shared<CallbackLists>(*old);
+
+            std::erase_if(next->pre, [id](const auto& cb) { return cb.first == id; });
+            std::erase_if(next->post, [id](const auto& cb) { return cb.first == id; });
+
+            const auto now_empty = next->empty();
+
+            cbs.store(std::move(next), std::memory_order_release);
+
+            while (old.use_count() > 1) {
+                std::this_thread::yield();
+            }
+
+            return now_empty;
+        }
 
         bool is_virtual{false};
         HookedVTable* vtable{nullptr};
