@@ -9,27 +9,60 @@
 
 #include <spdlog/spdlog.h>
 #include <imgui.h>
+#include <utility/Address.hpp>
 #include <utility/Patch.hpp>
 
 #include <../../directxtk12-src/Inc/GraphicsMemory.h>
 #include "utility/d3d12/CommandContext.hpp"
-
-class Mods;
-class REGlobals;
-class RETypes;
-
 #include "D3D11Hook.hpp"
 #include "D3D12Hook.hpp"
 #include "DInputHook.hpp"
 #include "WindowsMessageHook.hpp"
 
+class Mods;
+class REGlobals;
+class RETypes;
+
+class D3D11Hook;
+class D3D12Hook;
+class DInputHook;
+class WindowsMessageHook;
+class D3DHookMonitor;
+class InputManager;
+
+// Forward declare so render helpers can take REFramework& before the class is defined.
+class REFramework;
+
+namespace render {
+    bool init_d3d11(REFramework& fw);
+    void deinit_d3d11(REFramework& fw);
+    bool init_d3d12(REFramework& fw);
+    void deinit_d3d12(REFramework& fw);
+    void on_frame_d3d11(REFramework& fw);
+    void on_post_present_d3d11(REFramework& fw);
+    void on_frame_d3d12(REFramework& fw);
+    void on_post_present_d3d12(REFramework& fw);
+}
+
 // Global facilitator
 class REFramework {
+public:
+    friend bool render::init_d3d11(REFramework&);
+    friend void render::deinit_d3d11(REFramework&);
+    friend bool render::init_d3d12(REFramework&);
+    friend void render::deinit_d3d12(REFramework&);
+    friend void render::on_frame_d3d11(REFramework&);
+    friend void render::on_post_present_d3d11(REFramework&);
+    friend void render::on_frame_d3d12(REFramework&);
+    friend void render::on_post_present_d3d12(REFramework&);
+    friend class InputManager;
+    friend class D3DHookMonitor;
+
 private:
     void hook_monitor();
     void reset_chance_times();
 
-    // on_message helpers
+    // on_message helpers (delegated to InputManager)
     bool set_key_state(UINT vk, bool down);
     bool should_block_message(UINT message, WPARAM w_param, bool is_mouse_moving);
 
@@ -69,6 +102,7 @@ public:
         return DoNotHook{m_do_not_hook_d3d_count};
     }
 
+    uint32_t get_do_not_hook_d3d_count() const { return m_do_not_hook_d3d_count.load(); }
 
 public:
     REFramework(HMODULE reframework_module);
@@ -84,6 +118,7 @@ public:
     bool is_dx12() const { return m_is_d3d12; }
 
     const auto& get_mods() const { return m_mods; }
+    auto& get_mods() { return m_mods; }
 
     const auto& get_mouse_delta() const { return m_mouse_delta; }
     const auto& get_keyboard_state() const { return m_last_keys; }
@@ -93,13 +128,15 @@ public:
     bool is_ready() const { return m_initialized && m_game_data_initialized; }
     bool is_game_data_initialized() const { return m_game_data_initialized; }
     bool is_ui_focused() const { return m_is_ui_focused; }
+    bool is_ui_passthrough() const { return m_ui_passthrough; }
+    bool is_initialized() const { return m_initialized; }
 
     void run_imgui_frame(bool from_present);
 
-    void on_frame_d3d11();
-    void on_post_present_d3d11();
-    void on_frame_d3d12();
-    void on_post_present_d3d12();
+    void on_frame_d3d11() { render::on_frame_d3d11(*this); }
+    void on_post_present_d3d11() { render::on_post_present_d3d11(*this); }
+    void on_frame_d3d12() { render::on_frame_d3d12(*this); }
+    void on_post_present_d3d12() { render::on_post_present_d3d12(*this); }
 
     // Common initialization logic shared between on_frame_d3d11 and on_frame_d3d12.
     // Returns true if initialization is OK and the frame should proceed.
@@ -111,6 +148,9 @@ public:
 
     bool on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param);
     void on_direct_input_keys(const std::array<uint8_t, 256>& keys);
+
+    // Notifies the hook monitor that a message was received (keeps message hook alive).
+    void on_message_received();
 
     static inline bool s_fallback_appdata{false};
     static inline bool s_checked_file_permissions{false};
@@ -135,6 +175,9 @@ public:
     auto get_window() const { return m_wnd; }
     auto get_last_window_pos() const { return m_last_window_pos; } // REFramework imgui window
     auto get_last_window_size() const { return m_last_window_size; } // REFramework imgui window
+
+    WindowsMessageHook* get_windows_message_hook() const { return m_windows_message_hook.get(); }
+    void request_message_hook_reinit() { m_message_hook_requested.store(true); }
 
     static const char* get_game_name() {
     #if defined(RE2)
@@ -219,7 +262,7 @@ public:
     }
 
 private:
-        void save_config();
+    void save_config();
     void consume_input();
     void init_fonts();
     void invalidate_device_objects();
@@ -231,7 +274,7 @@ public:
     bool hook_d3d12();
 
 private:
-    // Shared "try hook → unhook on failure" helper for D3D11/D3D12.
+    // Shared "try hook -> unhook on failure" helper for D3D11/D3D12.
     template <typename HookType>
     bool try_hook_renderer(std::unique_ptr<HookType>& hook,
                            bool& is_current, bool& is_other,
@@ -311,6 +354,10 @@ private:
     // Game-specific stuff
     std::unique_ptr<Mods> m_mods;
 
+    // Extracted subsystems (pimpl-like, dtor in .cpp)
+    std::unique_ptr<D3DHookMonitor> m_hook_monitor;
+    std::unique_ptr<InputManager> m_input_manager;
+
     std::shared_mutex m_hook_monitor_mutex{};
     std::recursive_mutex m_startup_mutex{};
     std::unique_ptr<std::jthread> m_d3d_monitor_thread{};
@@ -331,14 +378,11 @@ private:
 
 private: // D3D misc
     void set_imgui_style() noexcept;
-
-private: // D3D11 Init
-    bool init_d3d11();
-    void deinit_d3d11();
-
-private: // D3D12 Init
-    bool init_d3d12();
-    void deinit_d3d12();
+    // Forwarding wrappers so existing call sites inside REFramework.cpp stay unchanged.
+    bool init_d3d11() { return render::init_d3d11(*this); }
+    void deinit_d3d11() { render::deinit_d3d11(*this); }
+    bool init_d3d12() { return render::init_d3d12(*this); }
+    void deinit_d3d12() { render::deinit_d3d12(*this); }
 
 private: // D3D11 members
     struct D3D11 {
