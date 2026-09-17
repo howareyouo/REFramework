@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
-#include <hde64.h>
 
 #include "utility/Scan.hpp"
 #include "utility/Module.hpp"

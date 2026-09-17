@@ -86,7 +86,6 @@ private:
     static inline NtProtectVirtualMemory_t s_pristine_protect_virtual_memory{ nullptr };
     static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };;
 
-    // Using minhook because safetyhook crashes on trying to hook VirtualProtect
     static inline std::unique_ptr<FunctionHookMinHook> s_virtual_protect_hook{};
     static inline std::unique_ptr<FunctionHookMinHook> s_add_vectored_exception_handler_hook{};
 

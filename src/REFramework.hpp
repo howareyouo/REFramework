@@ -69,7 +69,7 @@ private:
     // Construction-phase helpers (extracted from the constructor for readability).
     void setup_logging();
     void detect_game_path();
-    void preallocate_minhook_buffer();
+    void preallocate_hook_buffer();
     void detect_os_version();
     void copy_storage_files();
     void register_ldr_notification();

@@ -3,8 +3,9 @@
 #include <atomic>
 #include <algorithm>
 
-#include <hde64.h>
 #include <spdlog/spdlog.h>
+
+#include <utility/Scan.hpp>
 
 #include "HookManager.hpp"
 
@@ -18,19 +19,20 @@ void* get_actual_function(void* possible_fn) {
     auto ip = (uintptr_t)possible_fn;
 
     for (auto i = 0; i < 10; ++i) {
-        hde64s hde{};
-        auto len = hde64_disasm((void*)ip, &hde);
-        if (len == 0) break;
-        ip += len;
+        const auto instr = utility::decode_one((uint8_t*)ip);
+        if (!instr) break;
+        ip += instr->Length;
 
-        switch (hde.opcode) {
-        case 0xCC: // int3
-        case 0xC3: // ret
-        case 0xC2: // ret imm16
+        if (instr->Category == ND_CAT_RET || instr->Category == ND_CAT_INTERRUPT) {
             return actual_fn;
-        case 0xE9: // jmp rel32
-            actual_fn = (void*)(ip + (int32_t)hde.imm.imm32);
-            return actual_fn;
+        }
+
+        // Follow an unconditional jmp (0xE9 jmp rel32) to the actual function.
+        if (instr->BranchInfo.IsBranch && !instr->BranchInfo.IsConditional && instr->Category != ND_CAT_CALL) {
+            if (*(uint8_t*)(ip - instr->Length) == 0xE9) {
+                actual_fn = (void*)(ip + *(int32_t*)(ip - instr->Length + 1));
+                return actual_fn;
+            }
         }
     }
 

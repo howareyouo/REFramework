@@ -244,28 +244,6 @@ if(REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework-dep
 	)
 
 endif()
-# Target: minhook
-if(REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework-dependencies
-	set(minhook_SOURCES
-		cmake.toml
-		"dependencies/minhook/src/buffer.c"
-		"dependencies/minhook/src/hde/hde32.c"
-		"dependencies/minhook/src/hde/hde64.c"
-		"dependencies/minhook/src/hook.c"
-		"dependencies/minhook/src/trampoline.c"
-	)
-
-	add_library(minhook STATIC)
-
-	target_sources(minhook PRIVATE ${minhook_SOURCES})
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${minhook_SOURCES})
-
-	target_include_directories(minhook PUBLIC
-		"dependencies/minhook/include"
-		"dependencies/minhook/src/hde"
-	)
-
-endif()
 # Target: imgui
 if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	set(imgui_SOURCES
@@ -436,7 +414,6 @@ target_compile_features(utility PUBLIC
 
 target_link_libraries(utility PUBLIC
 	spdlog
-	minhook
 	safetyhook
 	kananlib
 )
@@ -2545,7 +2522,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -2720,7 +2696,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -4860,7 +4835,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -5035,7 +5009,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -5210,7 +5183,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -8334,7 +8306,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -8509,7 +8480,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -9668,7 +9638,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -10825,7 +10794,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -11984,7 +11952,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -13143,7 +13110,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -14302,7 +14268,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -15461,7 +15426,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -16620,7 +16584,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -17779,7 +17742,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi
@@ -18938,7 +18900,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
-		minhook
 		d3d11
 		glm_static
 		shlwapi

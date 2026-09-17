@@ -11,11 +11,6 @@
 
 #include <spdlog/sinks/basic_file_sink.h>
 
-// minhook, used for AllocateBuffer
-extern "C" {
-#include <../buffer.h>
-};
-
 #include <imgui.h>
 #include <imgui_freetype.h>
 #include <ImGuizmo.h>
@@ -170,7 +165,7 @@ REFramework::REFramework(HMODULE reframework_module)
     StartupPipeline()
         .add("logging", [](REFramework& fw) { fw.setup_logging(); return true; })
         .add("game_path", [](REFramework& fw) { fw.detect_game_path(); return true; })
-        .add("minhook_buffer", [](REFramework& fw) { fw.preallocate_minhook_buffer(); return true; })
+        .add("hook_buffer", [](REFramework& fw) { fw.preallocate_hook_buffer(); return true; })
         .add("os_version", [](REFramework& fw) { fw.detect_os_version(); return true; })
         .add("storage_files", [](REFramework& fw) { fw.copy_storage_files(); return true; })
         .add("ldr_notification", [](REFramework& fw) { fw.register_ldr_notification(); return true; })
@@ -227,10 +222,16 @@ void REFramework::detect_game_path() {
     }
 }
 
-void REFramework::preallocate_minhook_buffer() {
+void REFramework::preallocate_hook_buffer() {
     const auto halfway_module = (uintptr_t)m_game_module + (*utility::get_module_size(m_game_module) / 2);
-    const auto pre_allocated_buffer = (uintptr_t)AllocateBuffer((LPVOID)halfway_module);
-    spdlog::info("Preallocated buffer: {:x}", pre_allocated_buffer);
+
+    static auto sh_allocator = safetyhook::Allocator::global();
+    intptr_t requested_size = 1 * 1024 * 1024;
+    while (requested_size > 0 && !sh_allocator->allocate_near({(uint8_t*)halfway_module}, requested_size)) {
+        requested_size -= 0x1000;
+    }
+
+    spdlog::info("Preallocated buffer near {:x}", halfway_module);
 
     IntegrityCheckBypass::fix_virtual_protect();
 }

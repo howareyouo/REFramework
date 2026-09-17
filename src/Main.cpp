@@ -9,11 +9,6 @@
 
 #include <safetyhook/allocator.hpp>
 
-// minhook, used for AllocateBuffer
-extern "C" {
-#include <../buffer.h>
-};
-
 #include "mods/IntegrityCheckBypass.hpp"
 #include "ExceptionHandler.hpp"
 #include "REFramework.hpp"
@@ -129,8 +124,6 @@ BOOL APIENTRY DllMain(HANDLE handle, DWORD reason, LPVOID reserved) {
         while (requested_size > 0 && !sh_allocator->allocate_near({(uint8_t*)halfway_module}, requested_size)) {
             requested_size -= 0x1000; // Size of page
         }
-
-        AllocateBuffer((LPVOID)halfway_module); // minhook
 
         IntegrityCheckBypass::setup_pristine_syscall();
         IntegrityCheckBypass::hook_add_vectored_exception_handler();

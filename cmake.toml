@@ -121,35 +121,13 @@ tag = "f5026eb34e7053b1aff325d38db107703f394974"
 git = "https://github.com/microsoft/DirectXTK12"
 tag = "be5dfc7e391aefaa4eeab8e8a08f7e2669e56cbb"
 
-[target.spdlog]
-cmake-after="""
-if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.35)
-    target_compile_options(DirectXTK PRIVATE /Zc:templateScope-)
-    target_compile_options(DirectXTK12 PRIVATE /Zc:templateScope-)
-endif()
-"""
-type = "static"
-sources = ["dependencies/spdlog/src/*.cpp"]
-include-directories = ["dependencies/spdlog/include"]
-compile-definitions = ["SPDLOG_COMPILED_LIB"]
-condition = "build-framework-dependencies"
-alias = "spdlog::spdlog"
+[fetch-content.spdlog]
+git = "https://github.com/gabime/spdlog"
+tag = "7c02e204c92545f869e2f04edaab1f19fe8b19fd"
 
-
-[target.glm_static]
-type = "static"
-sources = ["dependencies/glm/glm/**.cpp"]
-include-directories = ["dependencies/glm"]
-condition = "build-framework-dependencies"
-
-[target.minhook]
-type = "static"
-sources = ["dependencies/minhook/src/**.c"]
-include-directories = [
-    "dependencies/minhook/include",
-    "dependencies/minhook/src/hde",
-]
-condition = "build-framework-dependencies"
+[fetch-content.glm]
+git = "https://github.com/g-truc/glm"
+tag = "bf71a834948186f4097caa076cd2663c69a10e1e"
 
 [fetch-content.safetyhook]
 git = "https://github.com/cursey/safetyhook"
@@ -161,16 +139,26 @@ tag = "f1cd6dbfa0c98f352b698448f40ac27e8fb3832e"
 
 [target.imgui]
 type = "static"
+cmake-before="""
+FetchContent_Declare(imgui
+	GIT_REPOSITORY "https://github.com/howareyouo/imgui"
+	GIT_TAG "bdd08bf236dbc9151405219daa8696fab92efe9b"
+)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+	FetchContent_Populate(imgui)
+endif()
+"""
 sources = [
-    "dependencies/imgui/imgui.cpp",
-    "dependencies/imgui/imgui_draw.cpp",
-    "dependencies/imgui/imgui_tables.cpp",
-    "dependencies/imgui/imgui_widgets.cpp",
-    "dependencies/imgui/misc/freetype/imgui_freetype.cpp",
+    "${imgui_SOURCE_DIR}/imgui.cpp",
+    "${imgui_SOURCE_DIR}/imgui_draw.cpp",
+    "${imgui_SOURCE_DIR}/imgui_tables.cpp",
+    "${imgui_SOURCE_DIR}/imgui_widgets.cpp",
+    "${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp",
 ]
 include-directories = [
-    "dependencies/imgui",
-    "dependencies/imgui/misc/freetype",
+    "${imgui_SOURCE_DIR}",
+    "${imgui_SOURCE_DIR}/misc/freetype",
     "src/re2-imgui"]
 compile-definitions = [
     "IMGUI_USER_CONFIG=\"${CMAKE_CURRENT_SOURCE_DIR}/src/re2-imgui/re2_imconfig.hpp\"",
@@ -183,7 +171,7 @@ condition = "build-framework"
 [target.imguizmo]
 type = "static"
 sources = ["dependencies/imguizmo/*.cpp"]
-include-directories = ["dependencies/imgui", "dependencies/imguizmo", "src/re2-imgui"]
+include-directories = ["${imgui_SOURCE_DIR}", "dependencies/imguizmo", "src/re2-imgui"]
 compile-definitions = [
     "IMGUI_USER_CONFIG=\"${CMAKE_CURRENT_SOURCE_DIR}/src/re2-imgui/re2_imconfig.hpp\"",
 ]
@@ -227,7 +215,6 @@ headers = ["shared/utility/**.hpp", "shared/utility/**.h"]
 compile-features = ["cxx_std_23"]
 link-libraries = [
     "spdlog",
-    "minhook",
     "safetyhook",
     "kananlib"
 ]
@@ -240,7 +227,7 @@ include-directories = ["shared/", "include/"]
 compile-options = ["/EHa"]
 compile-features = ["cxx_std_23"]
 link-libraries = [
-    "glm_static",
+    "glm::glm",
     "spdlog"
 ]
 private-link-libraries = [
@@ -268,9 +255,8 @@ link-libraries = [
     "imgui",
     "imguizmo",
     "imnodes",
-    "minhook",
     "d3d11",
-    "glm_static",
+    "glm::glm",
     "shlwapi",
     "delayimp",
     "DirectXTK",
