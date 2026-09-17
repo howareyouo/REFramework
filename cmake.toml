@@ -132,6 +132,13 @@ tag = "bf71a834948186f4097caa076cd2663c69a10e1e"
 [fetch-content.safetyhook]
 git = "https://github.com/cursey/safetyhook"
 tag = "b046e123dc69821f2c375161e0adef3c6d9c9db4"
+# Patch safetyhook so its internal page-protection changes call
+# NtProtectVirtualMemory directly instead of the exported VirtualProtect.
+# This prevents re-entering a hook installed on VirtualProtect itself,
+# which used to crash (see patches/safetyhook-ntprotect.patch).
+# Idempotent: reset the source tree first, then apply, so re-configures
+# (which re-run the patch step against an already-patched tree) always work.
+PATCH_COMMAND = "cmd;/c;git checkout -- . && git apply -p1 --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/patches/safetyhook-ntprotect.patch"
 
 [fetch-content.freetype]
 git = "https://github.com/freetype/freetype"

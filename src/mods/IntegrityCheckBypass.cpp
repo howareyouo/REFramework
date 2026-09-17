@@ -2041,6 +2041,16 @@ BOOL WINAPI IntegrityCheckBypass::virtual_protect_impl(LPVOID lpAddress, SIZE_T 
 
 // This allows our calls to VirtualProtect to go through without being hindered by... something.
 BOOL WINAPI IntegrityCheckBypass::virtual_protect_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect) try {
+    // Re-entered: the hook being installed (this one or another) caused a
+    // nested call through the exported VirtualProtect (e.g. safetyhook toggling
+    // page protections while applying a patch). Delegate straight to the
+    // syscall to avoid recursion, then return.
+    if (s_virtual_protect_in_hook) {
+        return virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    }
+
+    s_virtual_protect_in_hook = true;
+
     static bool once = true;
     if (once) {
         spdlog::info("[IntegrityCheckBypass]: VirtualProtect called");
@@ -2090,8 +2100,11 @@ BOOL WINAPI IntegrityCheckBypass::virtual_protect_hook(LPVOID lpAddress, SIZE_T 
         spdlog::error("[IntegrityCheckBypass]: Failed to verify NtProtectVirtualMemory integrity!");
     }
 
-    return virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    BOOL result = virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    s_virtual_protect_in_hook = false;
+    return result;
 } catch(...) {
+    s_virtual_protect_in_hook = false;
     spdlog::error("[IntegrityCheckBypass]: VirtualProtect hook failed! falling back to original");
     return s_virtual_protect_hook->get_original<decltype(virtual_protect_hook)>()(lpAddress, dwSize, flNewProtect, lpflOldProtect);
 }

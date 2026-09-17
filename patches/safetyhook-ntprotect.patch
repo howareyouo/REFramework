@@ -1,0 +1,59 @@
+diff --git a/src/os.windows.cpp b/src/os.windows.cpp
+index a7a4975..189ff55 100644
+--- a/src/os.windows.cpp
++++ b/src/os.windows.cpp
+@@ -65,10 +65,33 @@ std::expected<uint32_t, OsError> vm_protect(uint8_t* address, size_t size, VmAcc
+     return vm_protect(address, size, protect);
+ }
+ 
++// Bypass the exported VirtualProtect so safetyhook's own page-protection
++// changes never re-enter a user hook installed on VirtualProtect itself.
++// Hooking VirtualProtect with safetyhook otherwise crashes due to the
++// re-entrancy while TrapManager's mutex is held during patch application.
++static bool vm_protect_direct(uint8_t* address, size_t size, uint32_t protect, DWORD* old_protect) {
++    static const auto nt_protect_virtual_memory = []() -> LONG(NTAPI*)(HANDLE, PVOID*, SIZE_T*, ULONG, PULONG) {
++        if (auto* ntdll = GetModuleHandleW(L"ntdll.dll")) {
++            return reinterpret_cast<LONG(NTAPI*)(HANDLE, PVOID*, SIZE_T*, ULONG, PULONG)>(
++                GetProcAddress(ntdll, "NtProtectVirtualMemory"));
++        }
++        return nullptr;
++    }();
++
++    if (nt_protect_virtual_memory == nullptr) {
++        return VirtualProtect(address, size, protect, old_protect) != FALSE;
++    }
++
++    PVOID base = address;
++    SIZE_T region_size = size;
++
++    return nt_protect_virtual_memory(GetCurrentProcess(), &base, &region_size, protect, old_protect) >= 0;
++}
++
+ std::expected<uint32_t, OsError> vm_protect(uint8_t* address, size_t size, uint32_t protect) {
+     DWORD old_protect = 0;
+ 
+-    if (VirtualProtect(address, size, protect, &old_protect) == FALSE) {
++    if (!vm_protect_direct(address, size, protect, &old_protect)) {
+         return std::unexpected{OsError::FAILED_TO_PROTECT};
+     }
+ 
+@@ -281,15 +304,15 @@ void trap_threads(uint8_t* from, uint8_t* to, size_t len, const std::function<vo
+     DWORD from_protect;
+     DWORD to_protect;
+ 
+-    VirtualProtect(from, len, new_protect, &from_protect);
+-    VirtualProtect(to, len, new_protect, &to_protect);
++    vm_protect_direct(from, len, new_protect, &from_protect);
++    vm_protect_direct(to, len, new_protect, &to_protect);
+ 
+     if (run_fn) {
+         run_fn();
+     }
+ 
+-    VirtualProtect(to, len, to_protect, &to_protect);
+-    VirtualProtect(from, len, from_protect, &from_protect);
++    vm_protect_direct(to, len, to_protect, &to_protect);
++    vm_protect_direct(from, len, from_protect, &from_protect);
+ }
+ 
+ void fix_ip(ThreadContext thread_ctx, uint8_t* old_ip, uint8_t* new_ip) {

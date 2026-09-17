@@ -135,12 +135,32 @@ FetchContent_Declare(directxtk12
 )
 FetchContent_MakeAvailable(directxtk12)
 
+message(STATUS "Fetching spdlog (7c02e204c92545f869e2f04edaab1f19fe8b19fd)...")
+FetchContent_Declare(spdlog
+	GIT_REPOSITORY
+		"https://github.com/gabime/spdlog"
+	GIT_TAG
+		7c02e204c92545f869e2f04edaab1f19fe8b19fd
+)
+FetchContent_MakeAvailable(spdlog)
+
+message(STATUS "Fetching glm (bf71a834948186f4097caa076cd2663c69a10e1e)...")
+FetchContent_Declare(glm
+	GIT_REPOSITORY
+		"https://github.com/g-truc/glm"
+	GIT_TAG
+		bf71a834948186f4097caa076cd2663c69a10e1e
+)
+FetchContent_MakeAvailable(glm)
+
 message(STATUS "Fetching safetyhook (b046e123dc69821f2c375161e0adef3c6d9c9db4)...")
 FetchContent_Declare(safetyhook
 	GIT_REPOSITORY
 		"https://github.com/cursey/safetyhook"
 	GIT_TAG
 		b046e123dc69821f2c375161e0adef3c6d9c9db4
+	PATCH_COMMAND
+		"cmd;/c;git checkout -- . && git apply -p1 --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/patches/safetyhook-ntprotect.patch"
 )
 FetchContent_MakeAvailable(safetyhook)
 
@@ -193,66 +213,25 @@ if(REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework-dep
 	)
 
 endif()
-# Target: spdlog
-if(REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework-dependencies
-	set(spdlog_SOURCES
-		cmake.toml
-		"dependencies/spdlog/src/async.cpp"
-		"dependencies/spdlog/src/bundled_fmtlib_format.cpp"
-		"dependencies/spdlog/src/cfg.cpp"
-		"dependencies/spdlog/src/color_sinks.cpp"
-		"dependencies/spdlog/src/file_sinks.cpp"
-		"dependencies/spdlog/src/spdlog.cpp"
-		"dependencies/spdlog/src/stdout_sinks.cpp"
-	)
-
-	add_library(spdlog STATIC)
-
-	target_sources(spdlog PRIVATE ${spdlog_SOURCES})
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${spdlog_SOURCES})
-
-	add_library(spdlog::spdlog ALIAS spdlog)
-	target_compile_definitions(spdlog PUBLIC
-		SPDLOG_COMPILED_LIB
-	)
-
-	target_include_directories(spdlog PUBLIC
-		"dependencies/spdlog/include"
-	)
-
-	set(CMKR_TARGET spdlog)
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.35)
-	    target_compile_options(DirectXTK PRIVATE /Zc:templateScope-)
-	    target_compile_options(DirectXTK12 PRIVATE /Zc:templateScope-)
-	endif()
-
-endif()
-# Target: glm_static
-if(REF_BUILD_DEPENDENCIES AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework-dependencies
-	set(glm_static_SOURCES
-		cmake.toml
-		"dependencies/glm/glm/detail/glm.cpp"
-	)
-
-	add_library(glm_static STATIC)
-
-	target_sources(glm_static PRIVATE ${glm_static_SOURCES})
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${glm_static_SOURCES})
-
-	target_include_directories(glm_static PUBLIC
-		"dependencies/glm"
-	)
-
-endif()
 # Target: imgui
 if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
+	set(CMKR_TARGET imgui)
+	FetchContent_Declare(imgui
+		GIT_REPOSITORY "https://github.com/howareyouo/imgui"
+		GIT_TAG "bdd08bf236dbc9151405219daa8696fab92efe9b"
+	)
+	FetchContent_GetProperties(imgui)
+	if(NOT imgui_POPULATED)
+		FetchContent_Populate(imgui)
+	endif()
+
 	set(imgui_SOURCES
+		"${imgui_SOURCE_DIR}/imgui.cpp"
+		"${imgui_SOURCE_DIR}/imgui_draw.cpp"
+		"${imgui_SOURCE_DIR}/imgui_tables.cpp"
+		"${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+		"${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp"
 		cmake.toml
-		"dependencies/imgui/imgui.cpp"
-		"dependencies/imgui/imgui_draw.cpp"
-		"dependencies/imgui/imgui_tables.cpp"
-		"dependencies/imgui/imgui_widgets.cpp"
-		"dependencies/imgui/misc/freetype/imgui_freetype.cpp"
 	)
 
 	add_library(imgui STATIC)
@@ -265,8 +244,8 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 	target_include_directories(imgui PUBLIC
-		"dependencies/imgui"
-		"dependencies/imgui/misc/freetype"
+		${imgui_SOURCE_DIR}
+		"${imgui_SOURCE_DIR}/misc/freetype"
 		"src/re2-imgui"
 	)
 
@@ -296,7 +275,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 	target_include_directories(imguizmo PUBLIC
-		"dependencies/imgui"
+		${imgui_SOURCE_DIR}
 		"dependencies/imguizmo"
 		"src/re2-imgui"
 	)
@@ -1387,7 +1366,7 @@ if(REF_BUILD_RE2_SDK OR REF_BUILD_FRAMEWORK) # build-re2-sdk
 	)
 
 	target_link_libraries(RE2SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -2369,7 +2348,7 @@ if(REF_BUILD_RE2_TDB66SDK OR REF_BUILD_FRAMEWORK) # build-re2tdb66-sdk
 	)
 
 	target_link_libraries(RE2_TDB66SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -2523,7 +2502,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -2697,7 +2676,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -3700,7 +3679,7 @@ if(REF_BUILD_RE3_SDK OR REF_BUILD_FRAMEWORK) # build-re3-sdk
 	)
 
 	target_link_libraries(RE3SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -4682,7 +4661,7 @@ if(REF_BUILD_RE3_TDB67SDK OR REF_BUILD_FRAMEWORK) # build-re3tdb67-sdk
 	)
 
 	target_link_libraries(RE3_TDB67SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -4836,7 +4815,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -5010,7 +4989,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -5184,7 +5163,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -6187,7 +6166,7 @@ if(REF_BUILD_RE4_SDK OR REF_BUILD_FRAMEWORK) # build-re4-sdk
 	)
 
 	target_link_libraries(RE4SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -7171,7 +7150,7 @@ if(REF_BUILD_RE7_SDK OR REF_BUILD_FRAMEWORK) # build-re7-sdk
 	)
 
 	target_link_libraries(RE7SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -8153,7 +8132,7 @@ if(REF_BUILD_RE7_TDB49SDK OR REF_BUILD_FRAMEWORK) # build-re7tdb49-sdk
 	)
 
 	target_link_libraries(RE7_TDB49SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -8307,7 +8286,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -8481,7 +8460,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -9484,7 +9463,7 @@ if(REF_BUILD_RE8_SDK OR REF_BUILD_FRAMEWORK) # build-re8-sdk
 	)
 
 	target_link_libraries(RE8SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -9639,7 +9618,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -10642,7 +10621,7 @@ if(REF_BUILD_DMC5_SDK OR REF_BUILD_FRAMEWORK) # build-dmc5-sdk
 	)
 
 	target_link_libraries(DMC5SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -10795,7 +10774,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -11798,7 +11777,7 @@ if(REF_BUILD_MHRISE_SDK OR REF_BUILD_FRAMEWORK) # build-mhrise-sdk
 	)
 
 	target_link_libraries(MHRISESDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -11953,7 +11932,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -12956,7 +12935,7 @@ if(REF_BUILD_SF6_SDK OR REF_BUILD_FRAMEWORK) # build-sf6-sdk
 	)
 
 	target_link_libraries(SF6SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -13111,7 +13090,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -14114,7 +14093,7 @@ if(REF_BUILD_DD2_SDK OR REF_BUILD_FRAMEWORK) # build-dd2-sdk
 	)
 
 	target_link_libraries(DD2SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -14269,7 +14248,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -15272,7 +15251,7 @@ if(REF_BUILD_MHWILDS_SDK OR REF_BUILD_FRAMEWORK) # build-mhwilds-sdk
 	)
 
 	target_link_libraries(MHWILDSSDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -15427,7 +15406,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -16430,7 +16409,7 @@ if(REF_BUILD_MHSTORIES3_SDK OR REF_BUILD_FRAMEWORK) # build-mhstories3-sdk
 	)
 
 	target_link_libraries(MHSTORIES3SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -16585,7 +16564,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -17588,7 +17567,7 @@ if(REF_BUILD_RE9_SDK OR REF_BUILD_FRAMEWORK) # build-re9-sdk
 	)
 
 	target_link_libraries(RE9SDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -17743,7 +17722,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK
@@ -18746,7 +18725,7 @@ if(REF_BUILD_PRAGMATA_SDK OR REF_BUILD_FRAMEWORK) # build-pragmata-sdk
 	)
 
 	target_link_libraries(PRAGMATASDK PUBLIC
-		glm_static
+		glm::glm
 		spdlog
 	)
 
@@ -18901,7 +18880,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imguizmo
 		imnodes
 		d3d11
-		glm_static
+		glm::glm
 		shlwapi
 		delayimp
 		DirectXTK

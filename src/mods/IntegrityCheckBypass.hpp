@@ -85,6 +85,9 @@ private:
     using NtProtectVirtualMemory_t =  NTSTATUS(NTAPI*)(HANDLE ProcessHandle, PVOID* BaseAddress, SIZE_T* NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection);
     static inline NtProtectVirtualMemory_t s_pristine_protect_virtual_memory{ nullptr };
     static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };;
+    // Re-entry guard so safetyhook's own protection toggling during hook
+    // installation cannot recurse into this hook (see patches/safetyhook-ntprotect.patch)
+    static inline thread_local bool s_virtual_protect_in_hook{ false };
 
     static inline std::unique_ptr<FunctionHookMinHook> s_virtual_protect_hook{};
     static inline std::unique_ptr<FunctionHookMinHook> s_add_vectored_exception_handler_hook{};
