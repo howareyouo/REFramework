@@ -53,6 +53,12 @@ public:
 
     void on_scene_layer_update(sdk::renderer::layer::Scene* scene_layer, void* render_context) override;
 
+    // A device reset arms m_wants_reinitialize, so the reinitialize block in
+    // on_early_present has to be able to run while m_enabled is false (that is how the
+    // module recovers after a reset that happened while it was switched off). Every other
+    // D3D12 user — the copy, the jitter, the resolution spoof — checks ready() or
+    // m_enabled->value(), which is what keeps the deferred disable teardown from racing an
+    // in-flight copy command.
     bool ready() const {
         return m_initialized && m_backend_loaded && m_enabled->value() && !m_wants_reinitialize;
     }
@@ -204,6 +210,10 @@ private:
     bool m_taa_disabled{false};
     via::render::RenderConfig::AntiAliasingType m_original_antialiasing{via::render::RenderConfig::AntiAliasingType::NONE};
     bool m_wants_reinitialize{false};
+    // Set when the user disables the module: the D3D12 teardown is deferred to the present
+    // thread (on_early_present) instead of running from the UI callback, mirroring the
+    // reinitialize path. See apply_setting_changes.
+    bool m_wants_disable{false};
     bool m_logged_first_evaluate{false};
 
     // Written by the present thread (on_early_present/on_post_present) and read/written by

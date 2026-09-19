@@ -310,10 +310,15 @@ void TemporalUpscaler::on_draw_ui() {
 
 void TemporalUpscaler::apply_setting_changes() {
     if (!activated()) {
-        // Disabled: give the plugin's features back and restore the engine's original
-        // anti-aliasing, instead of leaving everything resident but unused.
-        release_upscale_features();
+        // Disabled: restore the engine's original anti-aliasing (a reflection call, safe on
+        // this thread) and hand the plugin's features back. The D3D12 teardown itself is NOT
+        // done here: this callback runs during the engine's BeginRendering application entry,
+        // where freeing the plugin's feature and recycling the copy command allocators can
+        // collide with the frame's GPU work (DXGI_ERROR_DEVICE_HUNG). It is deferred to the
+        // present thread in on_early_present, the same place the reinit teardown is done.
         restore_engine_aa();
+        m_wants_reinitialize = false; // drop any pending reinit; we are turning the module off
+        m_wants_disable = true;
         return;
     }
 
@@ -356,7 +361,28 @@ void TemporalUpscaler::on_early_present() {
         return;
     }
 
+    if (m_wants_disable) {
+        // Deferred teardown from apply_setting_changes, now on the present thread. Releasing
+        // from the UI callback instead ran during the engine's BeginRendering, where freeing
+        // the plugin's feature and recycling the copy command allocators collides with the
+        // frame's own GPU work and faults the device (DXGI_ERROR_DEVICE_HUNG). Every
+        // per-frame callback is gated on m_enabled, so no command referencing those
+        // resources is in flight from this module here.
+        m_wants_disable = false;
+        release_upscale_features();
+        return;
+    }
+
     if (m_wants_reinitialize) {
+        // Never (re)create the plugin's feature while the module is switched off: a device
+        // reset can arm this flag while disabled, and allocating a new upscale feature
+        // against the swapchain/scene buffers the engine is rebuilding is exactly the
+        // teardown-during-resize race the deferred disable above avoids.
+        if (!activated()) {
+            m_wants_reinitialize = false;
+            return;
+        }
+
         // release_upscale_features() zeroes the cached render size, and on_view_get_size()
         // (render thread) refresh()es it from GetRenderWidth() whenever it reads zero — which
         // mid-teardown is the *previous* feature's size, latched for good. Carry the last
