@@ -16,11 +16,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Update submodules to tracked branch
-        run: |
-          git -C dependencies/imgui fetch origin '+refs/heads/master:refs/remotes/origin/master'
-          git -C dependencies/imgui checkout -B master origin/master
-
       - name: Cache FetchContent dependencies
         uses: actions/cache@v6
         with:
@@ -58,8 +53,6 @@ jobs:
           7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/reframework_revision.txt
           7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/DELETE_OPENVR_API_DLL_IF_YOU_WANT_TO_USE_OPENXR
           7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/build/bin/${{matrix.target}}/dinput8.dll
-          7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/dependencies/openvr/bin/win64/openvr_api.dll
-          7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/build/_deps/openxr-build/src/loader/${{env.BUILD_TYPE}}/openxr_loader.dll
           7z a ${{github.workspace}}/${{matrix.target}}.zip ${{github.workspace}}/scripts
           7z rn ${{github.workspace}}/${{matrix.target}}.zip scripts reframework/autorun
 

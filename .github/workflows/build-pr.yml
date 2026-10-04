@@ -14,11 +14,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Update submodules to tracked branch
-        run: |
-          git -C dependencies/imgui fetch origin '+refs/heads/master:refs/remotes/origin/master'
-          git -C dependencies/imgui checkout -B master origin/master
-
       - name: Cache FetchContent dependencies
         uses: actions/cache@v6
         with:
