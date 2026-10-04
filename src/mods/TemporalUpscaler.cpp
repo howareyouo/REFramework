@@ -251,11 +251,12 @@ void TemporalUpscaler::on_draw_ui() {
     // applied in one place at the end instead of at each call site.
     bool needs_reinit = false;
 
-    if (m_use_native_resolution->draw("Use Native Res (DLAA)")) {
-        // The render size depends on the mode, so re-query it and the motion scale.
-        m_cached_render_size.invalidate();
-        update_motion_scale();
-    }
+    // The render size depends on the mode, and the plugin's feature is created for the mode
+    // it was initialized in: switching it live feeds EvaluateUpscaler a render size the
+    // feature was not created for, so the feature has to be recreated.
+    // init_upscale_features() re-queries the motion scale and republishes the render size
+    // of the new mode once the new feature exists.
+    needs_reinit |= m_use_native_resolution->draw("Use Native Res (DLAA)");
 
     needs_reinit |= m_sharpness->draw("Sharpness");
     m_sharpness_amount->draw("Sharpness Amount");
