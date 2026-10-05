@@ -131,8 +131,12 @@ void run_callbacks(ScriptState& state, Fns& fns, const char* on_error) {
     }
 
     guarded(state, on_error, [&] {
-        for (auto& fn : fns) {
-            state.handle_protected_result(fn());
+        auto guard = fns.acquire_iteration();
+
+        for (auto& fn : fns.get()) {
+            if (state.should_remove_hook(state.handle_protected_result(fn()))) {
+                fns.remove(fn);
+            }
         }
     });
 }
@@ -198,12 +202,16 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
     re["msg"] = api::re::msg;
     re["on_pre_application_entry"] = [this](const char* name, sol::function fn) { m_pre_application_entry_fns.emplace(utility::hash(name), fn); };
     re["on_application_entry"] = [this](const char* name, sol::function fn) { m_application_entry_fns.emplace(utility::hash(name), fn); };
-    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.emplace_back(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
-    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.emplace_back(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
-    re["on_draw_ui"] = [this](sol::function fn) { m_on_draw_ui_fns.emplace_back(fn); };
-    re["on_frame"] = [this](sol::function fn) { m_on_frame_fns.emplace_back(fn); };
-    re["on_script_reset"] = [this](sol::function fn) { m_on_script_reset_fns.emplace_back(fn); };
-    re["on_config_save"] = [this](sol::function fn) { m_on_config_save_fns.emplace_back(fn); };
+    re["on_pre_gui_draw_element"] = [this](sol::function fn) { m_pre_gui_draw_element_fns.add(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
+    re["on_gui_draw_element"] = [this](sol::function fn) { m_gui_draw_element_fns.add(fn); ScriptRunner::get()->on_add_gui_draw_element(); };
+    re["on_draw_ui"] = [this](sol::function fn) { m_on_draw_ui_fns.add(fn); };
+    re["on_frame"] = [this](sol::function fn) { m_on_frame_fns.add(fn); };
+    re["on_script_reset"] = [this](sol::function fn) { m_on_script_reset_fns.add(fn); };
+    re["on_config_save"] = [this](sol::function fn) { m_on_config_save_fns.add(fn); };
+    re.new_enum("CallbackNextAction",
+        "CONTINUE", ScriptState::ReCallbackNextAction::CONTINUE,
+        "STOP", ScriptState::ReCallbackNextAction::STOP
+    );
     m_lua["re"] = re;
 
     auto thread = m_lua.create_table();
@@ -487,6 +495,20 @@ sol::protected_function_result ScriptState::handle_protected_result(sol::protect
     return result;
 }
 
+bool ScriptState::should_remove_hook(const sol::protected_function_result& result) {
+    if (!result.valid()) {
+        return false;
+    }
+
+    auto result_obj = result.get<sol::object>();
+
+    if (!result_obj.valid() || result_obj.is<sol::nil_t>() || !result_obj.is<ReCallbackNextAction>()) {
+        return false;
+    }
+
+    return result_obj.as<ReCallbackNextAction>() == ReCallbackNextAction::STOP;
+}
+
 void ScriptState::on_frame() {
     run_callbacks(*this, m_on_frame_fns, "Unknown error in on_frame");
 
@@ -558,9 +580,15 @@ bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* contex
     bool any_false = false;
 
     guarded(*this, "Unknown exception in on_pre_gui_draw_element", [&] {
-        for (auto& fn : m_pre_gui_draw_element_fns) {
-            if (sol::object result = handle_protected_result(fn(gui_element, context)); !result.is<sol::nil_t>() && result.is<bool>() && result.as<bool>() == false) {
+        auto guard = m_pre_gui_draw_element_fns.acquire_iteration();
+
+        for (auto& fn : m_pre_gui_draw_element_fns.get()) {
+            auto result = handle_protected_result(fn(gui_element, context));
+
+            if (sol::object result_obj = result; !result_obj.is<sol::nil_t>() && result_obj.is<bool>() && result_obj.as<bool>() == false) {
                 any_false = true;
+            } else if (should_remove_hook(result)) {
+                m_pre_gui_draw_element_fns.remove(fn);
             }
         }
     });
@@ -574,8 +602,12 @@ void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
     }
 
     guarded(*this, "Unknown exception in on_gui_draw_element", [&] {
-        for (auto& fn : m_gui_draw_element_fns) {
-            handle_protected_result(fn(gui_element, context));
+        auto guard = m_gui_draw_element_fns.acquire_iteration();
+
+        for (auto& fn : m_gui_draw_element_fns.get()) {
+            if (should_remove_hook(handle_protected_result(fn(gui_element, context)))) {
+                m_gui_draw_element_fns.remove(fn);
+            }
         }
     });
 }
@@ -583,12 +615,20 @@ void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
 void ScriptState::on_script_reset() {
     guarded(*this, "Unknown exception in on_script_reset", [&] {
         // Save configs first so scripts can persist state prior to the reset.
-        for (auto& fn : m_on_config_save_fns) {
-            handle_protected_result(fn());
+        auto guard_save = m_on_config_save_fns.acquire_iteration();
+
+        for (auto& fn : m_on_config_save_fns.get()) {
+            if (should_remove_hook(handle_protected_result(fn()))) {
+                m_on_config_save_fns.remove(fn);
+            }
         }
 
-        for (auto& fn : m_on_script_reset_fns) {
-            handle_protected_result(fn());
+        auto guard_reset = m_on_script_reset_fns.acquire_iteration();
+
+        for (auto& fn : m_on_script_reset_fns.get()) {
+            if (should_remove_hook(handle_protected_result(fn()))) {
+                m_on_script_reset_fns.remove(fn);
+            }
         }
     });
 }
@@ -713,11 +753,11 @@ void ScriptState::add_delegate_callback(sdk::DelegateInvocation& invo, sol::prot
     auto it = s_delegates.find(invo.object);
 
     if (it != s_delegates.end()) {
-        it->second->callbacks.push_back(callback);
+        it->second->callbacks.add(callback);
     } else {
         auto storage = std::make_unique<DelegateStorage>();
         storage->owner = shared_from_this();
-        storage->callbacks.push_back(callback);
+        storage->callbacks.add(callback);
         
         static auto system_object_t = sdk::find_type_definition("System.Object");
 
@@ -755,8 +795,9 @@ void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
     }
 
     auto __ = owner_state->scoped_lock();
+    auto guard = delegate->callbacks.acquire_iteration();
 
-    for (auto& fn : delegate->callbacks) {
+    for (auto& fn : delegate->callbacks.get()) {
         try {
             auto script_result = fn(obj);
 

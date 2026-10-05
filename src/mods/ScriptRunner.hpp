@@ -14,6 +14,7 @@
 
 #include "sdk/RETypeDB.hpp"
 #include "utility/FunctionHook.hpp"
+#include <utility/SafeCallbackVector.hpp>
 
 #include "Mod.hpp"
 
@@ -118,6 +119,12 @@ public:
         LAST
     };
 
+    // Returned from re.on_* callbacks to unregister the callback itself.
+    enum class ReCallbackNextAction : uint32_t {
+        CONTINUE = 0,
+        STOP = 1
+    };
+
     struct GarbageCollectionData {
         GarbageCollectionHandler gc_handler{GarbageCollectionHandler::REFRAMEWORK_MANAGED};
         GarbageCollectionType gc_type{GarbageCollectionType::FULL};
@@ -133,6 +140,7 @@ public:
 
     void run_script(const std::string& p);
     sol::protected_function_result handle_protected_result(sol::protected_function_result result); // because protected_functions don't throw
+    bool should_remove_hook(const sol::protected_function_result& result); // true if the callback returned CallbackNextAction.STOP
 
     void on_frame();
     void on_draw_ui();
@@ -284,12 +292,12 @@ private:
 
     std::unordered_map<RETransform*, sol::protected_function> m_on_update_transform_fns{};
 
-    std::vector<sol::protected_function> m_pre_gui_draw_element_fns{};
-    std::vector<sol::protected_function> m_gui_draw_element_fns{};
-    std::vector<sol::protected_function> m_on_draw_ui_fns{};
-    std::vector<sol::protected_function> m_on_frame_fns{};
-    std::vector<sol::protected_function> m_on_script_reset_fns{};
-    std::vector<sol::protected_function> m_on_config_save_fns{};
+    SafeCallbackVector<sol::protected_function> m_pre_gui_draw_element_fns{};
+    SafeCallbackVector<sol::protected_function> m_gui_draw_element_fns{};
+    SafeCallbackVector<sol::protected_function> m_on_draw_ui_fns{};
+    SafeCallbackVector<sol::protected_function> m_on_frame_fns{};
+    SafeCallbackVector<sol::protected_function> m_on_script_reset_fns{};
+    SafeCallbackVector<sol::protected_function> m_on_config_save_fns{};
 
     struct HookDef {
         ::REManagedObject* obj{nullptr};
@@ -309,8 +317,8 @@ private:
     sol::reference m_current_hook_storage{};
 
     struct DelegateStorage {
-        std::weak_ptr<ScriptState> owner{}; // Weak pointer to the ScriptState that owns this delegate storage because the ScriptState may be deleted. 
-        std::vector<sol::protected_function> callbacks{};
+        std::weak_ptr<ScriptState> owner{}; // Weak pointer to the ScriptState that owns this delegate storage because the ScriptState may be deleted.
+        SafeCallbackVector<sol::protected_function> callbacks{};
 
     };
 
