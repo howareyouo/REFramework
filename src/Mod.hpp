@@ -334,6 +334,7 @@ public:
         }
 
         return detail::with_id(this, [&] {
+            bool changed = false;
             ImGui::Button(name.data());
 
             if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[0]) {
@@ -348,7 +349,9 @@ public:
                     }
 
                     if (keys[k]) {
-                        m_value = is_erase_key(k) ? UNBOUND_KEY : k;
+                        const auto new_value = is_erase_key(k) ? UNBOUND_KEY : k;
+                        changed = new_value != m_value;
+                        m_value = new_value;
                         m_waiting_for_new_key = false;
                         break;
                     }
@@ -368,7 +371,7 @@ public:
                 }
             }
 
-            return true;
+            return changed;
         });
     }
 
