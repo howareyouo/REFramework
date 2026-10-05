@@ -81,6 +81,7 @@ private:
     void plugin_early_init();
     void wait_for_vm_and_renderer();
     void start_monitor_thread();
+    void ensure_modules_spoofed();
 
     std::atomic<uint32_t> m_do_not_hook_d3d_count{0};
 
@@ -130,6 +131,9 @@ public:
     bool is_ui_focused() const { return m_is_ui_focused; }
     bool is_ui_passthrough() const { return m_ui_passthrough; }
     bool is_initialized() const { return m_initialized; }
+
+    // True when mods can be driven (no fatal error and game data is up).
+    bool is_init_ok() const { return m_error.empty() && m_game_data_initialized; }
 
     void run_imgui_frame(bool from_present);
 
@@ -284,6 +288,9 @@ private:
     bool initialize();
     bool initialize_game_data();
     bool initialize_windows_message_hook();
+
+    // Shared ImGui/platform-backend bring-up for the D3D11/D3D12 init paths.
+    bool setup_imgui_backend(HWND wnd);
 
     bool first_frame_initialize();
 

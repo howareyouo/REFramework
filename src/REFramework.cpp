@@ -48,15 +48,36 @@ using namespace std::literals;
 
 // ---------------------------------------------------------------------------
 // Named timeouts / limits — replace magic numbers scattered through the file.
+// (The D3D hook monitor keeps its own timeouts in core/D3DHookMonitor.hpp.)
 // ---------------------------------------------------------------------------
-static constexpr auto PRESENT_TIMEOUT     = std::chrono::seconds{5};
-static constexpr auto CHANCE_TIMEOUT      = std::chrono::seconds{1};
-static constexpr auto MESSAGE_TIMEOUT     = std::chrono::seconds{5};
-static constexpr auto SENDMESSAGE_TIMEOUT = std::chrono::seconds{1};
-static constexpr auto INIT_FRAME_DELAY    = 60;
-static constexpr auto MAX_SCAN_RETRIES    = 10;
-static constexpr auto VM_INIT_TIMEOUT     = std::chrono::seconds{30};
-static constexpr auto NUM_COMMAND_CONTEXTS = 3;
+static constexpr auto INIT_FRAME_DELAY = 60;
+static constexpr auto MAX_SCAN_RETRIES = 10;
+static constexpr auto VM_INIT_TIMEOUT  = std::chrono::seconds{30};
+
+namespace {
+// Polls `predicate` until it returns true or `deadline` passes; throws on
+// timeout. Shared by the startup renderer wait and the game-data init thread.
+template <typename Pred>
+void wait_until(const char* what, Pred&& predicate, std::chrono::steady_clock::time_point deadline,
+                std::chrono::milliseconds poll_interval) {
+    while (true) {
+        try {
+            if (predicate()) {
+                return;
+            }
+        } catch (...) {
+        }
+
+        if (std::chrono::steady_clock::now() > deadline) {
+            const auto message = std::string{"Timed out waiting for "} + what + ".";
+            spdlog::error("{}", message);
+            throw std::runtime_error{message};
+        }
+
+        std::this_thread::sleep_for(poll_interval);
+    }
+}
+} // namespace
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 DEFINE_GUID(GUID_DEVINTERFACE_HID, 0x4D1E55B2L, 0xF16F, 0x11CF, 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30);
@@ -109,36 +130,39 @@ bool g_success_made_ldr_notification{false};
 
 void CALLBACK ldr_notification_callback(
     ULONG                       NotificationReason,
-    PLDR_DLL_NOTIFICATION_DATA NotificationData,
+    PLDR_DLL_NOTIFICATION_DATA  NotificationData,
     PVOID                       Context
 ) 
 try {
-    if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
-        if (NotificationData->Loaded.BaseDllName != nullptr && NotificationData->Loaded.BaseDllName->Buffer != nullptr) {
-            std::wstring base_dll_name = NotificationData->Loaded.BaseDllName->Buffer;
-            std::wstring lower_base_dll_name = base_dll_name;
-            std::transform(lower_base_dll_name.begin(), lower_base_dll_name.end(), lower_base_dll_name.begin(), ::towlower);
-            spdlog::info("LdrRegisterDllNotification: Loaded: {}", utility::narrow(base_dll_name));
+    if (NotificationReason != LDR_DLL_NOTIFICATION_REASON_LOADED) {
+        return;
+    }
 
-            if (lower_base_dll_name.find(L"sl.dlss_g.dll") != std::wstring::npos) {
-                spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
-                D3D12Hook::hook_streamline((HMODULE)NotificationData->Loaded.DllBase);
-            }
+    // Runs under the loader lock: no allocations or per-character transforms
+    // on the hot path; only log when something actionable actually happened.
+    const auto& loaded = NotificationData->Loaded;
+
+    if (loaded.BaseDllName != nullptr && loaded.BaseDllName->Buffer != nullptr) {
+        constexpr wchar_t dlss_name[] = L"sl.dlss_g.dll";
+        constexpr auto dlss_len = (sizeof(dlss_name) / sizeof(wchar_t)) - 1;
+
+        if ((size_t)loaded.BaseDllName->Length == dlss_len * sizeof(WCHAR) &&
+            _wcsnicmp(loaded.BaseDllName->Buffer, dlss_name, dlss_len) == 0) {
+            spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
+            D3D12Hook::hook_streamline((HMODULE)loaded.DllBase);
         }
+    }
 
-        if (g_current_game_path && NotificationData->Loaded.FullDllName != nullptr && NotificationData->Loaded.FullDllName->Buffer != nullptr) {
-            std::wstring full_dll_name = NotificationData->Loaded.FullDllName->Buffer;
-            std::filesystem::path full_dll_path = full_dll_name;
+    if (g_current_game_path && loaded.FullDllName != nullptr && loaded.FullDllName->Buffer != nullptr) {
+        const std::filesystem::path full_dll_path = loaded.FullDllName->Buffer;
 
-            if (full_dll_path.parent_path() == *g_current_game_path) {
-                spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}", utility::narrow(full_dll_name));
+        if (full_dll_path.parent_path() == *g_current_game_path) {
+            spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}",
+                         utility::narrow(loaded.FullDllName->Buffer));
 
 #if defined(DD2) || defined(MHRISE) || TDB_VER >= 74
-                utility::spoof_module_paths_in_exe_dir();
+            utility::spoof_module_paths_in_exe_dir();
 #endif
-            }
-        } else {
-            spdlog::info("LdrRegisterDllNotification: DLL loaded from unknown location");
         }
     }
 } catch (const std::exception& e) {
@@ -200,7 +224,10 @@ void REFramework::setup_logging() {
     spdlog::info("Game name: {}", REFramework::get_game_name());
 
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+
+    if (ImGui::GetCurrentContext() == nullptr) {
+        ImGui::CreateContext();
+    }
 
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
@@ -319,7 +346,7 @@ void REFramework::copy_storage_files() {
         copy_file_safe(d3d12_path, dest_path / "D3D12" / "D3D12Core.dll", "D3D12Core.dll");
     }
 
-    utility::spoof_module_paths_in_exe_dir();
+    ensure_modules_spoofed();
 #endif
 }
 
@@ -347,13 +374,26 @@ void REFramework::register_ldr_notification() {
     }
 }
 
+// Single idempotent entry point for hiding already-loaded REFramework modules
+// from the game. When the LDR notification is active, ldr_notification_callback
+// covers every module loaded from the game directory afterwards, so this only
+// runs while the callback isn't registered.
+void REFramework::ensure_modules_spoofed() {
+#if defined(DD2) || defined(MHRISE) || TDB_VER >= 74
+    if (g_success_made_ldr_notification) {
+        return;
+    }
+
+    utility::spoof_module_paths_in_exe_dir();
+#endif
+}
+
 void REFramework::wait_for_d3d_if_packed() {
 #if defined(REENGINE_PACKED)
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point next_log = now;
+    auto next_log = std::chrono::steady_clock::now();
 
     while (GetModuleHandleA("d3d12.dll") == nullptr) {
-        now = std::chrono::steady_clock::now();
+        const auto now = std::chrono::steady_clock::now();
         if (now >= next_log) {
             spdlog::info("[REFramework] Waiting for D3D12...");
             next_log = now + 1s;
@@ -361,11 +401,15 @@ void REFramework::wait_for_d3d_if_packed() {
         Sleep(50);
     }
 
+    // d3d12.dll is loaded by the game at this point; this pins our own
+    // reference. Throttled in case the load ever actually fails.
     while (LoadLibraryA("d3d12.dll") == nullptr) {
+        const auto now = std::chrono::steady_clock::now();
         if (now >= next_log) {
             spdlog::info("[REFramework] Waiting for D3D12...");
             next_log = now + 1s;
         }
+        Sleep(50);
     }
 
     spdlog::info("D3D12 loaded");
@@ -377,36 +421,38 @@ void REFramework::load_vr_dlls() {
     LoadLibraryA("dxgi.dll");
     LoadLibraryA("d3d11.dll");
 
-    if (!g_success_made_ldr_notification) {
-        utility::spoof_module_paths_in_exe_dir();
-    }
+    ensure_modules_spoofed();
 #endif
 }
 
 void REFramework::setup_re8_crash_fix() {
 #if defined(RE8)
-    auto startup_lookup_thread = std::make_unique<std::thread>([this]() {
-        uint32_t times_searched = 0;
+    // Detached: scans by value (no `this` capture) so it can never outlive
+    // the framework object it would otherwise reference.
+    const auto game_module = m_game_module;
 
-        auto startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
+    std::thread([game_module]() {
+        const auto pattern = "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00";
+        std::optional<uintptr_t> startup_patch_addr{};
 
-        while (!startup_patch_addr) {
-            startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
+        for (uint32_t times_searched = 0; times_searched <= MAX_SCAN_RETRIES; ++times_searched) {
+            startup_patch_addr = utility::scan(game_module, pattern);
 
-            if (times_searched++ > MAX_SCAN_RETRIES) {
-                spdlog::error("Failed to find startup patch address");
-                return;
+            if (startup_patch_addr) {
+                break;
             }
+
+            // Pattern scans are expensive; don't spin between retries.
+            std::this_thread::sleep_for(std::chrono::seconds{1});
         }
 
         if (startup_patch_addr) {
             spdlog::info("Found startup patch at {:x}", *startup_patch_addr);
             static auto permanent_patch = Patch::create(*startup_patch_addr, {0xC3});
         } else {
-            spdlog::info("Couldn't find RE8 crash fix patch location!");
+            spdlog::error("Failed to find startup patch address");
         }
-    });
-    startup_lookup_thread->detach();
+    }).detach();
 #endif
 }
 
@@ -447,25 +493,12 @@ void REFramework::plugin_early_init() {
 }
 
 void REFramework::wait_for_vm_and_renderer() {
-    const auto start_time = std::chrono::high_resolution_clock::now();
-
-    while (true) {
-        try {
-            if (sdk::VM::get() != nullptr) break;
-        } catch(...) {}
-
-        if (std::chrono::high_resolution_clock::now() - start_time > VM_INIT_TIMEOUT) {
-            spdlog::error("Timed out waiting for VM to initialize.");
-            throw std::runtime_error("Timed out waiting for VM to initialize.");
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    wait_until("VM to initialize", [] { return sdk::VM::get() != nullptr; },
+               std::chrono::steady_clock::now() + VM_INIT_TIMEOUT, std::chrono::milliseconds{1});
 
     spdlog::info("VM initialized, waiting for renderer to initialize...");
     sdk::RETypeDefinition* renderer_t = nullptr;
     sdk::renderer::Renderer* renderer = nullptr;
-    bool found_renderer = false;
     bool renderer_has_render_frame_fn = false;
 
     if (sdk::RETypeDB::get() != nullptr) {
@@ -476,9 +509,9 @@ void REFramework::wait_for_vm_and_renderer() {
         auto& faulty_file_detector = FaultyFileDetector::get();
 #endif
 
-        const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string();
-        if (fs::exists(utility::widen(config_path))) {
-            utility::Config cfg{ config_path };
+        const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data());
+        if (fs::exists(config_path)) {
+            utility::Config cfg{ config_path.string() };
             loader->on_config_load(cfg);
 
 #if defined(MHWILDS)
@@ -501,19 +534,11 @@ void REFramework::wait_for_vm_and_renderer() {
         }
 
         if (renderer_t == nullptr) {
-            for (auto i = 0; i < tdb->get_num_types(); ++i) {
-                const auto t = tdb->get_type(i);
+            renderer_t = sdk::find_type_definition("via.render.Renderer");
 
-                if (t == nullptr || t->get_name() == nullptr || t->get_namespace() == nullptr) {
-                    continue;
-                }
-
-                if (std::string_view{t->get_name()} == "Renderer" &&
-                    std::string_view{t->get_namespace()} == "via.render") {
-                    spdlog::info("Renderer type found manually @ {:x}", (uintptr_t)t);
-                    renderer_t = t;
-                    break;
-                }
+            if (renderer_t != nullptr) {
+                spdlog::info("Renderer type found @ {:x}", (uintptr_t)renderer_t);
+                renderer_has_render_frame_fn = renderer_t->get_method("get_RenderFrame") != nullptr;
             }
         }
 
@@ -521,8 +546,6 @@ void REFramework::wait_for_vm_and_renderer() {
             spdlog::error("Renderer type not found");
             break;
         }
-
-        renderer_has_render_frame_fn = renderer_t->get_method("get_RenderFrame") != nullptr;
 
         const auto renderer_has_instance = renderer_t->get_method("hasInstance");
         if (renderer_has_instance == nullptr) {
@@ -543,7 +566,6 @@ void REFramework::wait_for_vm_and_renderer() {
 
         renderer = sdk::renderer::get_renderer();
         if (renderer != nullptr) {
-            found_renderer = true;
             break;
         }
 
@@ -551,6 +573,7 @@ void REFramework::wait_for_vm_and_renderer() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } catch(...) {
         spdlog::warn("Exception occurred while waiting for renderer");
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         continue;
     }
 
@@ -665,6 +688,10 @@ bool REFramework::hook_d3d11() {
 }
 
 bool REFramework::hook_d3d12() {
+    if (m_is_d3d11) {
+        return false;
+    }
+
     m_renderer_type = RendererType::D3D12;
 
     if (LoadLibraryA("d3d12.dll") == nullptr) {
@@ -680,10 +707,6 @@ bool REFramework::hook_d3d12() {
     m_d3d12_hook->on_post_present([this](D3D12Hook& hook) { on_post_present_d3d12(); });
     m_d3d12_hook->on_resize_buffers([this](D3D12Hook& hook) { on_reset(); });
     m_d3d12_hook->on_resize_target([this](D3D12Hook& hook) { on_reset(); });
-
-    if (m_is_d3d11) {
-        return false;
-    }
 
     if (!try_hook_renderer(m_d3d12_hook, m_is_d3d12, m_is_d3d11, "DirectX 12")) {
         return hook_d3d11();
@@ -705,6 +728,10 @@ REFramework::~REFramework() {
         }
     }
 
+    // Restore the original WndProc before tearing down anything that can
+    // still pump or receive window messages.
+    m_windows_message_hook.reset();
+
     m_d3d_monitor_thread.reset();
     m_hook_monitor.reset();
     m_input_manager.reset();
@@ -719,7 +746,11 @@ REFramework::~REFramework() {
 
     ImGui_ImplWin32_Shutdown();
 
-    if (m_initialized) {
+    if (ImNodes::GetCurrentContext() != nullptr) {
+        ImNodes::DestroyContext();
+    }
+
+    if (ImGui::GetCurrentContext() != nullptr) {
         ImGui::DestroyContext();
     }
 }
@@ -736,14 +767,12 @@ void REFramework::run_imgui_frame(bool from_present) {
         return;
     }
 
-    const bool is_init_ok = m_error.empty() && m_game_data_initialized;
-
     consume_input();
     init_fonts();
     
     ImGui_ImplWin32_NewFrame();
 
-    if (is_init_ok && !from_present) {
+    if (is_init_ok() && !from_present) {
         m_mods->on_pre_imgui_frame();
     }
 
@@ -770,9 +799,7 @@ void REFramework::run_imgui_frame(bool from_present) {
 }
 
 bool REFramework::on_frame_common_init() {
-    bool is_init_ok = m_error.empty() && m_game_data_initialized;
-
-    if (is_init_ok) {
+    if (is_init_ok()) {
         if (!std::exchange(m_created_default_cfg, true)) {
             if (!fs::exists({utility::widen(get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string())})) {
                 save_config();
@@ -780,8 +807,7 @@ bool REFramework::on_frame_common_init() {
         }
     }
 
-    is_init_ok = first_frame_initialize();
-    return is_init_ok;
+    return first_frame_initialize();
 }
 
 void REFramework::on_reset() {
@@ -872,7 +898,14 @@ std::filesystem::path REFramework::get_persistent_dir() {
                 *utility::get_module_path(utility::get_executable())).parent_path();
             const auto test_file = dir / "test.txt";
             std::ofstream test_stream{test_file};
-            test_stream << "test";
+
+            // ofstream doesn't throw on open failure, so check the stream
+            // state explicitly; create_directories won't throw when the
+            // directory already exists.
+            if (!test_stream.is_open() || !(test_stream << "test")) {
+                throw std::runtime_error{"Cannot write to game directory"};
+            }
+
             test_stream.close();
 
             std::filesystem::create_directories(dir / "test_dir");
@@ -1214,6 +1247,37 @@ void REFramework::set_imgui_style() noexcept {
 // ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
+// Shared ImGui/platform-backend bring-up for the D3D11 and D3D12 paths.
+// The ImGui context is created once and reused across backend switches and
+// device resets, so context-owned state (fonts, ini) stays valid.
+bool REFramework::setup_imgui_backend(HWND wnd) {
+    IMGUI_CHECKVERSION();
+
+    if (ImGui::GetCurrentContext() == nullptr) {
+        ImGui::CreateContext();
+    }
+
+    ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
+
+    if (ImNodes::GetCurrentContext() == nullptr) {
+        ImNodes::CreateContext();
+    }
+
+    set_imgui_style();
+
+    static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
+    ImGui::GetIO().IniFilename = imgui_ini.c_str();
+
+    // The platform backend asserts on double-init (it leaks its data in
+    // release builds), which re-initialization after a device reset would
+    // otherwise trigger.
+    if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+        ImGui_ImplWin32_Shutdown();
+    }
+
+    return ImGui_ImplWin32_Init(wnd);
+}
+
 bool REFramework::initialize() {
     if (m_initialized) {
         return true;
@@ -1261,9 +1325,6 @@ bool REFramework::initialize() {
             return false;
         }
 
-        ID3D11DeviceContext* context = nullptr;
-        device->GetImmediateContext(&context);
-
         DXGI_SWAP_CHAIN_DESC swap_desc{};
         swap_chain->GetDesc(&swap_desc);
 
@@ -1272,19 +1333,7 @@ bool REFramework::initialize() {
         spdlog::info("Window Handle: {0:x}", (uintptr_t)m_wnd);
         spdlog::info("Initializing ImGui");
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
-
-        set_imgui_style();
-
-        static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
-        ImGui::GetIO().IniFilename = imgui_ini.c_str();
-
-        spdlog::info("Initializing ImGui Win32");
-
-        if (!ImGui_ImplWin32_Init(m_wnd)) {
+        if (!setup_imgui_backend(m_wnd)) {
             spdlog::error("Failed to initialize ImGui.");
             return false;
         }
@@ -1332,17 +1381,7 @@ bool REFramework::initialize() {
 
         m_wnd = swap_desc.OutputWindow;
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
-
-        set_imgui_style();
-
-        static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
-        ImGui::GetIO().IniFilename = imgui_ini.c_str();
-        
-        if (!ImGui_ImplWin32_Init(m_wnd)) {
+        if (!setup_imgui_backend(m_wnd)) {
             spdlog::error("Failed to initialize ImGui ImplWin32.");
             return false;
         }
@@ -1384,47 +1423,18 @@ bool REFramework::initialize_game_data() {
         std::scoped_lock _{this->m_startup_mutex};
 
         try {
-#if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-            if (!g_success_made_ldr_notification) {
-                utility::spoof_module_paths_in_exe_dir();
-            }
-#endif
+            ensure_modules_spoofed();
             reframework::initialize_sdk();
 
 #if TDB_VER >= 71
-            const auto start_time = std::chrono::high_resolution_clock::now();
+            // Both waits share a single 30s budget (a deadline, not per-wait).
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{30};
 
-            while (true) {
-                try {
-                    if (sdk::VM::get() != nullptr) {
-                        break;
-                    }
-                } catch(...) {
-                }
+            wait_until("VM to initialize", [] { return sdk::VM::get() != nullptr; },
+                       deadline, std::chrono::milliseconds{100});
 
-                if (std::chrono::high_resolution_clock::now() - start_time > std::chrono::seconds(30)) {
-                    spdlog::error("Timed out waiting for VM to initialize.");
-                    throw std::runtime_error("Timed out waiting for VM to initialize.");
-                }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-
-            while (true) {
-                try {
-                    if (sdk::Application::get() != nullptr) {
-                        break;
-                    }
-                } catch(...) {
-                }
-
-                if (std::chrono::high_resolution_clock::now() - start_time > std::chrono::seconds(30)) {
-                    spdlog::error("Timed out waiting for Application to initialize.");
-                    throw std::runtime_error("Timed out waiting for Application to initialize.");
-                }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            wait_until("Application to initialize", [] { return sdk::Application::get() != nullptr; },
+                       deadline, std::chrono::milliseconds{100});
 #endif
 
             m_mods = std::make_unique<Mods>();
@@ -1459,11 +1469,7 @@ bool REFramework::initialize_game_data() {
             spdlog::error("Initialization of mods failed. Reason: exception thrown.");
         }
 
-#if defined(MHRISE) || defined(DD2) || TDB_VER >= 74
-        if (!g_success_made_ldr_notification) {
-            utility::spoof_module_paths_in_exe_dir();
-        }
-#endif
+        ensure_modules_spoofed();
         spdlog::info("Game data initialization thread finished");
     });
 
@@ -1494,10 +1500,10 @@ bool REFramework::initialize_windows_message_hook() {
 }
 
 bool REFramework::first_frame_initialize() {
-    const bool is_init_ok = m_error.empty() && m_game_data_initialized;
+    const bool ok = is_init_ok();
 
-    if (!is_init_ok || !m_first_frame_d3d_initialize) {
-        return is_init_ok;
+    if (!ok || !m_first_frame_d3d_initialize) {
+        return ok;
     }
 
     auto do_not_hook_d3d = acquire_do_not_hook_d3d();
@@ -1539,9 +1545,7 @@ bool REFramework::first_frame_initialize() {
 }
 
 void REFramework::call_on_frame() {
-    const bool is_init_ok = m_error.empty() && m_game_data_initialized;
-
-    if (is_init_ok) {
+    if (is_init_ok()) {
         m_mods->on_frame();
     }
 }
