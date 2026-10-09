@@ -52,11 +52,11 @@ const std::optional<Vector3f>& camera_up() {
 
     auto camera_gameobject = get_gameobject_method->call<::REGameObject*>(sdk::get_thread_context(), camera);
 
-    if (camera_gameobject == nullptr || camera_gameobject->transform == nullptr) {
+    if (camera_gameobject == nullptr || camera_gameobject->get_transform() == nullptr) {
         return cached;
     }
 
-    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_gameobject->transform);
+    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_gameobject->get_transform());
 
     if (camera_joints == nullptr) {
         return cached;
