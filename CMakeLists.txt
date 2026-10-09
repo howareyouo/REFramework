@@ -1371,16 +1371,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	set_source_files_properties(
 	    "src/cimgui/cimgui.cpp"
 	    PROPERTIES COMPILE_DEFINITIONS
-	        "igTreeNode_Str=igTreeNode_Str_cimgui_generated;
-	         igTreeNode_StrStr=igTreeNode_StrStr_cimgui_generated;
-	         igTreeNode_StrStr0=igTreeNode_StrStr0_cimgui_generated;
-	         igTreeNodeV_Str=igTreeNodeV_Str_cimgui_generated;
-	         igTreeNodeEx_Str=igTreeNodeEx_Str_cimgui_generated;
-	         igTreeNodeEx_StrStr=igTreeNodeEx_StrStr_cimgui_generated;
-	         igTreeNodeEx_StrStr0=igTreeNodeEx_StrStr0_cimgui_generated;
-	         igTreeNodeExV_Str=igTreeNodeExV_Str_cimgui_generated;
-	         igCollapsingHeader_TreeNodeFlags=igCollapsingHeader_TreeNodeFlags_cimgui_generated;
-	         igCollapsingHeader_BoolPtr=igCollapsingHeader_BoolPtr_cimgui_generated"
+	        "igTreeNode_Str=igTreeNode_Str_cimgui_generated;igTreeNode_StrStr=igTreeNode_StrStr_cimgui_generated;igTreeNode_StrStr0=igTreeNode_StrStr0_cimgui_generated;igTreeNodeV_Str=igTreeNodeV_Str_cimgui_generated;igTreeNodeEx_Str=igTreeNodeEx_Str_cimgui_generated;igTreeNodeEx_StrStr=igTreeNodeEx_StrStr_cimgui_generated;igTreeNodeEx_StrStr0=igTreeNodeEx_StrStr0_cimgui_generated;igTreeNodeExV_Str=igTreeNodeExV_Str_cimgui_generated;igCollapsingHeader_TreeNodeFlags=igCollapsingHeader_TreeNodeFlags_cimgui_generated;igCollapsingHeader_BoolPtr=igCollapsingHeader_BoolPtr_cimgui_generated"
 	)
 
 	set(REFramework_SOURCES
@@ -1471,12 +1462,12 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/re2-imgui/re2_imconfig.hpp"
 		"src/utility/ImGui.cpp"
 		"src/utility/ImGui.hpp"
+		"src/utility/PersistentTreeState.hpp"
+		"src/utility/SafeCallbackVector.hpp"
 		"src/utility/d3d12/CommandContext.cpp"
 		"src/utility/d3d12/CommandContext.hpp"
 		"src/utility/d3d12/TextureContext.cpp"
 		"src/utility/d3d12/TextureContext.hpp"
-		"src/utility/PersistentTreeState.hpp"
-		"src/utility/SafeCallbackVector.hpp"
 	)
 
 	add_library(REFramework SHARED)
