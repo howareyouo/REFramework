@@ -2,6 +2,9 @@ name: Build PR
 on: [pull_request, workflow_dispatch]
 env:
   BUILD_TYPE: Release
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_MAXSIZE: 2G
 jobs:
   build-pr:
     runs-on: windows-latest
@@ -16,11 +19,39 @@ jobs:
           pip install libclang
           python dev/audit_direct_access_clang.py
 
+      - name: Install ccache
+        run: choco install ccache -y --no-progress
+
+      - name: Get cache key date
+        id: cache-date
+        shell: bash
+        run: echo "date=$(date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache ccache builds
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-windows-release-${{ steps.cache-date.outputs.date }}
+          restore-keys: |
+            ccache-windows-release-
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+
       - name: Configure CMake
-        run: cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -G "Visual Studio 18 2026" -A x64 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DDEVELOPER_MODE=ON "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+        run: cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DDEVELOPER_MODE=ON "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+      - name: Generate commit hash
+        run: cmd /c MakeCommitHash.bat
+
+      - name: Reset ccache stats
+        run: ccache --zero-stats
 
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target REFramework
+
+      - name: Show ccache stats
+        run: ccache --show-stats --verbose
 
       - name: Upload artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
