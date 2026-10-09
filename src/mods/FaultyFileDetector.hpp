@@ -68,6 +68,14 @@ private:
         size_t operator()(const std::wstring& s) const noexcept { return std::hash<std::wstring_view>{}(s); }
     };
 
+    // Transparent hash/equality so we can look up by std::wstring_view without
+    // allocating a temporary std::wstring on the (common) duplicate path.
+    struct WStringHash {
+        using is_transparent = void;
+        size_t operator()(std::wstring_view sv) const noexcept { return std::hash<std::wstring_view>{}(sv); }
+        size_t operator()(const std::wstring& s) const noexcept { return std::hash<std::wstring_view>{}(s); }
+    };
+
     std::optional<std::string> m_blocking_error{};
     std::unordered_set<std::wstring, WStringHash, std::equal_to<>> m_faulty_files{}; // All faulty files for spam detection
     std::map<FaultyReason, std::deque<std::wstring>> m_recent_faulty_files_by_reason{}; // Recent files organized by reason

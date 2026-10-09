@@ -17,7 +17,18 @@ RETypeDB* RETypeDB::get() {
 }
 
 static std::shared_mutex g_tdb_type_mtx{};
-static std::unordered_map<std::string, sdk::RETypeDefinition*> g_tdb_type_map{};
+
+// Transparent hash so lookups by std::string_view don't materialize a temporary
+// std::string (heap-allocated for names longer than the SSO buffer).
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+};
+
+static std::unordered_map<std::string, sdk::RETypeDefinition*, TransparentStringHash, std::equal_to<>> g_tdb_type_map{};
 
 reframework::InvokeRet invoke_object_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, std::vector<void*>& args) {
     const auto method = t->get_method(name);
@@ -60,7 +71,7 @@ sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
     {
         std::shared_lock _{ g_tdb_type_mtx };
 
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
+        if (auto it = g_tdb_type_map.find(name); it != g_tdb_type_map.end()) {
             return it->second;
         }
 
@@ -148,11 +159,6 @@ sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
         std::shared_lock _{ g_tdb_fqn_mtx };
         if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
             return it->second;
-        }
-    }
-
-    return nullptr;
-}
 
 sdk::REMethodDefinition* get_object_method(::REManagedObject* object, std::string_view name) {
     auto t = utility::re_managed_object::get_type_definition(object);

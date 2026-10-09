@@ -97,9 +97,15 @@ bool D3D11Hook::hook() {
 
     suspender.resume();
 
-    device->Release();
-    context->Release();
-    swap_chain->Release();
+    if (device) {
+        device->Release();
+    }
+    if (context) {
+        context->Release();
+    }
+    if (swap_chain) {
+        swap_chain->Release();
+    }
     return m_hooked;
 }
 

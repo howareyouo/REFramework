@@ -220,30 +220,32 @@ void CALLBACK ldr_notification_callback(
 try {
     // From what I can tell, the PEB entries get filled in by the time this is called
     // so we're good.
-    if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
-        if (NotificationData->Loaded.BaseDllName != nullptr && NotificationData->Loaded.BaseDllName->Buffer != nullptr) {
-            std::wstring base_dll_name = NotificationData->Loaded.BaseDllName->Buffer;
-            std::wstring lower_base_dll_name = base_dll_name;
-            std::transform(lower_base_dll_name.begin(), lower_base_dll_name.end(), lower_base_dll_name.begin(), ::towlower);
-            spdlog::info("LdrRegisterDllNotification: Loaded: {}", utility::narrow(base_dll_name));
+    if (NotificationReason != LDR_DLL_NOTIFICATION_REASON_LOADED) {
+        return;
+    }
 
-            if (lower_base_dll_name.find(L"sl.dlss_g.dll") != std::wstring::npos) {
-                spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
+    // Runs under the loader lock: no allocations or per-character transforms
+    // on the hot path; only log when something actionable actually happened.
+    const auto& loaded = NotificationData->Loaded;
 
-                D3D12Hook::hook_streamline((HMODULE)NotificationData->Loaded.DllBase);
-            }
+    if (loaded.BaseDllName != nullptr && loaded.BaseDllName->Buffer != nullptr) {
+        constexpr wchar_t dlss_name[] = L"sl.dlss_g.dll";
+        constexpr auto dlss_len = (sizeof(dlss_name) / sizeof(wchar_t)) - 1;
+
+        if ((size_t)loaded.BaseDllName->Length == dlss_len * sizeof(WCHAR) &&
+            _wcsnicmp(loaded.BaseDllName->Buffer, dlss_name, dlss_len) == 0) {
+            spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
+            D3D12Hook::hook_streamline((HMODULE)loaded.DllBase);
         }
+    }
 
-        if (g_current_game_path && NotificationData->Loaded.FullDllName != nullptr && NotificationData->Loaded.FullDllName->Buffer != nullptr) {
-            std::wstring full_dll_name = NotificationData->Loaded.FullDllName->Buffer;
-            std::filesystem::path full_dll_path = full_dll_name;
+    if (g_current_game_path && loaded.FullDllName != nullptr && loaded.FullDllName->Buffer != nullptr) {
+        const std::filesystem::path full_dll_path = loaded.FullDllName->Buffer;
 
-            if (full_dll_path.parent_path() == *g_current_game_path) {
-                spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}", utility::narrow(full_dll_name));
-
+        if (full_dll_path.parent_path() == *g_current_game_path) {
+            spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}",
+                         utility::narrow(loaded.FullDllName->Buffer));
             }
-        } else {
-            spdlog::info("LdrRegisterDllNotification: DLL loaded from unknown location");
         }
     }
 } catch (const std::exception& e) {
@@ -428,6 +430,7 @@ void REFramework::setup_integrity_bypass() {
     IntegrityCheckBypass::immediate_patch_re8();
 
     IntegrityCheckBypass::immediate_patch_re4();
+}
 
 
 
@@ -630,6 +633,13 @@ bool REFramework::hook_d3d11() {
 }
 
 bool REFramework::hook_d3d12() {
+    // Making sure D3D11 is not hooked before doing any D3D12 work:
+    // avoids constructing the D3D12Hook and loading d3d12.dll for nothing.
+    if (m_is_d3d11) {
+        return false;
+    }
+
+    // windows 7?
     if (LoadLibraryA("d3d12.dll") == nullptr) {
         spdlog::info("d3d12.dll not found, user is probably running Windows 7.");
         spdlog::info("Falling back to hooking D3D11.");
@@ -665,6 +675,10 @@ REFramework::~REFramework() {
         m_d3d_monitor_thread->join();
     }
 
+    // Restore the original WndProc before tearing down anything that can
+    // still pump or receive window messages.
+    m_windows_message_hook.reset();
+
     m_d3d_monitor_thread.reset();
 
     if (m_is_d3d11) {
@@ -677,7 +691,11 @@ REFramework::~REFramework() {
 
     ImGui_ImplWin32_Shutdown();
 
-    if (m_initialized) {
+    if (ImNodes::GetCurrentContext() != nullptr) {
+        ImNodes::DestroyContext();
+    }
+
+    if (ImGui::GetCurrentContext() != nullptr) {
         ImGui::DestroyContext();
     }
 }
@@ -808,7 +826,12 @@ void REFramework::on_frame_d3d11() {
 
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    // NewFrame() invalidates DrawData until Render(); GetDrawData() can return
+    // null if the frame was not rendered in this pass.
+    if (auto* draw_data = ImGui::GetDrawData()) {
+        ImGui_ImplDX11_RenderDrawData(draw_data);
+    }
 
     if (is_init_ok) {
         m_mods->on_post_frame();
@@ -970,7 +993,10 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
+
+        if (auto* draw_data = ImGui::GetDrawData()) {
+            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
+        }
 
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -1697,9 +1723,6 @@ bool REFramework::initialize() {
             return false;
         }
 
-        ID3D11DeviceContext* context = nullptr;
-        device->GetImmediateContext(&context);
-
         DXGI_SWAP_CHAIN_DESC swap_desc{};
         swap_chain->GetDesc(&swap_desc);
 
@@ -1710,14 +1733,28 @@ bool REFramework::initialize() {
         spdlog::info("Initializing ImGui");
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+
+        if (ImGui::GetCurrentContext() == nullptr) {
+            ImGui::CreateContext();
+        }
+
         ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
+
+        if (ImNodes::GetCurrentContext() == nullptr) {
+            ImNodes::CreateContext();
+        }
 
         set_imgui_style();
 
         static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
         ImGui::GetIO().IniFilename = imgui_ini.c_str();
+
+        // The platform backend asserts on double-init (it leaks its data in
+        // release builds), which re-initialization after a device reset would
+        // otherwise trigger.
+        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+            ImGui_ImplWin32_Shutdown();
+        }
 
         spdlog::info("Initializing ImGui Win32");
 
@@ -1773,15 +1810,29 @@ bool REFramework::initialize() {
 
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+
+        if (ImGui::GetCurrentContext() == nullptr) {
+            ImGui::CreateContext();
+        }
+
         ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
+
+        if (ImNodes::GetCurrentContext() == nullptr) {
+            ImNodes::CreateContext();
+        }
 
         set_imgui_style();
 
         static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
         ImGui::GetIO().IniFilename = imgui_ini.c_str();
-        
+
+        // The platform backend asserts on double-init (it leaks its data in
+        // release builds), which re-initialization after a device reset would
+        // otherwise trigger.
+        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+            ImGui_ImplWin32_Shutdown();
+        }
+
         if (!ImGui_ImplWin32_Init(m_wnd)) {
             spdlog::error("Failed to initialize ImGui ImplWin32.");
             return false;
