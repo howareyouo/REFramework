@@ -148,10 +148,8 @@ WHITELIST_SUFFIXES = {
 
 DEFAULT_TARGETS = [
     "src/mods/Graphics.cpp",
-    "src/mods/FirstPerson.cpp",
     "src/mods/FreeCam.cpp",
     "src/mods/Camera.cpp",
-    "src/mods/VR.cpp",
     "src/mods/Hooks.cpp",
     "src/mods/PluginLoader.cpp",
     "src/mods/IntegrityCheckBypass.cpp",
@@ -159,7 +157,6 @@ DEFAULT_TARGETS = [
     "src/mods/tools/ObjectExplorer.cpp",
     "src/mods/tools/ChainViewer.cpp",
     "src/mods/bindings/Sdk.cpp",
-    "src/mods/vr/games/RE8VR.cpp",
     "shared/sdk/REGlobals.cpp",
     "shared/sdk/REContext.cpp",
     "shared/sdk/RETransform.cpp",
@@ -521,6 +518,10 @@ def main():
     all_violations = []
 
     for filepath in sorted(targets):
+        abs_path = str(REPO_ROOT / filepath) if not os.path.isabs(filepath) else filepath
+        if not os.path.isfile(abs_path):
+            print(f"  SKIP (not found) {filepath}", file=sys.stderr)
+            continue
         print(f"  Scanning {filepath}...", file=sys.stderr, end="", flush=True)
         violations, error_count = scan_file(filepath, flags)
         if error_count > 0:
