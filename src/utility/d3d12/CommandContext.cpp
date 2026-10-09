@@ -3,7 +3,6 @@
 
 #include "REFramework.hpp"
 
-#include "TextureContext.hpp"
 #include "CommandContext.hpp"
 
 namespace d3d12 {
@@ -20,7 +19,7 @@ bool CommandContext::setup(const wchar_t* name) {
     this->fence.Reset();
 
     if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&this->cmd_allocator)))) {
-        spdlog::error("[VR] Failed to create command allocator for {}", utility::narrow(name));
+        spdlog::error("[D3D12] Failed to create command allocator for {}", utility::narrow(name));
         return false;
     }
 
@@ -28,14 +27,14 @@ bool CommandContext::setup(const wchar_t* name) {
 
     if (FAILED(device->CreateCommandList(
             0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->cmd_allocator.Get(), nullptr, IID_PPV_ARGS(&this->cmd_list)))) {
-        spdlog::error("[VR] Failed to create command list for {}", utility::narrow(name));
+        spdlog::error("[D3D12] Failed to create command list for {}", utility::narrow(name));
         return false;
     }
     
     this->cmd_list->SetName(name);
 
     if (FAILED(device->CreateFence(this->fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->fence)))) {
-        spdlog::error("[VR] Failed to create fence for {}", utility::narrow(name));
+        spdlog::error("[D3D12] Failed to create fence for {}", utility::narrow(name));
         return false;
     }
 
@@ -48,7 +47,6 @@ bool CommandContext::setup(const wchar_t* name) {
 void CommandContext::reset() {
     std::scoped_lock _{this->mtx};
     this->wait(2000);
-    //this->on_post_present(VR::get().get());
 
     this->cmd_allocator.Reset();
     this->cmd_list.Reset();
@@ -67,11 +65,11 @@ void CommandContext::wait(uint32_t ms) {
         ResetEvent(this->fence_event);
         this->waiting_for_fence = false;
         if (FAILED(this->cmd_allocator->Reset())) {
-            spdlog::error("[VR] Failed to reset command allocator for {}", utility::narrow(this->internal_name));
+            spdlog::error("[D3D12] Failed to reset command allocator for {}", utility::narrow(this->internal_name));
         }
 
         if (FAILED(this->cmd_list->Reset(this->cmd_allocator.Get(), nullptr))) {
-            spdlog::error("[VR] Failed to reset command list for {}", utility::narrow(this->internal_name));
+            spdlog::error("[D3D12] Failed to reset command list for {}", utility::narrow(this->internal_name));
         }
         this->has_commands = false;
     }
@@ -81,7 +79,7 @@ void CommandContext::copy(ID3D12Resource* src, ID3D12Resource* dst, D3D12_RESOUR
     std::scoped_lock _{this->mtx};
 
     if (src == nullptr || dst == nullptr) {
-        spdlog::error("[VR] nullptr passed to copy");
+        spdlog::error("[D3D12] nullptr passed to copy");
         return;
     }
 
@@ -130,7 +128,7 @@ void CommandContext::copy_region(ID3D12Resource* src, ID3D12Resource* dst, D3D12
     std::scoped_lock _{this->mtx};
 
     if (src == nullptr || dst == nullptr) {
-        spdlog::error("[VR] nullptr passed to copy_region");
+        spdlog::error("[D3D12] nullptr passed to copy_region");
         return;
     }
 
@@ -189,7 +187,7 @@ void CommandContext::clear_rtv(ID3D12Resource* dst, D3D12_CPU_DESCRIPTOR_HANDLE 
     std::scoped_lock _{this->mtx};
 
     if (dst == nullptr) {
-        spdlog::error("[VR] nullptr passed to clear_rtv");
+        spdlog::error("[D3D12] nullptr passed to clear_rtv");
         return;
     }
 
@@ -223,20 +221,12 @@ void CommandContext::clear_rtv(ID3D12Resource* dst, D3D12_CPU_DESCRIPTOR_HANDLE 
     this->has_commands = true;
 }
 
-void CommandContext::clear_rtv(d3d12::TextureContext& tex, const float* color, D3D12_RESOURCE_STATES dst_state) {
-    if (tex.texture == nullptr || tex.rtv_heap == nullptr) {
-        return;
-    }
-
-    this->clear_rtv(tex.texture.Get(), tex.get_rtv(), color, dst_state);
-}
-
 void CommandContext::execute() {
     std::scoped_lock _{this->mtx};
     
     if (this->has_commands) {
         if (FAILED(this->cmd_list->Close())) {
-            spdlog::error("[VR] Failed to close command list. ({})", utility::narrow(this->internal_name));
+            spdlog::error("[D3D12] Failed to close command list. ({})", utility::narrow(this->internal_name));
             return;
         }
         

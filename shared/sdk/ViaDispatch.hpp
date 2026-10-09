@@ -8,8 +8,8 @@
 // offset tables to maintain.
 //
 // NOTE: The caller must include the "default" re9 regenny headers in the
-// global scope BEFORE including this header (Graphics.cpp / VR.cpp already
-// do this).  We skip re9 here because #pragma once would block re-inclusion.
+// global scope BEFORE including this header (Graphics.cpp already does this).
+// We skip re9 here because #pragma once would block re-inclusion.
 
 #include <cstdint>
 #include <sdk/GameIdentity.hpp>

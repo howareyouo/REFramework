@@ -2,11 +2,11 @@
 
 #include <mutex>
 #include <d3d12.h>
-
-#include "ComPtr.hpp"
+#include <wrl/client.h>
 
 namespace d3d12 {
-struct TextureContext;
+template <typename T>
+using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 struct CommandContext {
     CommandContext() = default;
@@ -23,7 +23,6 @@ struct CommandContext {
         D3D12_RESOURCE_STATES dst_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     void clear_rtv(ID3D12Resource* dst, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const float* color, 
         D3D12_RESOURCE_STATES dst_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    void clear_rtv(TextureContext& tex, const float* color, D3D12_RESOURCE_STATES dst_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     void execute();
 
     ComPtr<ID3D12CommandAllocator> cmd_allocator{};

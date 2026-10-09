@@ -30,17 +30,13 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop and VR (please complete the following information):**
+**Desktop (please complete the following information):**
  - OS (e.g. Windows 11)
  - Graphics card
  - CPU
 
 **Steam Deck/Linux (please complete the following information):**
  - Proton version
-
-**Virtual Reality (please complete the following information):**
- - Headset model
- - Runtime (OpenVR or OpenXR)
 
 **Additional context**
 Add any other context about the problem here.

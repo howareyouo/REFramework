@@ -8,7 +8,6 @@
 #include <sdk/resources/ShaderResource.hpp>
 #include <sdk/REGameObject.hpp>
 
-#include "VR.hpp"
 #include "Graphics.hpp"
 
 #ifdef REFRAMEWORK_UNIVERSAL
@@ -752,11 +751,6 @@ void Graphics::do_ultrawide_fix() {
         return;
     }
 
-    // No need to perform ultrawide fix if VR is running.
-    if (VR::get()->is_hmd_active()) {
-        return;
-    }
-
     // When 16:10 letterbox mode is active, we intentionally skip the FOV correction
     // because the content will be displayed at 16:9 with black bars — no FOV adjustment needed.
     const bool use_16_10_letterbox = [this]() -> bool {
@@ -828,11 +822,6 @@ void Graphics::do_ultrawide_fix() {
 
 void Graphics::do_ultrawide_fov_restore(bool force) {
     if (!m_ultrawide_fix->value() && !force) {
-        return;
-    }
-
-    // No need to perform ultrawide fix if VR is running.
-    if (VR::get()->is_hmd_active()) {
         return;
     }
 

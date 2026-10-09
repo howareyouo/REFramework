@@ -578,7 +578,7 @@ std::optional<std::string> Hooks::hook_lightshaft_draw() {
 
 std::optional<std::string> Hooks::hook_view_get_size() {
     // We're going to hook via.SceneView.get_Size so we can
-    // spoof the render target size to the HMD's resolution.
+    // override the render target size.
     auto get_size_func = sdk::find_native_method("via.SceneView", "get_Size");
 
     if (get_size_func == nullptr) {
@@ -622,7 +622,7 @@ std::optional<std::string> Hooks::hook_view_get_size() {
 
 std::optional<std::string> Hooks::hook_camera_get_projection_matrix() {
     // We're going to hook via.Camera.get_ProjectionMatrix so we can
-    // override the camera's Projection matrix with the HMD's Projection matrix (per-eye)
+    // override the camera's Projection matrix.
     auto func = sdk::find_native_method("via.Camera", "get_ProjectionMatrix");
 
     if (func == nullptr) {

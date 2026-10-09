@@ -1435,9 +1435,9 @@ void ScriptRunner::reset_scripts() {
 
     // We need to explicitly destroy the state before we can create a new one.
     // otherwise the destructor will be called after the new state is created.
-    // this is useful in FirstPerson, where we use sdk.hook.
+    // this matters for mods that use sdk.hook.
     // if we didn't destroy the state before creating a new one
-    // the FirstPerson mod would attempt to hook an already hooked function
+    // the mod would attempt to hook an already hooked function
     m_main_state.reset();
     m_states.clear();
 

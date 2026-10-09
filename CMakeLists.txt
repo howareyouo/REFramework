@@ -33,10 +33,7 @@ project(reframework
 	LANGUAGES
 		CXX
 		C
-		CSharp
 )
-
-include(CSharpUtilities)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
@@ -46,7 +43,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 # string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(ASMJIT_STATIC ON CACHE BOOL "" FORCE)
-set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE) # OpenXR
 set(BUILD_TOOLS OFF CACHE BOOL "" FORCE) # DirectXTK
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE) # Freetype
@@ -66,18 +62,6 @@ endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-set(NUGET_PACKAGES_DIR "$ENV{NUGET_PACKAGES}")
-
-# If NUGET_PACKAGES_DIR is not set, fall back to the default location
-if(NOT NUGET_PACKAGES_DIR)
-    if(WIN32)
-        set(DEFAULT_NUGET_PATH "$ENV{USERPROFILE}/.nuget/packages")
-    else()
-        set(DEFAULT_NUGET_PATH "$ENV{HOME}/.nuget/packages")
-    endif()
-    set(NUGET_PACKAGES_DIR ${DEFAULT_NUGET_PATH})
-endif()
-
 include(FetchContent)
 
 # Fix warnings about DOWNLOAD_EXTRACT_TIMESTAMP
@@ -92,15 +76,6 @@ FetchContent_Declare(asmjit
 		2a706fd2ba355808cada31ac1eed8ce28caa6b37
 )
 FetchContent_MakeAvailable(asmjit)
-
-message(STATUS "Fetching openxr (458984d7f59d1ae6dc1b597d94b02e4f7132eaba)...")
-FetchContent_Declare(openxr
-	GIT_REPOSITORY
-		"https://github.com/KhronosGroup/OpenXR-SDK"
-	GIT_TAG
-		458984d7f59d1ae6dc1b597d94b02e4f7132eaba
-)
-FetchContent_MakeAvailable(openxr)
 
 message(STATUS "Fetching directxtk (f5026eb34e7053b1aff325d38db107703f394974)...")
 FetchContent_Declare(directxtk
@@ -309,23 +284,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 endif()
-# Target: openvr
-if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
-	add_library(openvr INTERFACE)
-
-	target_include_directories(openvr INTERFACE
-		"dependencies/openvr/headers"
-	)
-
-	target_link_libraries(openvr INTERFACE
-		"${CMAKE_CURRENT_SOURCE_DIR}/dependencies/openvr/lib/win64/openvr_api.lib"
-	)
-
-	set(CMKR_TARGET openvr)
-	file(COPY dependencies/openvr/lib/win64/openvr_api.lib DESTINATION ${CMAKE_BINARY_DIR}/lib)
-	file(COPY dependencies/openvr/bin/win64/openvr_api.dll DESTINATION ${CMAKE_BINARY_DIR}/bin)
-
-endif()
 # Target: lua
 if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	set(lua_SOURCES
@@ -431,7 +389,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		cmake.toml
 		"shared/sdk/Application.cpp"
 		"shared/sdk/Application.hpp"
-		"shared/sdk/CameraSystemDispatch.hpp"
 		"shared/sdk/Enums_Internal.hpp"
 		"shared/sdk/GUIPrimitiveSystem.cpp"
 		"shared/sdk/GUIPrimitiveSystem.hpp"
@@ -1459,8 +1416,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/DeveloperTools.hpp"
 		"src/mods/FaultyFileDetector.cpp"
 		"src/mods/FaultyFileDetector.hpp"
-		"src/mods/FirstPerson.cpp"
-		"src/mods/FirstPerson.hpp"
 		"src/mods/FreeCam.cpp"
 		"src/mods/FreeCam.hpp"
 		"src/mods/Graphics.cpp"
@@ -1485,8 +1440,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/Scene.hpp"
 		"src/mods/ScriptRunner.cpp"
 		"src/mods/ScriptRunner.hpp"
-		"src/mods/VR.cpp"
-		"src/mods/VR.hpp"
 		"src/mods/bindings/FS.cpp"
 		"src/mods/bindings/FS.hpp"
 		"src/mods/bindings/ImGui.cpp"
@@ -1502,27 +1455,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/tools/GameObjectsDisplay.hpp"
 		"src/mods/tools/ObjectExplorer.cpp"
 		"src/mods/tools/ObjectExplorer.hpp"
-		"src/mods/vr/Bindings.cpp"
-		"src/mods/vr/D3D11Component.cpp"
-		"src/mods/vr/D3D11Component.hpp"
-		"src/mods/vr/D3D12Component.cpp"
-		"src/mods/vr/D3D12Component.hpp"
-		"src/mods/vr/OverlayComponent.cpp"
-		"src/mods/vr/OverlayComponent.hpp"
-		"src/mods/vr/d3d12/ComPtr.hpp"
-		"src/mods/vr/d3d12/CommandContext.cpp"
-		"src/mods/vr/d3d12/CommandContext.hpp"
-		"src/mods/vr/d3d12/ResourceCopier.cpp"
-		"src/mods/vr/d3d12/ResourceCopier.hpp"
-		"src/mods/vr/d3d12/TextureContext.cpp"
-		"src/mods/vr/d3d12/TextureContext.hpp"
-		"src/mods/vr/games/RE8VR.cpp"
-		"src/mods/vr/games/RE8VR.hpp"
-		"src/mods/vr/runtimes/OpenVR.cpp"
-		"src/mods/vr/runtimes/OpenVR.hpp"
-		"src/mods/vr/runtimes/OpenXR.cpp"
-		"src/mods/vr/runtimes/OpenXR.hpp"
-		"src/mods/vr/runtimes/VRRuntime.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
 		"src/re2-imgui/imgui_impl_dx11.h"
 		"src/re2-imgui/imgui_impl_dx12.cpp"
@@ -1532,6 +1464,10 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/re2-imgui/re2_imconfig.hpp"
 		"src/utility/ImGui.cpp"
 		"src/utility/ImGui.hpp"
+		"src/utility/d3d12/CommandContext.cpp"
+		"src/utility/d3d12/CommandContext.hpp"
+		"src/utility/d3d12/TextureContext.cpp"
+		"src/utility/d3d12/TextureContext.hpp"
 		"src/utility/PersistentTreeState.hpp"
 		"src/utility/SafeCallbackVector.hpp"
 	)
@@ -1567,11 +1503,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"shared/"
 		"src/"
 		"include/"
-		"${OPENXR_SOURCE_DIR}/src"
-	)
-
-	target_link_directories(REFramework PUBLIC
-		"dependencies/openvr/lib/win64/"
 	)
 
 	target_link_libraries(REFramework PUBLIC
@@ -1589,8 +1520,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		d3d11
 		glm_static
 		shlwapi
-		openvr
-		openxr_loader
 		delayimp
 		DirectXTK
 		DirectXTK12
@@ -1600,7 +1529,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:openvr_api.dll /DELAYLOAD:openxr_loader.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
+			"/DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/REFramework"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO

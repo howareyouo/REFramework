@@ -40,7 +40,6 @@ extern "C" {
 #include "mods/LooseFileLoader.hpp"
 #include "mods/LooseTextureLoader.hpp"
 #include "mods/PluginLoader.hpp"
-#include "mods/VR.hpp"
 #include "sdk/REGlobals.hpp"
 #include "sdk/Application.hpp"
 #include "sdk/SDK.hpp"
@@ -477,8 +476,6 @@ REFramework::REFramework(HMODULE reframework_module)
     }
 
     if (gi.is_mhrise() || gi.is_dd2() || gi.tdb_ver() >= 74) {
-        utility::load_module_from_current_directory(L"openvr_api.dll");
-        utility::load_module_from_current_directory(L"openxr_loader.dll");
         LoadLibraryA("dxgi.dll");
         LoadLibraryA("d3d11.dll");
 
@@ -968,18 +965,8 @@ void REFramework::on_frame_d3d11() {
     }
 
     ComPtr<ID3D11DeviceContext> context{};
-    float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
 
     m_d3d11_hook->get_device()->GetImmediateContext(&context);
-    context->ClearRenderTargetView(m_d3d11.blank_rt_rtv.Get(), clear_color);
-
-    // Only render this if VR is running.
-    // TODO: Instead use this as an SRV to render to the back buffer so we don't render twice.
-    if (VR::get()->is_hmd_active()) {
-        context->ClearRenderTargetView(m_d3d11.rt_rtv.Get(), clear_color);
-        context->OMSetRenderTargets(1, m_d3d11.rt_rtv.GetAddressOf(), NULL);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());    
-    }
 
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
@@ -1056,13 +1043,7 @@ void REFramework::on_frame_d3d12() {
     }
 
     auto do_per_frame_thing = [&]() {
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-        const auto prev_cleanup = m_wants_device_object_cleanup;
-        invalidate_device_objects();
-        ImGui_ImplDX12_NewFrame();
-
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[1];
-        m_wants_device_object_cleanup = prev_cleanup;
+        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_data;
         invalidate_device_objects();
         ImGui_ImplDX12_NewFrame();
     };
@@ -1122,28 +1103,6 @@ void REFramework::on_frame_d3d12() {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rts[1]{};
 
-        // Only render this if VR is running.
-        // TODO: Instead use this as an SRV to render to the back buffer so we don't render twice.
-        if (VR::get()->is_hmd_active()) {
-            barrier.Transition.pResource = m_d3d12.get_rt(D3D12::RTV::IMGUI).Get();
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-    
-            float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-            cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI), clear_color, 0, nullptr);
-            rts[0] = m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI);
-            cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
-            cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
-    
-            ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[1];
-            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
-            
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-        }
-
         // Draw to the back buffer.
         barrier.Transition.pResource = m_d3d12.rts[bb_index].Get();
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
@@ -1153,7 +1112,7 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
+        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_data;
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
 
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -2042,20 +2001,18 @@ void REFramework::draw_about() {
             std::string text;
         };
 
-        static std::array<License, 16> licenses{
+        static std::array<License, 14> licenses{
             License{ "glm", license::glm },
             License{ "imgui", license::imgui },
             License{ "cimgui", license::cimgui },
             License{ "minhook", license::minhook },
             License{ "spdlog", license::spdlog },
             License{ "robotocjksc", license::roboto_cjk },
-            License{ "openvr", license::openvr },
             License{ "lua", license::lua },
             License{ "sol", license::sol },
             License{ "json", license::json },
             License{ "asmjit", license::asmjit },
             License{ "bddisasm", utility::narrow(license::bddisasm) },
-            License{ "openxr", license::openxr },
             License{ "imguizmo", license::imguizmo },
             License{ "DirectXTK", license::directxtk },
             License{ "DirectXTK12", license::directxtk },
@@ -2476,7 +2433,7 @@ bool REFramework::initialize_windows_message_hook() {
 }
 
 // Ran on the first valid frame after pre-initialization of mods has taken place and hasn't failed
-// This one allows mods to run any initialization code in the context of the D3D thread (like VR code)
+// This one allows mods to run any initialization code in the context of the D3D thread
 // It also is the one that actually loads any config files
 bool REFramework::first_frame_initialize() {
     const bool is_init_ok = m_error.empty() && m_game_data_initialized;
@@ -2567,51 +2524,6 @@ bool REFramework::init_d3d11() {
     backbuffer_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     spdlog::info("[D3D11] Back buffer format is {}", backbuffer_desc.Format);
-
-    // Create our blank render target.
-    spdlog::info("[D3D11] Creating render targets...");
-    {
-        // Create our blank render target.
-        auto d3d11_rt_desc = backbuffer_desc;
-        d3d11_rt_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // For VR
-
-        if (FAILED(device->CreateTexture2D(&d3d11_rt_desc, nullptr, &m_d3d11.blank_rt))) {
-            spdlog::error("[D3D11] Failed to create render target texture!");
-            return false;
-        }
-
-        // Create our render target
-        if (FAILED(device->CreateTexture2D(&d3d11_rt_desc, nullptr, &m_d3d11.rt))) {
-            spdlog::error("[D3D11] Failed to create render target texture!");
-            return false;
-        }
-    }
-
-    // Create our blank render target view.
-    spdlog::info("[D3D11] Creating rtvs...");
-
-    if (FAILED(device->CreateRenderTargetView(m_d3d11.blank_rt.Get(), nullptr, &m_d3d11.blank_rt_rtv))) {
-        spdlog::error("[D3D11] Failed to create render terget view!");
-        return false;
-    }
-
-
-    // Create our render target view.
-    if (FAILED(device->CreateRenderTargetView(m_d3d11.rt.Get(), nullptr, &m_d3d11.rt_rtv))) {
-        spdlog::error("[D3D11] Failed to create render terget view!");
-        return false;
-    }
-
-    // Create our render target shader resource view.
-    spdlog::info("[D3D11] Creating srvs...");
-
-    if (FAILED(device->CreateShaderResourceView(m_d3d11.rt.Get(), nullptr, &m_d3d11.rt_srv))) {
-        spdlog::error("[D3D11] Failed to create shader resource view!");
-        return false;
-    }
-
-    m_d3d11.rt_width = backbuffer_desc.Width;
-    m_d3d11.rt_height = backbuffer_desc.Height;
 
     spdlog::info("[D3D11] Initializing ImGui D3D11...");
 
@@ -2721,7 +2633,7 @@ bool REFramework::init_d3d12() {
             }
         }
 
-        // Create our imgui and blank rts.
+        // Verify the first back buffer rt was created.
         auto& backbuffer = m_d3d12.get_rt(D3D12::RTV::BACKBUFFER_0);
 
         if (backbuffer == nullptr) {
@@ -2733,43 +2645,6 @@ bool REFramework::init_d3d12() {
         auto desc = backbuffer->GetDesc();
 
         spdlog::info("[D3D12] Back buffer format is {}", desc.Format);
-
-        D3D12_HEAP_PROPERTIES props{};
-        props.Type = D3D12_HEAP_TYPE_DEFAULT;
-        props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-
-        auto d3d12_rt_desc = desc;
-        d3d12_rt_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // For VR
-
-        D3D12_CLEAR_VALUE clear_value{};
-        clear_value.Format = d3d12_rt_desc.Format;
-
-        if (FAILED(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &d3d12_rt_desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
-                IID_PPV_ARGS(&m_d3d12.get_rt(D3D12::RTV::IMGUI))))) {
-            spdlog::error("[D3D12] Failed to create the imgui render target.");
-            return false;
-        }
-
-        m_d3d12.get_rt(D3D12::RTV::IMGUI)->SetName(L"Framework::m_d3d12.rts[IMGUI]");
-
-        if (FAILED(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &d3d12_rt_desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
-                IID_PPV_ARGS(&m_d3d12.get_rt(D3D12::RTV::BLANK))))) {
-            spdlog::error("[D3D12] Failed to create the blank render target.");
-            return false;
-        }
-
-        m_d3d12.get_rt(D3D12::RTV::BLANK)->SetName(L"Framework::m_d3d12.rts[BLANK]");
-
-        // Create imgui and blank rtvs and srvs.
-        device->CreateRenderTargetView(m_d3d12.get_rt(D3D12::RTV::IMGUI).Get(), nullptr, m_d3d12.get_cpu_rtv(device, D3D12::RTV::IMGUI));
-        device->CreateRenderTargetView(m_d3d12.get_rt(D3D12::RTV::BLANK).Get(), nullptr, m_d3d12.get_cpu_rtv(device, D3D12::RTV::BLANK));
-        device->CreateShaderResourceView(
-            m_d3d12.get_rt(D3D12::RTV::IMGUI).Get(), nullptr, m_d3d12.get_cpu_srv(device, D3D12::SRV::IMGUI_VR));
-        device->CreateShaderResourceView(m_d3d12.get_rt(D3D12::RTV::BLANK).Get(), nullptr, m_d3d12.get_cpu_srv(device, D3D12::SRV::BLANK));
-
-        m_d3d12.rt_width = (uint32_t)desc.Width;
-        m_d3d12.rt_height = (uint32_t)desc.Height;
     }
 
     spdlog::info("[D3D12] Initializing ImGui...");
@@ -2792,29 +2667,7 @@ bool REFramework::init_d3d12() {
         return false;
     }
 
-    m_d3d12.imgui_backend_datas[0] = ImGui::GetIO().BackendRendererUserData;
-
-    ImGui::GetIO().BackendRendererUserData = nullptr;
-
-    // Now initialize another one for the VR texture.
-    auto& bb_vr = m_d3d12.get_rt(D3D12::RTV::IMGUI);
-    auto bb_vr_desc = bb_vr->GetDesc();
-
-    ImGui_ImplDX12_InitInfo init_info_vr{};
-    init_info_vr.Device = device;
-    init_info_vr.CommandQueue = g_framework->get_d3d12_hook()->get_command_queue();
-    init_info_vr.NumFramesInFlight = swapchain_desc.BufferCount;
-    init_info_vr.RTVFormat = bb_vr_desc.Format;
-    init_info_vr.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    init_info_vr.SrvDescriptorHeap = m_d3d12.srv_desc_heap.Get();
-    init_info_vr.LegacySingleSrvCpuDescriptor = m_d3d12.get_cpu_srv(device, D3D12::SRV::IMGUI_FONT_VR);
-    init_info_vr.LegacySingleSrvGpuDescriptor = m_d3d12.get_gpu_srv(device, D3D12::SRV::IMGUI_FONT_VR);
-
-    if (!ImGui_ImplDX12_Init(&init_info_vr)) {
-        spdlog::error("[D3D12] Failed to initialize ImGui.");
-        return false;
-    }
-    m_d3d12.imgui_backend_datas[1] = ImGui::GetIO().BackendRendererUserData;
+    m_d3d12.imgui_backend_data = ImGui::GetIO().BackendRendererUserData;
 
     return true;
 }
@@ -2828,11 +2681,9 @@ void REFramework::deinit_d3d12() {
 
     m_d3d12.cmd_ctxs.clear();
 
-    for (auto userdata : m_d3d12.imgui_backend_datas) {
-        if (userdata != nullptr) {
-            ImGui::GetIO().BackendRendererUserData = userdata;
-            ImGui_ImplDX12_Shutdown();
-        }
+    if (m_d3d12.imgui_backend_data != nullptr) {
+        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_data;
+        ImGui_ImplDX12_Shutdown();
     }
 
     ImGui::GetIO().BackendRendererUserData = nullptr;

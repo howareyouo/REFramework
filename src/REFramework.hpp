@@ -10,7 +10,7 @@
 #include <utility/Patch.hpp>
 
 #include <../../directxtk12-src/Inc/GraphicsMemory.h>
-#include "mods/vr/d3d12/CommandContext.hpp"
+#include "utility/d3d12/CommandContext.hpp"
 
 #include <sdk/GameIdentity.hpp>
 class Mods;
@@ -307,21 +307,8 @@ private: // D3D12 Init
 
 private: // D3D11 members
     struct D3D11 {
-        ComPtr<ID3D11Texture2D> blank_rt{};
-		ComPtr<ID3D11Texture2D> rt{};
-        ComPtr<ID3D11RenderTargetView> blank_rt_rtv{};
-		ComPtr<ID3D11RenderTargetView> rt_rtv{};
-		ComPtr<ID3D11ShaderResourceView> rt_srv{};
-        uint32_t rt_width{};
-        uint32_t rt_height{};
-		ComPtr<ID3D11RenderTargetView> bb_rtv{};
+        ComPtr<ID3D11RenderTargetView> bb_rtv{};
     } m_d3d11{};
-
-public:
-    auto& get_blank_rendertarget_d3d11() { return m_d3d11.blank_rt; }
-    auto& get_rendertarget_d3d11() { return m_d3d11.rt; }
-    auto get_rendertarget_width_d3d11() const { return m_d3d11.rt_width; }
-    auto get_rendertarget_height_d3d11() const { return m_d3d11.rt_height; }
 
 private: // D3D12 members
     struct D3D12 {
@@ -339,16 +326,11 @@ private: // D3D12 members
             BACKBUFFER_7,
             BACKBUFFER_8,
             BACKBUFFER_LAST = BACKBUFFER_8,
-            IMGUI,
-            BLANK,
             COUNT,
         };
 
         enum class SRV : int {
             IMGUI_FONT_BACKBUFFER,
-            IMGUI_FONT_VR,
-            IMGUI_VR,
-            BLANK,
             COUNT
         };
 
@@ -373,18 +355,9 @@ private: // D3D12 members
                     (SIZE_T)srv * (SIZE_T)device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)};
         }
 
-        uint32_t rt_width{};
-        uint32_t rt_height{};
-
-        std::array<void*, 2> imgui_backend_datas{};
+        void* imgui_backend_data{};
         std::unique_ptr<DirectX::DX12::GraphicsMemory> graphics_memory{}; // for use in several places around REF
     } m_d3d12{};
-
-public:
-    auto& get_blank_rendertarget_d3d12() { return m_d3d12.get_rt(D3D12::RTV::BLANK); }
-    auto& get_rendertarget_d3d12() { return m_d3d12.get_rt(D3D12::RTV::IMGUI); }
-    auto get_rendertarget_width_d3d12() { return m_d3d12.rt_width; }
-    auto get_rendertarget_height_d3d12() { return m_d3d12.rt_height; }
 
 private:
 };

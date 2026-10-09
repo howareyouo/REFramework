@@ -6,7 +6,6 @@
 #include "mods/Camera.hpp"
 #include "mods/Graphics.hpp"
 #include "mods/DeveloperTools.hpp"
-#include "mods/FirstPerson.hpp"
 #include "mods/FreeCam.hpp"
 #include "mods/Hooks.hpp"
 #include "mods/IntegrityCheckBypass.hpp"
@@ -16,10 +15,8 @@
 #include "mods/MethodDatabase.hpp"
 #include "mods/Scene.hpp"
 #include "mods/ScriptRunner.hpp"
-#include "mods/VR.hpp"
 #include "mods/LooseFileLoader.hpp"
 #include "mods/FaultyFileDetector.hpp"
-#include "mods/vr/games/RE8VR.hpp"
 
 #include "Mods.hpp"
 
@@ -39,19 +36,6 @@ Mods::Mods() {
 
     if (sdk::GameIdentity::get().tdb_ver() >= 81) {
         m_mods.emplace_back(FaultyFileDetector::get());
-    }
-
-    m_mods.emplace_back(VR::get());
-
-    if (sdk::GameIdentity::get().is_re8() || sdk::GameIdentity::get().is_re7()) {
-        m_mods.emplace_back(RE8VR::get());
-    }
-
-    {
-        const auto& gi = sdk::GameIdentity::get();
-        if (!gi.is_re8() && (gi.is_re2() || gi.is_re3())) {
-            m_mods.emplace_back(FirstPerson::get());
-        }
     }
 
     // All games!!!!
