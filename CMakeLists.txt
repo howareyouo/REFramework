@@ -62,10 +62,11 @@ endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# DirectXTK12 expands ${DIRECTX_ARCH} (derived from CMAKE_GENERATOR_PLATFORM) unquoted
-# inside if(); set a fallback when the generator does not define it (e.g. Ninja)
-if(NOT CMAKE_GENERATOR_PLATFORM)
-    set(CMAKE_GENERATOR_PLATFORM "x64")
+# DirectXTK12 derives DIRECTX_ARCH from CMAKE_GENERATOR_PLATFORM / CMAKE_VS_PLATFORM_NAME_DEFAULT,
+# both undefined under Ninja; provide the latter (FetchContent forwards the former to
+# dep populate sub-builds, which reject it under Ninja)
+if(NOT CMAKE_VS_PLATFORM_NAME_DEFAULT)
+    set(CMAKE_VS_PLATFORM_NAME_DEFAULT "x64")
 endif()
 
 include(FetchContent)
