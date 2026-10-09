@@ -1523,9 +1523,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/vr/runtimes/OpenXR.cpp"
 		"src/mods/vr/runtimes/OpenXR.hpp"
 		"src/mods/vr/runtimes/VRRuntime.hpp"
-		"src/re2-imgui/af_fadef.h"
-		"src/re2-imgui/af_faprolight.hpp"
-		"src/re2-imgui/font_robotomedium.hpp"
 		"src/re2-imgui/imgui_impl_dx11.cpp"
 		"src/re2-imgui/imgui_impl_dx11.h"
 		"src/re2-imgui/imgui_impl_dx12.cpp"
@@ -1631,7 +1628,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		cmake.toml
 		"examples/example_plugin/Plugin.cpp"
 		"examples/example_plugin/Plugin.hpp"
-		"examples/example_plugin/imgui/font_robotomedium.hpp"
 		"examples/example_plugin/imgui/imgui_impl_dx11.cpp"
 		"examples/example_plugin/imgui/imgui_impl_dx11.h"
 		"examples/example_plugin/imgui/imgui_impl_dx12.cpp"

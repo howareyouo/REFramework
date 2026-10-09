@@ -1,6 +1,8 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
+#include <vector>
 
 #include <windows.h>
 #include <ShlObj.h>
@@ -23,8 +25,6 @@ extern "C" {
 #include <imgui_freetype.h>
 #include <ImGuizmo.h>
 #include <imnodes.h>
-#include "re2-imgui/af_faprolight.hpp"
-#include "re2-imgui/font_robotomedium.hpp"
 #include "re2-imgui/imgui_impl_dx11.h"
 #include "re2-imgui/imgui_impl_dx12.h"
 #include "re2-imgui/imgui_impl_win32.h"
@@ -1593,11 +1593,6 @@ void REFramework::init_fonts() {
     auto& fonts = ImGui::GetIO().Fonts;
     fonts->FontLoader = ImGuiFreeType::GetFontLoader();
 
-    // using 'reframework_pictographic.mode' file to
-    // replace '?' to most flag in WorldObjectsViewer
-    ImFontConfig custom_icons{};
-    custom_icons.FontDataOwnedByAtlas = false;
-
     const auto fonts_path = REFramework::get_persistent_dir() / "reframework" / "fonts";
     const auto font_path = fonts_path / m_default_font_file;
 
@@ -1646,33 +1641,60 @@ void REFramework::init_fonts() {
             m_default_font = loaded_fonts[m_default_font_file];
         }
     } else {
+        // "DEFAULT": load the first font found in the reframework/fonts directory.
         if (!loaded_fonts.contains("DEFAULT")) {
-            ImFontConfig cfg{};
-            cfg.FontDataOwnedByAtlas = false;
+            auto default_font_loaded = false;
 
-            loaded_fonts["DEFAULT"] = fonts->AddFontFromMemoryCompressedTTF(RobotoCJKSC_Medium_compressed_data, RobotoCJKSC_Medium_compressed_size, m_font_size, &cfg);
+            std::vector<fs::path> available_fonts{};
 
-            if (loaded_fonts["DEFAULT"] == nullptr) {
-                spdlog::error("Failed to load default font!");
-                loaded_fonts["DEFAULT"] = fonts->AddFontDefault();
+            try {
+                for (const auto& entry : fs::directory_iterator(fonts_path)) {
+                    if (!entry.is_regular_file()) {
+                        continue;
+                    }
+
+                    const auto ext = entry.path().extension();
+                    if (ext == ".otf" || ext == ".ttf") {
+                        available_fonts.push_back(entry.path());
+                    }
+                }
+            } catch (const std::exception& e) {
+                spdlog::error("Failed to enumerate fonts directory: {}", e.what());
+            }
+
+            // directory_iterator order is unspecified, sort for a deterministic default.
+            std::sort(available_fonts.begin(), available_fonts.end());
+
+            if (!available_fonts.empty()) {
+                const auto default_font_path = available_fonts.front().string();
+
+                if (!loaded_fonts.contains(default_font_path)) {
+                    ImFontConfig cfg{};
+                    cfg.FontDataOwnedByAtlas = true;
+
+                    loaded_fonts[default_font_path] = fonts->AddFontFromFileTTF(default_font_path.c_str(), m_font_size, &cfg);
+                }
+
+                if (loaded_fonts[default_font_path] != nullptr) {
+                    spdlog::info("Loaded default font: {}", default_font_path);
+                    loaded_fonts["DEFAULT"] = loaded_fonts[default_font_path];
+                    default_font_loaded = true;
+                } else {
+                    spdlog::error("Failed to load font: {}", default_font_path);
+                }
             } else {
-                spdlog::info("Loaded default font: {}", m_default_font_file);
+                spdlog::warn("No fonts found in {}", fonts_path.string());
+            }
+
+            if (!default_font_loaded) {
+                loaded_fonts["DEFAULT"] = fonts->AddFontDefault();
             }
 
             load_seguiemj_font();
         }
-        
+
         m_default_font = loaded_fonts["DEFAULT"];
     }
-
-    /*if (!loaded_fonts.contains("ICON")) {
-        // https://fontawesome.com/
-        custom_icons.PixelSnapH = true;
-        custom_icons.MergeMode = true;
-        custom_icons.FontDataOwnedByAtlas = false;
-        static const ImWchar icon_ranges[] = {0xF000, 0xF976, 0}; // ICON_MIN_FA ICON_MAX_FA
-        loaded_fonts["ICON"] = fonts->AddFontFromMemoryTTF((void*)af_faprolight_ptr, af_faprolight_size, m_font_size, &custom_icons, icon_ranges);
-    }*/
 
     m_wants_device_object_cleanup = true;
 }
