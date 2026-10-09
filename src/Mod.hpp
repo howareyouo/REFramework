@@ -238,6 +238,22 @@ public:
         }
     }
 
+    void config_load(const utility::Config& cfg) override {
+        ModValue<int32_t>::config_load(cfg);
+
+        if (m_value >= (int32_t)m_options.size()) {
+            if (!m_options.empty()) {
+                m_value = (int32_t)m_options.size() - 1;
+            } else {
+                m_value = 0;
+            }
+        }
+
+        if (m_value < 0) {
+            m_value = 0;
+        }
+    };
+
     const auto& options() const {
         return m_options;
     }

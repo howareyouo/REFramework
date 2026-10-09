@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <regex>
 #include <fstream>
+#include <optional>
 #include <filesystem>
 
 #include "../ScriptRunner.hpp"
@@ -69,7 +70,17 @@ namespace detail {
 
 sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
     sol::state_view state{l};
-    std::regex filter_regex{filter};
+
+    std::optional<std::regex> filter_regex;
+    try {
+        filter_regex.emplace(filter != nullptr ? filter : ".*");
+    } catch (const std::regex_error& e) {
+        // An invalid pattern would otherwise throw std::regex_error across the Lua
+        // boundary; turn it into a Lua error so a script typo can't crash the game.
+        luaL_error(l, "fs.glob: invalid pattern: %s", e.what());
+        return state.create_table();
+    }
+
     auto results = state.create_table();
     auto datadir = detail::get_datadir(modifier != nullptr ? modifier : "");
     auto i = 0;
@@ -79,9 +90,11 @@ sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
             continue;
         }
 
-        auto relpath = relative(entry.path(), datadir).string();
+        // Entries come straight from the iterator, so the relative path is a pure
+        // string operation here (fs::relative would canonicalize on disk).
+        auto relpath = entry.path().lexically_relative(datadir).string();
 
-        if (std::regex_match(relpath, filter_regex)) {
+        if (std::regex_match(relpath, *filter_regex)) {
             results[++i] = relpath;
         }
     }

@@ -26,6 +26,11 @@ struct REResource_Via_Raw {
 };
 #pragma pack(pop)
 
+// The resource currently being parsed on this thread. Equivalent to the old
+// per-thread map, but lock-free: set_argument and parse_finish always fire on
+// the thread that called the hooked parse function.
+static thread_local REResource_Via_Raw* t_resource_in_parse = nullptr;
+
 const char *faulty_reason_to_string(FaultyFileDetector::FaultyReason reason) {
     switch (reason) {
         case FaultyFileDetector::FaultyReason::Unknown:
@@ -379,7 +384,7 @@ void FaultyFileDetector::resource_parse_open_stream_failed_hook(safetyhook::Cont
 
     REResource_Via_Raw* resource = disasm_utils::get_register_value<REResource_Via_Raw*>(ctx, m_resource_open_failed_register);
 
-    if (resource) {
+    if (resource != nullptr && resource->path != nullptr) {
         try_add_to_faulty_list(resource->path, FaultyTier::Severe, FaultyReason::MissingFile);
     }
 }
@@ -389,17 +394,8 @@ void FaultyFileDetector::resource_set_argument_hook(safetyhook::Context& ctx) {
         return;
     }
 
-    void *resource_ptr = reinterpret_cast<void*>(ctx.rcx);
-    std::thread::id thread_id = std::this_thread::get_id();
-
-    REResource_Via_Raw* resource = reinterpret_cast<REResource_Via_Raw*>(resource_ptr);
-
-    //spdlog::info("[FaultyFileDetector]: resource_set_argument_hook called for resource path: {}", utility::narrow(resource->path));
-
-    {
-        std::scoped_lock lock{m_mutex};
-        m_resource_by_thread_map[thread_id] = resource_ptr;
-    }
+    // No lock needed: parse_finish for this resource runs on the same thread.
+    t_resource_in_parse = reinterpret_cast<REResource_Via_Raw*>(ctx.rcx);
 }
 
 void FaultyFileDetector::resource_parse_finish_hook(safetyhook::Context& ctx) {
@@ -411,23 +407,10 @@ void FaultyFileDetector::resource_parse_finish_hook(safetyhook::Context& ctx) {
     bool parse_result = ctx.rax & 0x1; // First arg is parse result (0 = fail, 1 = success)
 
     if (!parse_result) {
-        auto thread_id = std::this_thread::get_id();
-        REResource_Via_Raw* resource = nullptr;
+        auto resource = t_resource_in_parse;
 
-        {
-            std::scoped_lock lock{m_mutex};
-
-            if (!m_resource_by_thread_map.contains(thread_id)) {
-                return;
-            } else {
-                resource = reinterpret_cast<REResource_Via_Raw*>(m_resource_by_thread_map[thread_id]);
-            }
-        }
-
-        // Get resource pointer from register
-        if (resource != nullptr) {
+        if (resource != nullptr && resource->path != nullptr) {
             // Log parsed resource path for debugging
-            // Get resource name
             std::wstring_view resource_path(resource->path);
             try_add_to_faulty_list(resource_path, FaultyTier::Severe, FaultyReason::Invalid);
         }
@@ -439,26 +422,28 @@ void FaultyFileDetector::try_add_to_faulty_list(std::wstring_view filename, Faul
         return;
     }
 
-    std::wstring name_wstr{filename};
-
     bool should_log = false;
-    
+
     {
         std::scoped_lock lock{m_mutex};
 
-        // Only log if this is a new faulty file (prevents spam)
-        if (m_faulty_files.find(name_wstr) == m_faulty_files.end()) {
+        // Only allocate and insert if this is a genuinely new file
+        // (most calls are duplicates of already-recorded failures). The
+        // transparent hash lets this find run on the wstring_view directly.
+        if (m_faulty_files.find(filename) == m_faulty_files.end()) {
+            auto name_wstr = std::wstring{filename};
             m_faulty_files.insert(name_wstr);
             
             // Add to recent files for this reason
             auto& reason_deque = m_recent_faulty_files_by_reason[reason];
-            reason_deque.push_front(name_wstr);
+            reason_deque.push_front(std::move(name_wstr));
             
-            // Trim recent files to max size for this reason
-            if (reason_deque.size() > m_max_recent_files->value()) {
-                while (reason_deque.size() > m_max_recent_files->value()) {
-                    reason_deque.pop_back();
-                }
+            // Trim recent files to max size for this reason. Clamp to 0 so a
+            // negative configured value can't wrap to a huge size_t and defeat
+            // the trim (leaving the deque to grow unbounded).
+            const size_t max_recent = (size_t)std::max(0, m_max_recent_files->value());
+            while (reason_deque.size() > max_recent) {
+                reason_deque.pop_back();
             }
 
             should_log = true;
@@ -466,6 +451,10 @@ void FaultyFileDetector::try_add_to_faulty_list(std::wstring_view filename, Faul
     }
 
     if (should_log) {
+        // Reconstruct locally: the copy above was moved into the deque. Not
+        // hot-path — only runs once per genuinely new faulty file.
+        std::wstring name_wstr{filename};
+
         // Push a toast notification
         {
             std::scoped_lock lock2{m_mutex};

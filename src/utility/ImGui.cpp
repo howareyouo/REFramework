@@ -1,5 +1,3 @@
-#include <tuple>
-
 #include <sdk/SceneManager.hpp>
 #include <sdk/Renderer.hpp>
 
@@ -12,218 +10,198 @@
 #include "ImGui.hpp"
 
 namespace imgui {
-bool draw_gizmo(Matrix4x4f& mat, IMGUIZMO_NAMESPACE::OPERATION op, IMGUIZMO_NAMESPACE::MODE mode) {
-    auto camera = sdk::get_primary_camera();
+using namespace IMGUIZMO_NAMESPACE;
 
-    if (camera == nullptr) {
-        return false;
+namespace {
+constexpr int CIRCLE_SEGMENTS = 32;
+
+struct ScreenCircle {
+    ImVec2 center{};
+    float radius{};
+};
+
+struct GizmoMatrices {
+    Matrix4x4f view{};
+    Matrix4x4f proj{};
+};
+
+// The primary camera stays put for the duration of an ImGui frame, so its up
+// vector is resolved once per frame instead of once per drawn shape.
+const std::optional<Vector3f>& camera_up() {
+    static int cached_frame = -1;
+    static std::optional<Vector3f> cached{};
+
+    const auto frame = ImGui::GetFrameCount();
+
+    if (frame == cached_frame) {
+        return cached;
     }
 
-    static auto get_proj_method = sdk::find_method_definition("via.Camera", "get_ProjectionMatrix");
-    static auto get_view_method = sdk::find_method_definition("via.Camera", "get_ViewMatrix");
-
-    IMGUIZMO_NAMESPACE::SetImGuiContext(ImGui::GetCurrentContext());
-    IMGUIZMO_NAMESPACE::SetDrawlist(ImGui::GetBackgroundDrawList());
-    IMGUIZMO_NAMESPACE::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
-
-    Matrix4x4f proj{}, view{};
-    get_proj_method->call<void*>(&proj, sdk::get_thread_context(), camera);
-    get_view_method->call<void*>(&view, sdk::get_thread_context(), camera);
-
-    return IMGUIZMO_NAMESPACE::Manipulate((float*)&view, (float*)&proj, op, mode, (float*)&mat);
-}
-
-void draw_cube(const Matrix4x4f& mat) {
-    auto camera = sdk::get_primary_camera();
-
-    if (camera == nullptr) {
-        return;
-    }
-
-    static auto get_proj_method = sdk::find_method_definition("via.Camera", "get_ProjectionMatrix");
-    static auto get_view_method = sdk::find_method_definition("via.Camera", "get_ViewMatrix");
-
-    IMGUIZMO_NAMESPACE::SetImGuiContext(ImGui::GetCurrentContext());
-    IMGUIZMO_NAMESPACE::SetDrawlist(ImGui::GetBackgroundDrawList());
-    IMGUIZMO_NAMESPACE::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
-
-    Matrix4x4f proj{}, view{};
-    get_proj_method->call<void*>(&proj, sdk::get_thread_context(), camera);
-    get_view_method->call<void*>(&view, sdk::get_thread_context(), camera);
-
-    IMGUIZMO_NAMESPACE::DrawCubes((float*)&view, (float*)&proj, (float*)&mat, 1);
-}
-
-void draw_grid(const Matrix4x4f& mat, float size) {
-    auto camera = sdk::get_primary_camera();
-
-    if (camera == nullptr) {
-        return;
-    }
-
-    static auto get_proj_method = sdk::find_method_definition("via.Camera", "get_ProjectionMatrix");
-    static auto get_view_method = sdk::find_method_definition("via.Camera", "get_ViewMatrix");
-
-    IMGUIZMO_NAMESPACE::SetImGuiContext(ImGui::GetCurrentContext());
-    IMGUIZMO_NAMESPACE::SetDrawlist(ImGui::GetBackgroundDrawList());
-    IMGUIZMO_NAMESPACE::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
-
-    Matrix4x4f proj{}, view{};
-    get_proj_method->call<void*>(&proj, sdk::get_thread_context(), camera);
-    get_view_method->call<void*>(&view, sdk::get_thread_context(), camera);
-
-    IMGUIZMO_NAMESPACE::DrawGrid((float*)&view, (float*)&proj, (float*)&mat, size);
-}
-
-std::optional<Vector3f> get_camera_up() {
-    auto camera = sdk::get_primary_camera();
-
-    if (camera == nullptr) {
-        return std::nullopt;
-    }
+    cached_frame = frame;
+    cached = std::nullopt;
 
     static auto transform_def = sdk::find_type_definition("via.Transform");
     static auto get_gameobject_method = transform_def->get_method("get_GameObject");
     static auto get_joints_method = transform_def->get_method("get_Joints");
 
+    auto camera = sdk::get_primary_camera();
+
+    if (camera == nullptr) {
+        return cached;
+    }
+
     auto camera_gameobject = get_gameobject_method->call<::REGameObject*>(sdk::get_thread_context(), camera);
 
-    if (camera_gameobject == nullptr) {
-        std::nullopt;
+    if (camera_gameobject == nullptr || camera_gameobject->transform == nullptr) {
+        return cached;
     }
 
-    auto camera_transform = camera_gameobject->get_transform();
-
-    if (camera_transform == nullptr) {
-        std::nullopt;
-    }
-
-    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_transform);
+    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_gameobject->transform);
 
     if (camera_joints == nullptr) {
-        std::nullopt;
+        return cached;
     }
 
     auto camera_joint = (::REJoint*)camera_joints->get_element(0);
 
     if (camera_joint == nullptr) {
-        std::nullopt;
+        return cached;
     }
 
-    return sdk::get_joint_rotation(camera_joint) * Vector3f{ 0.0f, 1.0f, 0.0f };
+    cached = glm::normalize(sdk::get_joint_rotation(camera_joint) * Vector3f{ 0.0f, 1.0f, 0.0f });
+
+    return cached;
+}
+
+// Projects pos and pos + up*radius into screen space; nullopt when the camera
+// or either point is unavailable (e.g. behind it).
+std::optional<ScreenCircle> project_circle(const Vector3f& pos, float radius) {
+    const auto& up = camera_up();
+
+    if (!up) {
+        return std::nullopt;
+    }
+
+    const auto center = sdk::renderer::world_to_screen(pos);
+
+    if (!center) {
+        return std::nullopt;
+    }
+
+    const auto top = sdk::renderer::world_to_screen(pos + (*up * radius));
+
+    if (!top) {
+        return std::nullopt;
+    }
+
+    return ScreenCircle{ ImVec2{ center->x, center->y }, glm::length(*top - *center) };
+}
+
+void draw_circle(const ScreenCircle& circle, ImU32 color, bool outline) {
+    auto* draw_list = ImGui::GetBackgroundDrawList();
+
+    draw_list->AddCircleFilled(circle.center, circle.radius, color, CIRCLE_SEGMENTS);
+
+    if (outline) {
+        draw_list->AddCircle(circle.center, circle.radius,
+            ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 1.0f)), CIRCLE_SEGMENTS);
+    }
+}
+
+// Points ImGuizmo at this frame's draw list/rect and fills view/proj from the
+// primary camera. nullopt when there is no camera yet (e.g. during load).
+std::optional<GizmoMatrices> gizmo_matrices() {
+    auto camera = sdk::get_primary_camera();
+
+    if (camera == nullptr) {
+        return std::nullopt;
+    }
+
+    // Lazy statics: the RE SDK is not available until the game's type system
+    // is up, which may be after this DLL's static initialization.
+    static auto get_proj_method = sdk::find_method_definition("via.Camera", "get_ProjectionMatrix");
+    static auto get_view_method = sdk::find_method_definition("via.Camera", "get_ViewMatrix");
+
+    SetImGuiContext(ImGui::GetCurrentContext());
+    SetDrawlist(ImGui::GetBackgroundDrawList());
+    SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
+
+    GizmoMatrices matrices{};
+    get_proj_method->call<void*>(&matrices.proj, sdk::get_thread_context(), camera);
+    get_view_method->call<void*>(&matrices.view, sdk::get_thread_context(), camera);
+
+    return matrices;
+}
+}
+
+std::optional<Vector3f> get_camera_up() {
+    return camera_up();
+}
+
+bool draw_gizmo(Matrix4x4f& mat, OPERATION op, MODE mode) {
+    auto matrices = gizmo_matrices();
+
+    return matrices && Manipulate((float*)&matrices->view, (float*)&matrices->proj, op, mode, (float*)&mat);
+}
+
+void draw_cube(const Matrix4x4f& mat) {
+    if (const auto matrices = gizmo_matrices()) {
+        DrawCubes((float*)&matrices->view, (float*)&matrices->proj, (float*)&mat, 1);
+    }
+}
+
+void draw_grid(const Matrix4x4f& mat, float size) {
+    if (const auto matrices = gizmo_matrices()) {
+        DrawGrid((float*)&matrices->view, (float*)&matrices->proj, (float*)&mat, size);
+    }
 }
 
 void draw_sphere(const Vector3f& center, float radius, ImU32 color, bool outline) {
-    const auto camera_up = get_camera_up();
-
-    if (!camera_up) {
-        return;
-    }
-
-    const auto screen_pos_center = sdk::renderer::world_to_screen(center);
-
-    if (screen_pos_center) {
-        const auto pos_top = center + (glm::normalize(*camera_up) * radius);
-        const auto screen_pos_top = sdk::renderer::world_to_screen(pos_top);
-
-        if (screen_pos_top) {
-            const auto radius2d = glm::length(*screen_pos_top - *screen_pos_center);
-
-            // Inner
-            ImGui::GetBackgroundDrawList()->AddCircleFilled(
-                *(ImVec2*)&*screen_pos_center,
-                radius2d,
-                color,
-                32
-            );
-
-            // Outline
-            if (outline) {
-                ImGui::GetBackgroundDrawList()->AddCircle(
-                    *(ImVec2*)&*screen_pos_center,
-                    radius2d,
-                    ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 1.0f)),
-                    32
-                );
-            }
-        }
+    if (const auto circle = project_circle(center, radius)) {
+        draw_circle(*circle, color, outline);
     }
 }
 
 void draw_capsule(const Vector3f& start, const Vector3f& end, float radius, ImU32 color, bool outline) {
-    const auto camera_up = get_camera_up();
+    const auto start_circle = project_circle(start, radius);
+    const auto end_circle = project_circle(end, radius);
 
-    if (!camera_up) {
+    if (start_circle) {
+        draw_circle(*start_circle, color, outline);
+    }
+
+    if (end_circle) {
+        draw_circle(*end_circle, color, outline);
+    }
+
+    if (!start_circle || !end_circle) {
         return;
     }
 
-    
-    auto get_screen_radius = [&](const Vector3f& pos, float radius) -> std::optional<std::tuple<float, Vector2f>> {
-        const auto screen_pos_center = sdk::renderer::world_to_screen(pos);
+    const auto delta = end_circle->center - start_circle->center;
+    const auto length = glm::length(Vector2f{ delta.x, delta.y });
 
-        if (screen_pos_center) {
-            const auto pos_top = pos + (glm::normalize(*camera_up) * radius);
-            const auto screen_pos_top = sdk::renderer::world_to_screen(pos_top);
+    if (length <= 0.0f) {
+        return;
+    }
 
-            if (screen_pos_top) {
-                const auto radius2d = glm::length(*screen_pos_top - *screen_pos_center);
+    // Axis perpendicular, scaled to each cap's on-screen radius.
+    const ImVec2 perp{ -delta.y / length, delta.x / length };
+    const ImVec2 start_offset{ perp.x * start_circle->radius, perp.y * start_circle->radius };
+    const ImVec2 end_offset{ perp.x * end_circle->radius, perp.y * end_circle->radius };
 
-                return std::make_tuple(radius2d, *screen_pos_center);
-            }
-        }
+    const ImVec2 start_left{ start_circle->center.x - start_offset.x, start_circle->center.y - start_offset.y };
+    const ImVec2 start_right{ start_circle->center.x + start_offset.x, start_circle->center.y + start_offset.y };
+    const ImVec2 end_left{ end_circle->center.x - end_offset.x, end_circle->center.y - end_offset.y };
+    const ImVec2 end_right{ end_circle->center.x + end_offset.x, end_circle->center.y + end_offset.y };
 
-        return std::nullopt;
-    };
+    auto* draw_list = ImGui::GetBackgroundDrawList();
 
-    // Capsule
-    draw_sphere(start, radius, color, true);
-    draw_sphere(end, radius, color, true);
+    draw_list->AddQuadFilled(start_left, end_left, end_right, start_right, color);
 
-    // Get the half points of the circles and draw a filled rectangle between them
-    const auto top_screen_radius = get_screen_radius(start, radius);
-    const auto bottom_screen_radius = get_screen_radius(end, radius);
-
-    if (top_screen_radius && bottom_screen_radius) {
-        const auto top_radius = std::get<0>(*top_screen_radius);
-        const auto bottom_radius = std::get<0>(*bottom_screen_radius);
-
-        const auto top_circle_start = std::get<1>(*top_screen_radius);
-        const auto bottom_circle_start = std::get<1>(*bottom_screen_radius);
-
-        const auto delta = glm::normalize(bottom_circle_start - top_circle_start);
-        const auto angle = glm::atan(delta.y, delta.x) + glm::radians(90.0f);
-        
-        // Now get the halfway point(s) of the circles
-        float top_x_right = top_circle_start.x + (top_radius * std::cos(angle));
-        float top_y_right = top_circle_start.y + (top_radius * std::sin(angle));
-
-        float bottom_x_right = bottom_circle_start.x + (bottom_radius * std::cos(angle));
-        float bottom_y_right = bottom_circle_start.y + (bottom_radius * std::sin(angle));
-        
-        float top_x_left = top_circle_start.x + (top_radius * std::cos(angle + glm::radians(180.0f)));
-        float top_y_left = top_circle_start.y + (top_radius * std::sin(angle + glm::radians(180.0f)));
-
-        float bottom_x_left = bottom_circle_start.x + (bottom_radius * std::cos(angle + glm::radians(180.0f)));
-        float bottom_y_left = bottom_circle_start.y + (bottom_radius * std::sin(angle + glm::radians(180.0f)));
-
-        // Draw a quad
-        ImGui::GetBackgroundDrawList()->AddQuadFilled(
-            ImVec2(top_x_left, top_y_left),
-            ImVec2(bottom_x_left, bottom_y_left),
-            ImVec2(bottom_x_right, bottom_y_right),
-            ImVec2(top_x_right, top_y_right),
-            color
-        );
-
-        if (outline) {
-            ImGui::GetBackgroundDrawList()->AddQuad(
-                ImVec2(top_x_left, top_y_left),
-                ImVec2(bottom_x_left, bottom_y_left),
-                ImVec2(bottom_x_right, bottom_y_right),
-                ImVec2(top_x_right, top_y_right),
-                ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 1.0f))
-            );
-        }
+    if (outline) {
+        draw_list->AddQuad(start_left, end_left, end_right, start_right,
+            ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 1.0f)));
     }
 }
 

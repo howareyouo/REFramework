@@ -135,7 +135,7 @@ void text_colored(const char* text, unsigned int color) {
     auto b = (color >> 16) & 0xFF;
     auto a = (color >> 24) & 0xFF;
 
-    ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, text);
+    ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, "%s", text);
 }
 
 sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
@@ -359,7 +359,7 @@ sol::variadic_results combo(sol::this_state s, const char* label, sol::object se
     if (ImGui::BeginCombo(label, preview_value)) {
         //for (auto i = 1u; i <= values.size(); ++i) {
         for (auto& [key, val] : values) {
-            auto val_at_k = values[key].get<sol::object>();
+            sol::object val_at_k = val;
 
             if (val_at_k.is<const char*>()) {
                 auto entry = val_at_k.as<const char*>();
@@ -976,7 +976,7 @@ void set_tooltip(const char* text) {
         text = "";
     }
 
-    ImGui::SetTooltip(text);
+    ImGui::SetTooltip("%s", text);
 }
 
 void open_popup(const char* str_id, sol::object flags_obj) {
@@ -1502,6 +1502,11 @@ std::optional<Vector2f> world_to_screen(sol::object world_pos_object) {
     }
 
     auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
+
+    if (camera_gameobject == nullptr) {
+        return std::nullopt;
+    }
+
     auto camera_transform = camera_gameobject->get_transform();
 
     Vector4f camera_origin{};

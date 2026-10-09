@@ -218,33 +218,35 @@ void CALLBACK ldr_notification_callback(
 try {
     // From what I can tell, the PEB entries get filled in by the time this is called
     // so we're good.
-    if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
-        if (NotificationData->Loaded.BaseDllName != nullptr && NotificationData->Loaded.BaseDllName->Buffer != nullptr) {
-            std::wstring base_dll_name = NotificationData->Loaded.BaseDllName->Buffer;
-            std::wstring lower_base_dll_name = base_dll_name;
-            std::transform(lower_base_dll_name.begin(), lower_base_dll_name.end(), lower_base_dll_name.begin(), ::towlower);
-            spdlog::info("LdrRegisterDllNotification: Loaded: {}", utility::narrow(base_dll_name));
+    if (NotificationReason != LDR_DLL_NOTIFICATION_REASON_LOADED) {
+        return;
+    }
 
-            if (lower_base_dll_name.find(L"sl.dlss_g.dll") != std::wstring::npos) {
-                spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
+    // Runs under the loader lock: no allocations or per-character transforms
+    // on the hot path; only log when something actionable actually happened.
+    const auto& loaded = NotificationData->Loaded;
 
-                D3D12Hook::hook_streamline((HMODULE)NotificationData->Loaded.DllBase);
-            }
+    if (loaded.BaseDllName != nullptr && loaded.BaseDllName->Buffer != nullptr) {
+        constexpr wchar_t dlss_name[] = L"sl.dlss_g.dll";
+        constexpr auto dlss_len = (sizeof(dlss_name) / sizeof(wchar_t)) - 1;
+
+        if ((size_t)loaded.BaseDllName->Length == dlss_len * sizeof(WCHAR) &&
+            _wcsnicmp(loaded.BaseDllName->Buffer, dlss_name, dlss_len) == 0) {
+            spdlog::info("LdrRegisterDllNotification: Detected DLSS DLL loaded");
+            D3D12Hook::hook_streamline((HMODULE)loaded.DllBase);
         }
+    }
 
-        if (g_current_game_path && NotificationData->Loaded.FullDllName != nullptr && NotificationData->Loaded.FullDllName->Buffer != nullptr) {
-            std::wstring full_dll_name = NotificationData->Loaded.FullDllName->Buffer;
-            std::filesystem::path full_dll_path = full_dll_name;
+    if (g_current_game_path && loaded.FullDllName != nullptr && loaded.FullDllName->Buffer != nullptr) {
+        const std::filesystem::path full_dll_path = loaded.FullDllName->Buffer;
 
-            if (full_dll_path.parent_path() == *g_current_game_path) {
-                spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}", utility::narrow(full_dll_name));
+        if (full_dll_path.parent_path() == *g_current_game_path) {
+            spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}",
+                         utility::narrow(loaded.FullDllName->Buffer));
 
-                if (sdk::GameIdentity::get().is_dd2() || sdk::GameIdentity::get().is_mhrise() || sdk::GameIdentity::get().tdb_ver() >= 74) {
-                    utility::spoof_module_paths_in_exe_dir();
-                }
+            if (sdk::GameIdentity::get().is_dd2() || sdk::GameIdentity::get().is_mhrise() || sdk::GameIdentity::get().tdb_ver() >= 74) {
+                utility::spoof_module_paths_in_exe_dir();
             }
-        } else {
-            spdlog::info("LdrRegisterDllNotification: DLL loaded from unknown location");
         }
     }
 } catch (const std::exception& e) {
@@ -305,7 +307,10 @@ REFramework::REFramework(HMODULE reframework_module)
     IntegrityCheckBypass::fix_virtual_protect();
 
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+
+    if (ImGui::GetCurrentContext() == nullptr) {
+        ImGui::CreateContext();
+    }
 
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
@@ -491,31 +496,35 @@ REFramework::REFramework(HMODULE reframework_module)
     }
 
     if (gi.is_re8()) {
-        auto startup_lookup_thread = std::make_unique<std::thread>([this]() {
+        // Detached: scans by value (no `this` capture) so it can never outlive
+        // the framework object it would otherwise reference.
+        const auto game_module = m_game_module;
+
+        std::thread([game_module]() {
             // Fixes a crash on some machines when starting the game
             // This one has nothing to do with integrity checks
             // it has something to do with the Agility SDK and pipeline state.
-            uint32_t times_searched = 0;
+            const auto pattern = "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00";
+            std::optional<uintptr_t> startup_patch_addr{};
 
-            auto startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
+            for (uint32_t times_searched = 0; times_searched <= 10; ++times_searched) {
+                startup_patch_addr = utility::scan(game_module, pattern);
 
-            while (!startup_patch_addr) {
-                startup_patch_addr = utility::scan(m_game_module, "40 53 57 48 83 ec 28 48 83 b9 ? ? ? ? 00");
-
-                if (times_searched++ > 10) {
-                    spdlog::error("Failed to find startup patch address");
-                    return;
+                if (startup_patch_addr) {
+                    break;
                 }
+
+                // Pattern scans are expensive; don't spin between retries.
+                std::this_thread::sleep_for(std::chrono::seconds{1});
             }
 
             if (startup_patch_addr) {
                 spdlog::info("Found startup patch at {:x}", *startup_patch_addr);
                 static auto permanent_patch = Patch::create(*startup_patch_addr, {0xC3});
             } else {
-                spdlog::info("Couldn't find RE8 crash fix patch location!");
+                spdlog::error("Failed to find startup patch address");
             }
-        });
-        startup_lookup_thread->detach();
+        }).detach();
     }
 
 
@@ -752,6 +761,12 @@ bool REFramework::hook_d3d11() {
 }
 
 bool REFramework::hook_d3d12() {
+    // Making sure D3D11 is not hooked before doing any D3D12 work:
+    // avoids constructing the D3D12Hook and loading d3d12.dll for nothing.
+    if (m_is_d3d11) {
+        return false;
+    }
+
     // windows 7?
     if (LoadLibraryA("d3d12.dll") == nullptr) {
         spdlog::info("d3d12.dll not found, user is probably running Windows 7.");
@@ -805,6 +820,10 @@ REFramework::~REFramework() {
         m_d3d_monitor_thread->join();
     }
 
+    // Restore the original WndProc before tearing down anything that can
+    // still pump or receive window messages.
+    m_windows_message_hook.reset();
+
     m_d3d_monitor_thread.reset();
 
     const bool ui_layout_save_pending = std::exchange(m_ui_layout_save_pending, false);
@@ -841,7 +860,11 @@ REFramework::~REFramework() {
 
     ImGui_ImplWin32_Shutdown();
 
-    if (m_initialized) {
+    if (ImNodes::GetCurrentContext() != nullptr) {
+        ImNodes::DestroyContext();
+    }
+
+    if (ImGui::GetCurrentContext() != nullptr) {
         ImGui::DestroyContext();
     }
 }
@@ -970,7 +993,12 @@ void REFramework::on_frame_d3d11() {
 
     // Set the back buffer to be the render target.
     context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    // NewFrame() invalidates DrawData until Render(); GetDrawData() can return
+    // null if the frame was not rendered in this pass.
+    if (auto* draw_data = ImGui::GetDrawData()) {
+        ImGui_ImplDX11_RenderDrawData(draw_data);
+    }
 
     if (is_init_ok) {
         m_mods->on_post_frame();
@@ -1113,7 +1141,10 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
 
         ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_data;
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
+
+        if (auto* draw_data = ImGui::GetDrawData()) {
+            ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
+        }
 
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -1412,7 +1443,14 @@ std::filesystem::path REFramework::get_persistent_dir() {
         const auto dir = std::filesystem::path(*utility::get_module_path(utility::get_executable())).parent_path();
         const auto test_file = dir / "test.txt";
         std::ofstream test_stream{test_file};
-        test_stream << "test";
+
+        // ofstream doesn't throw on open failure, so check the stream
+        // state explicitly; create_directories won't throw when the
+        // directory already exists.
+        if (!test_stream.is_open() || !(test_stream << "test")) {
+            throw std::runtime_error{"Cannot write to game directory"};
+        }
+
         test_stream.close();
 
         std::filesystem::create_directories(dir / "test_dir");
@@ -2187,9 +2225,6 @@ bool REFramework::initialize() {
             return false;
         }
 
-        ID3D11DeviceContext* context = nullptr;
-        device->GetImmediateContext(&context);
-
         DXGI_SWAP_CHAIN_DESC swap_desc{};
         swap_chain->GetDesc(&swap_desc);
 
@@ -2200,17 +2235,31 @@ bool REFramework::initialize() {
         spdlog::info("Initializing ImGui");
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+
+        if (ImGui::GetCurrentContext() == nullptr) {
+            ImGui::CreateContext();
+        }
+
         m_loaded_saved_ui_display_size = false;
         m_saved_ui_display_size = {};
         ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
+
+        if (ImNodes::GetCurrentContext() == nullptr) {
+            ImNodes::CreateContext();
+        }
 
         set_imgui_style();
 
         static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
         ImGui::GetIO().IniFilename = imgui_ini.c_str();
         reframework::ui::initialize_tree_state(get_persistent_dir() / "ref_dropdown_status.ini");
+
+        // The platform backend asserts on double-init (it leaks its data in
+        // release builds), which re-initialization after a device reset would
+        // otherwise trigger.
+        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+            ImGui_ImplWin32_Shutdown();
+        }
 
         spdlog::info("Initializing ImGui Win32");
 
@@ -2266,18 +2315,32 @@ bool REFramework::initialize() {
 
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+
+        if (ImGui::GetCurrentContext() == nullptr) {
+            ImGui::CreateContext();
+        }
+
         m_loaded_saved_ui_display_size = false;
         m_saved_ui_display_size = {};
         ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-        ImNodes::CreateContext();
+
+        if (ImNodes::GetCurrentContext() == nullptr) {
+            ImNodes::CreateContext();
+        }
 
         set_imgui_style();
 
         static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
         ImGui::GetIO().IniFilename = imgui_ini.c_str();
         reframework::ui::initialize_tree_state(get_persistent_dir() / "ref_dropdown_status.ini");
-        
+
+        // The platform backend asserts on double-init (it leaks its data in
+        // release builds), which re-initialization after a device reset would
+        // otherwise trigger.
+        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+            ImGui_ImplWin32_Shutdown();
+        }
+
         if (!ImGui_ImplWin32_Init(m_wnd)) {
             spdlog::error("Failed to initialize ImGui ImplWin32.");
             return false;

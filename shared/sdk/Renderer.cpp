@@ -298,15 +298,36 @@ std::vector<layer::Scene*> RenderLayer::find_fully_rendered_scene_layers() {
         return {};
     }
 
-    std::erase_if(layers, [](auto& layer) {
-        return !layer->is_fully_rendered();
+    // get_view_id() is a reflected function call, so fetch it once per layer and sort on the
+    // cached ids, rather than once per comparison.
+    struct Entry {
+        uint32_t view_id;
+        layer::Scene* scene;
+    };
+
+    std::vector<Entry> entries;
+    entries.reserve(layers.size());
+
+    for (auto* scene : layers) {
+        if (scene->is_fully_rendered()) {
+            entries.push_back({scene->get_view_id(), scene});
+        }
+    }
+
+    // Sorted on the id alone, which is all the old comparator looked at, so layers sharing an
+    // id still come out in the same order.
+    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+        return a.view_id < b.view_id;
     });
 
-    std::sort(layers.begin(), layers.end(), [](auto& a, auto& b) {
-        return a->get_view_id() < b->get_view_id();
-    });
+    std::vector<layer::Scene*> out;
+    out.reserve(entries.size());
 
-    return layers;
+    for (const auto& entry : entries) {
+        out.push_back(entry.scene);
+    }
+
+    return out;
 }
 
 RenderLayer* RenderLayer::get_parent() {

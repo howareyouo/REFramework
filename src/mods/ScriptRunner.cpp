@@ -115,6 +115,15 @@ std::string get_build_time() {
 }
 }
 
+namespace {
+// Same thread_local caching as HookManager::HookedFn::get_storage: the hash is
+// constant per thread, so compute it once instead of on every hook dispatch.
+size_t cached_thread_hash() {
+    static thread_local const size_t hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    return hash;
+}
+}
+
 ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool is_main_state) {
     std::scoped_lock _{ m_execution_mutex };
     m_is_main_state = is_main_state;
@@ -408,7 +417,18 @@ ScriptState::ScriptState(const ScriptState::GarbageCollectionData& gc_data,bool 
 ScriptState::~ScriptState() {
     {
         std::scoped_lock _{s_delegates_mutex};
-        std::erase_if(s_delegates, [](auto& pair) { return pair.second->owner.expired(); });
+        std::vector<REManagedObject*> objects_to_release{};
+        std::erase_if(s_delegates, [&objects_to_release](auto& pair) {
+            if (pair.second->owner.expired()) {
+                objects_to_release.push_back(pair.first);
+                return true;
+            }
+            return false;
+        });
+        // Release references outside erase_if to avoid holding lock during engine call
+        for (auto* obj : objects_to_release) {
+            obj->release();
+        }
     }
 
     std::scoped_lock _{m_execution_mutex};
@@ -770,18 +790,19 @@ void ScriptState::install_hooks() {
         const auto hookman_data = HookManager::EitherOr{hookdef.obj, hookdef.fn, ignore_jmp_object.is<bool>() ? ignore_jmp_object.as<bool>() : false};
         auto id = g_hookman.add_either_or(
             hookman_data,
-            [pre_cb, state = this](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+            [pre_cb, state = this, runner = ScriptRunner::get().get()](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
                 using PreHookResult = HookManager::PreHookResult;
+
+                // Scripts are unloaded during online matches, so skip the lock and Lua entirely.
+                if (runner->is_online_match()) {
+                    return PreHookResult::CALL_ORIGINAL;
+                }
 
                 auto _ = state->scoped_lock();
                 auto result = PreHookResult::CALL_ORIGINAL;
 
-                if (ScriptRunner::get()->is_online_match()) {
-                    return result;
-                }
-
                 try {
-                    state->push_hook_storage(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+                    state->push_hook_storage(cached_thread_hash());
 
                     if (pre_cb.is<sol::nil_t>()) {
                         return result;
@@ -821,14 +842,14 @@ void ScriptState::install_hooks() {
 
                 return result;
             },
-            [post_cb, state = this](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
-                auto _ = state->scoped_lock();
-                
-                if (ScriptRunner::get()->is_online_match()) {
+            [post_cb, state = this, runner = ScriptRunner::get().get()](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
+                // Matches the pre-hook: nothing to pop when scripts are disabled mid-match.
+                if (runner->is_online_match()) {
                     return;
                 }
 
-                const auto thash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+                auto _ = state->scoped_lock();
+                const auto thash = cached_thread_hash();
                 utility::ScopeGuard sg{[state, thash] { state->pop_hook_storage(thash); }};
 
                 try {
@@ -878,9 +899,13 @@ void ScriptState::add_delegate_callback(sdk::DelegateInvocation& invo, sol::prot
 }
 
 void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
+    if (ctx == nullptr) {
+        return;
+    }
+
     std::scoped_lock _{ s_delegates_mutex };
 
-    if (ctx == nullptr) {
+    if (s_delegates.empty()) {
         return;
     }
 
@@ -894,6 +919,7 @@ void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
     auto owner_state = delegate->owner.lock();
     if (owner_state == nullptr) {
         s_delegates.erase(it);
+        obj->release();
         return;
     }
 

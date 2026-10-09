@@ -6,9 +6,7 @@
 #include <safetyhook.hpp>
 #include <deque>
 #include <map>
-#include <regex>
-#include <shared_mutex>
-#include <thread>
+#include <mutex>
 #include <unordered_set>
 #include <spdlog/spdlog.h>
 #include <utility/Scan.hpp>
@@ -36,12 +34,6 @@ public:
         MissingFile = 1,
         Invalid = 2,
         ShouldBeEncrypted = 3,
-    };
-
-    struct FaultyBufferEntry {
-        std::wstring filename;
-        FaultyTier tier;
-        FaultyReason reason;
     };
 
     FaultyFileDetector();
@@ -77,14 +69,20 @@ private:
 
     void initialize_impl();
 
+    // Transparent hash/equality so we can look up by std::wstring_view without
+    // allocating a temporary std::wstring on the (common) duplicate path.
+    struct WStringHash {
+        using is_transparent = void;
+        size_t operator()(std::wstring_view sv) const noexcept { return std::hash<std::wstring_view>{}(sv); }
+        size_t operator()(const std::wstring& s) const noexcept { return std::hash<std::wstring_view>{}(s); }
+    };
+
     std::optional<std::string> m_blocking_error{};
-    std::unordered_set<std::wstring> m_faulty_files{}; // All faulty files for spam detection
+    std::unordered_set<std::wstring, WStringHash, std::equal_to<>> m_faulty_files{}; // All faulty files for spam detection
     std::map<FaultyReason, std::deque<std::wstring>> m_recent_faulty_files_by_reason{}; // Recent files organized by reason
-    std::shared_mutex m_mutex{};
+    std::mutex m_mutex{};
     std::shared_ptr<spdlog::logger> m_logger{};
     safetyhook::InlineHook m_create_resource_original{};
-    safetyhook::MidHook m_resource_parse_finish_hook{};
-    std::map<std::thread::id, void*> m_resource_by_thread_map{};
     std::vector<safetyhook::MidHook> m_resource_parse_finish_hooks{};
     std::vector<safetyhook::MidHook> m_resource_set_argument_hooks{};
     safetyhook::MidHook m_resource_open_failed_hook{};

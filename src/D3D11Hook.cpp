@@ -95,9 +95,15 @@ bool D3D11Hook::hook() {
 
     suspender.resume();
 
-    device->Release();
-    context->Release();
-    swap_chain->Release();
+    if (device) {
+        device->Release();
+    }
+    if (context) {
+        context->Release();
+    }
+    if (swap_chain) {
+        swap_chain->Release();
+    }
     return m_hooked;
 }
 
@@ -117,7 +123,7 @@ bool D3D11Hook::unhook() {
 }
 
 thread_local bool g_inside_d3d11_present = false;
-HRESULT last_d3d11_present_result = S_OK;
+thread_local HRESULT last_d3d11_present_result = S_OK;
 
 HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags) {
     std::scoped_lock _{g_framework->get_hook_monitor_mutex()};
@@ -208,7 +214,7 @@ HRESULT WINAPI D3D11Hook::present(IDXGISwapChain* swap_chain, UINT sync_interval
 }
 
 thread_local bool g_inside_d3d11_resize_buffers = false;
-HRESULT last_d3d11_resize_buffers_result = S_OK;
+thread_local HRESULT last_d3d11_resize_buffers_result = S_OK;
 
 HRESULT WINAPI D3D11Hook::resize_buffers(
     IDXGISwapChain* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags) {

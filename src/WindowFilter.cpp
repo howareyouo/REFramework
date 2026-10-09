@@ -22,13 +22,26 @@ WindowFilter::WindowFilter() {
 
             m_last_job_tick = std::chrono::steady_clock::now();
 
+            // Quick unlocked check to avoid lock contention when idle
             if (m_window_jobs.empty()) {
-                return;
+                continue; // FIX: was `return` which permanently killed the thread
             }
 
-            std::scoped_lock _{m_mutex};
+            // Copy jobs under lock, then process without lock to avoid
+            // deadlock when GetWindowTextA sends WM_GETTEXT to a hung window
+            std::unordered_set<HWND> jobs_copy;
+            {
+                std::scoped_lock _{m_mutex};
 
-            for (const auto hwnd : m_window_jobs) {
+                // Re-check under lock (double-checked pattern)
+                if (m_window_jobs.empty()) {
+                    continue;
+                }
+
+                jobs_copy.swap(m_window_jobs);
+            }
+
+            for (const auto hwnd : jobs_copy) {
                 char window_name[256]{};
                 if (GetWindowTextA(hwnd, window_name, sizeof(window_name)) != 0) {
                     spdlog::info("[WindowFilter] Encountered new window: {}", window_name);
@@ -38,8 +51,6 @@ WindowFilter::WindowFilter() {
                     filter_window(hwnd);
                 }
             }
-
-            m_window_jobs.clear();
         }
     });
 }

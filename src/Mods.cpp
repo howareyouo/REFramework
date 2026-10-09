@@ -20,6 +20,60 @@
 
 #include "Mods.hpp"
 
+static volatile int s_probe_sink = 0;
+
+#define REF_PROBE_DEF(name, ret, args, tag) \
+    struct name##Probe : Mod { ret on_##name args override { s_probe_sink = (tag); } };
+REF_GAME_CALLBACK_LIST(REF_PROBE_DEF)
+#undef REF_PROBE_DEF
+
+int find_callback_slot(Mod& base, Mod& probe) {
+    void** base_vt = *(void***)&base;
+    void** probe_vt = *(void***)&probe;
+
+    for (int i = 0; i < 128; ++i) {
+        if (base_vt[i] != probe_vt[i]) {
+            return i;
+        }
+    }
+
+    spdlog::error("[Mods] Failed to locate callback vtable slot (vtable layout changed?)");
+    return -1;
+}
+
+void collect_mods_for_slot(Mod& base, int slot, const std::vector<std::shared_ptr<Mod>>& all, std::vector<Mod*>& out) {
+    out.clear();
+
+    if (slot < 0) {
+        spdlog::error("[Mods] Unlocatable callback slot; falling back to full mod dispatch");
+
+        for (auto& m : all) {
+            out.push_back(m.get());
+        }
+
+        return;
+    }
+
+    void** base_vt = *(void***)&base;
+
+    for (auto& m : all) {
+        void** vt = *(void***)m.get();
+
+        if (vt[slot] != base_vt[slot]) {
+            out.push_back(m.get());
+        }
+    }
+}
+
+void Mods::build_dispatch_lists() {
+    Mod base_mod{};
+
+#define REF_BUILD_DISPATCH(name, ret, args, tag) \
+    do { name##Probe probe{}; collect_mods_for_slot(base_mod, find_callback_slot(base_mod, probe), m_mods, m_dispatch.name); } while (0);
+    REF_GAME_CALLBACK_LIST(REF_BUILD_DISPATCH)
+#undef REF_BUILD_DISPATCH
+}
+
 Mods::Mods() {
     m_mods.emplace_back(BackBufferRenderer::get());
     m_mods.emplace_back(REFrameworkConfig::get());
@@ -69,6 +123,8 @@ Mods::Mods() {
     m_mods.emplace_back(APIProxy::get());
     m_mods.emplace_back(PluginLoader::get());
     m_mods.emplace_back(ScriptRunner::get());
+
+    build_dispatch_lists();
 }
 
 std::optional<std::string> Mods::on_initialize() const {

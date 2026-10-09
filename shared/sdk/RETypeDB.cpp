@@ -19,7 +19,18 @@ RETypeDB* RETypeDB::get() {
 }
 
 static std::shared_mutex g_tdb_type_mtx{};
-static std::unordered_map<std::string, sdk::RETypeDefinition*> g_tdb_type_map{};
+
+// Transparent hash so lookups by std::string_view don't materialize a temporary
+// std::string (heap-allocated for names longer than the SSO buffer).
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+};
+
+static std::unordered_map<std::string, sdk::RETypeDefinition*, TransparentStringHash, std::equal_to<>> g_tdb_type_map{};
 
 reframework::InvokeRet invoke_object_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, std::vector<void*>& args) {
     const auto method = t->get_method(name);
@@ -62,7 +73,7 @@ sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
     {
         std::shared_lock _{ g_tdb_type_mtx };
 
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
+        if (auto it = g_tdb_type_map.find(name); it != g_tdb_type_map.end()) {
             return it->second;
         }
 
@@ -91,15 +102,38 @@ sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
 }
 
 sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
-    for (uint32_t i = 0; i< this->get_num_types(); ++i) {
-        auto t = get_type(i);
+    static std::shared_mutex mtx{};
+    static std::unordered_map<uint32_t, sdk::RETypeDefinition*> map{};
+    static bool map_populated = false;
 
-        if (t->get_fqn_hash() == fqn) {
-            return t;
+    {
+        std::shared_lock _{ mtx };
+
+        if (auto it = map.find(fqn); it != map.end()) {
+            return it->second;
+        }
+
+        if (map_populated) {
+            return nullptr;
         }
     }
 
-    return nullptr;
+    {
+        std::unique_lock _{ mtx };
+
+        for (uint32_t i = 0; i < this->get_num_types(); ++i) {
+            auto t = get_type(i);
+
+            if (t->get_fqn_hash() == fqn) {
+                map[fqn] = t;
+                return t;
+            }
+        }
+
+        map_populated = true;
+    }
+
+    return this->find_type_by_fqn(fqn);
 }
 
 sdk::REMethodDefinition* get_object_method(::REManagedObject* object, std::string_view name) {

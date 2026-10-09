@@ -760,15 +760,15 @@ void* Hooks::update_transform_hook_internal(RETransform* t, uint8_t a2, uint32_t
         return m_update_transform_hook->get_original<decltype(update_transform_hook)>()(t, a2, a3);
     }
 
-    auto& mods = g_framework->get_mods()->get_mods();
+    const auto& dispatch_lists = g_framework->get_mods()->dispatch();
 
-    for (auto& mod : mods) {
+    for (auto* mod : dispatch_lists.pre_update_transform) {
         mod->on_pre_update_transform(t);
     }
 
     auto ret = m_update_transform_hook->get_original<decltype(update_transform_hook)>()(t, a2, a3);
 
-    for (auto& mod : mods) {
+    for (auto* mod : dispatch_lists.update_transform) {
         mod->on_update_transform(t);
     }
 
