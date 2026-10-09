@@ -62,6 +62,12 @@ endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+# DirectXTK12 expands ${DIRECTX_ARCH} (derived from CMAKE_GENERATOR_PLATFORM) unquoted
+# inside if(); set a fallback when the generator does not define it (e.g. Ninja)
+if(NOT CMAKE_GENERATOR_PLATFORM)
+    set(CMAKE_GENERATOR_PLATFORM "x64")
+endif()
+
 include(FetchContent)
 
 # Fix warnings about DOWNLOAD_EXTRACT_TIMESTAMP
