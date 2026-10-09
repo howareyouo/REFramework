@@ -25,17 +25,17 @@ jobs:
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target REFramework
 
-      - name: Compress REFramework
+      - name: Stage release files
         run: |
-          echo ${{github.sha}} > ${{github.workspace}}/reframework_revision.txt
-          7z a ${{github.workspace}}/REFramework.zip ${{github.workspace}}/reframework_revision.txt
-          7z a ${{github.workspace}}/REFramework.zip ${{github.workspace}}/build/bin/REFramework/dinput8.dll
+          New-Item -ItemType Directory -Force -Path ${{github.workspace}}/dist | Out-Null
+          echo ${{github.sha}} > ${{github.workspace}}/dist/reframework_revision.txt
+          Copy-Item ${{github.workspace}}/build/bin/REFramework/dinput8.dll ${{github.workspace}}/dist/dinput8.dll
 
       - name: Upload REFramework
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
         with:
           name: REFramework
-          path: ${{github.workspace}}/REFramework.zip
+          path: ${{github.workspace}}/dist/*
           if-no-files-found: error
 
   nightly-push:
@@ -52,6 +52,10 @@ jobs:
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427
         with:
           path: ${{github.workspace}}/artifacts
+
+      - name: Package release archive
+        working-directory: ${{github.workspace}}/artifacts/REFramework
+        run: 7z a ${{github.workspace}}/artifacts/REFramework/REFramework.zip dinput8.dll reframework_revision.txt
 
       - name: Set padded run number
         run: |
