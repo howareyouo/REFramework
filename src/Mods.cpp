@@ -2,7 +2,6 @@
 
 #include "mods/BackBufferRenderer.hpp"
 #include "mods/APIProxy.hpp"
-#include "mods/Camera.hpp"
 #include "mods/Graphics.hpp"
 #include "mods/FreeCam.hpp"
 #include "mods/FaultyFileDetector.hpp"
@@ -88,7 +87,6 @@ Mods::Mods() {
 
 
     // All games!!!
-    m_mods.emplace_back(Camera::get());
     m_mods.emplace_back(Graphics::get());
 
 
@@ -143,7 +141,7 @@ void collect_mods_for_slot(Mod& base, int slot, const std::vector<std::shared_pt
 
     // If we could not locate the slot, fall back to dispatching to every mod.
     // This only loses the optimization; it never drops the callback, so the
-    // mods that rely on it (Camera/FreeCam/ManualFlashlight/ScriptRunner) keep
+    // mods that rely on it (FreeCam/ManualFlashlight/ScriptRunner) keep
     // working even if the vtable layout assumptions ever break.
     if (slot < 0) {
         spdlog::error("[Mods] Unlocatable callback slot; falling back to full mod dispatch");
