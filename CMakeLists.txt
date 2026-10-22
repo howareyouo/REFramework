@@ -467,8 +467,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/APIProxy.hpp"
 		"src/mods/BackBufferRenderer.cpp"
 		"src/mods/BackBufferRenderer.hpp"
-		"src/mods/FaultyFileDetector.cpp"
-		"src/mods/FaultyFileDetector.hpp"
 		"src/mods/FreeCam.cpp"
 		"src/mods/FreeCam.hpp"
 		"src/mods/Graphics.cpp"

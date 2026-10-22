@@ -4,7 +4,6 @@
 #include "mods/APIProxy.hpp"
 #include "mods/Graphics.hpp"
 #include "mods/FreeCam.hpp"
-#include "mods/FaultyFileDetector.hpp"
 #include "mods/Hooks.hpp"
 #include "mods/IntegrityCheckBypass.hpp"
 #include "mods/PluginLoader.hpp"
@@ -26,7 +25,6 @@ Mods::Mods() {
     m_mods.emplace_back(MethodDatabase::get());
     m_mods.emplace_back(Hooks::get());
     m_mods.emplace_back(LooseFileLoader::get());
-    m_mods.emplace_back(FaultyFileDetector::get());
 
 
     m_mods.emplace_back(TemporalUpscaler::get());
