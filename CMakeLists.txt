@@ -72,6 +72,13 @@ endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+# DirectXTK12 derives DIRECTX_ARCH from CMAKE_GENERATOR_PLATFORM / CMAKE_VS_PLATFORM_NAME_DEFAULT,
+# both undefined under Ninja; provide the latter (FetchContent forwards the former to
+# dep populate sub-builds, which reject it under Ninja)
+if(NOT CMAKE_VS_PLATFORM_NAME_DEFAULT)
+    set(CMAKE_VS_PLATFORM_NAME_DEFAULT "x64")
+endif()
+
 # Zero-cost speed tweak: fast thread-local storage access (applies to both Ninja and VS generators)
 add_compile_options("$<$<CONFIG:Release>:/GT>")
 
@@ -897,7 +904,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		cmake.toml
 		"examples/example_plugin/Plugin.cpp"
 		"examples/example_plugin/Plugin.hpp"
-		"examples/example_plugin/imgui/font_robotomedium.hpp"
 		"examples/example_plugin/imgui/imgui_impl_dx11.cpp"
 		"examples/example_plugin/imgui/imgui_impl_dx11.h"
 		"examples/example_plugin/imgui/imgui_impl_dx12.cpp"
