@@ -245,7 +245,6 @@ try {
         if (full_dll_path.parent_path() == *g_current_game_path) {
             spdlog::info("LdrRegisterDllNotification: DLL loaded from game directory: {}",
                          utility::narrow(loaded.FullDllName->Buffer));
-            }
         }
     }
 } catch (const std::exception& e) {
@@ -430,9 +429,6 @@ void REFramework::setup_integrity_bypass() {
     IntegrityCheckBypass::immediate_patch_re8();
 
     IntegrityCheckBypass::immediate_patch_re4();
-}
-
-
 
     IntegrityCheckBypass::remove_stack_destroyer();
     suspender.resume();

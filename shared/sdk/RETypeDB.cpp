@@ -159,6 +159,11 @@ sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
         std::shared_lock _{ g_tdb_fqn_mtx };
         if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
             return it->second;
+        }
+    }
+
+    return nullptr;
+}
 
 sdk::REMethodDefinition* get_object_method(::REManagedObject* object, std::string_view name) {
     auto t = utility::re_managed_object::get_type_definition(object);
