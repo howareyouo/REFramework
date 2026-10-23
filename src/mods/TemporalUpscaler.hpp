@@ -218,11 +218,8 @@ private:
     bool m_taa_disabled{false};
     via::render::RenderConfig::AntiAliasingType m_original_antialiasing{via::render::RenderConfig::AntiAliasingType::NONE};
     bool m_wants_reinitialize{false};
-    // Set when the upscaler is switched off while it was live. The release must run on the
-    // present thread (on_early_present), never on the thread that processed the UI toggle:
-    // that thread may still be inside on_early_present using the copiers, the plugin
-    // feature and m_view, and tearing them down concurrently hangs the GPU
-    // (DXGI_ERROR_DEVICE_HUNG).
+    // Deferred release, processed on the present thread (on_early_present): releasing on
+    // the UI toggle's thread races EvaluateUpscaler and hangs the GPU.
     std::atomic<bool> m_wants_release{false};
     bool m_logged_first_evaluate{false};
 
