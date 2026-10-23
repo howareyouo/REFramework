@@ -287,16 +287,27 @@ void TemporalUpscaler::on_draw_ui() {
 
 void TemporalUpscaler::apply_setting_changes() {
     if (!activated()) {
-        // Disabled: give the plugin's features back and restore the engine's original
-        // anti-aliasing, instead of leaving everything resident but unused.
-        release_upscale_features();
+        // Disabled: give the engine's anti-aliasing back right away — this runs on the
+        // render thread inside BeginRendering, the same thread sync_render_config asserts
+        // from. The resolution spoof stops on its own (on_view_get_size checks m_enabled).
+        //
+        // The release itself must NOT happen here: the present thread may currently be
+        // inside on_early_present using the copiers, the plugin feature and m_view, and
+        // freeing them from this thread races EvaluateUpscaler against
+        // ReleaseUpscaleFeature — the GPU then executes against freed resources and the
+        // game dies with a fatal D3D error. Defer the release to the present thread, the
+        // same way reinit is deferred.
+        m_wants_reinitialize = false;
+        m_wants_release = true;
         restore_engine_aa();
         return;
     }
 
     // Enabled (again): the D3D12 inputs, the layer pointers and the render size may all be
     // stale from the disabled period, during which every per-frame callback was skipped.
-    // Force a full re-init so all of it is re-resolved.
+    // Force a full re-init so all of it is re-resolved. A pending release is superseded:
+    // the reinit path in on_early_present performs its own release first.
+    m_wants_release = false;
     m_wants_reinitialize = true;
 }
 
@@ -327,6 +338,14 @@ void TemporalUpscaler::on_early_present() {
     m_rendering.store(true, std::memory_order_relaxed);
 
     if (!m_backend_loaded) {
+        return;
+    }
+
+    if (m_wants_release) {
+        // Processed here, on the present thread — the only thread allowed to tear the
+        // copiers, the plugin feature and m_view down. See apply_setting_changes.
+        release_upscale_features();
+        m_wants_release = false;
         return;
     }
 
@@ -595,6 +614,10 @@ bool TemporalUpscaler::init_upscale_features() {
 }
 
 void TemporalUpscaler::release_upscale_features() {
+    // The copier fences double as the GPU drain for the plugin's own submissions: the last
+    // EvaluateUpscaler was executed on the same command queue before the final copier
+    // execute() of that frame, and the queue is FIFO, so a completed copier fence implies
+    // the plugin's GPU work has retired too. Only then is ReleaseUpscaleFeature safe.
     for (auto& copier : m_copiers) {
         copier.wait(COMMAND_CONTEXT_WAIT_MS);
         copier.reset();
