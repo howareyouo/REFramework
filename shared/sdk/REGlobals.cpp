@@ -10,20 +10,7 @@
 
 #include "REGlobals.hpp"
 
-// Replacement for deprecated IsBadReadPtr - uses VirtualQuery instead
-static bool is_readable(const void* addr, size_t size) {
-    MEMORY_BASIC_INFORMATION mbi{};
-    if (!VirtualQuery(addr, &mbi, sizeof(mbi))) {
-        return false;
-    }
-    if (mbi.State != MEM_COMMIT) {
-        return false;
-    }
-    if (mbi.Protect & PAGE_NOACCESS) {
-        return false;
-    }
-    return (mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0;
-}
+#include "utility/MemoryProtection.hpp"
 
 namespace reframework {
 std::unique_ptr<REGlobals>& get_globals() {
@@ -63,7 +50,7 @@ REGlobals::REGlobals() {
             continue;
         }
 
-        if (!is_readable((void*)ptr, sizeof(void*))) {
+        if (!utility::is_readable((void*)ptr, sizeof(void*))) {
             continue;
         }
 
@@ -133,7 +120,7 @@ std::unordered_set<REManagedObject*> REGlobals::get_objects() {
 
     if (!m_objects.empty()) {
         for (auto obj_ptr : m_objects) {
-            if (*obj_ptr != nullptr && is_readable(*obj_ptr, sizeof(void*))) {
+            if (*obj_ptr != nullptr && utility::is_readable(*obj_ptr, sizeof(void*))) {
                 out.insert(*obj_ptr);
             }
         }
@@ -274,7 +261,7 @@ void REGlobals::refresh_map() {
             continue;
         }
 
-        if (!is_readable(obj, sizeof(REManagedObject))) {
+        if (!utility::is_readable(obj, sizeof(REManagedObject))) {
             continue;
         }
 

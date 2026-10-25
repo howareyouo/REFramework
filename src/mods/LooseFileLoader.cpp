@@ -32,10 +32,6 @@ std::shared_ptr<LooseFileLoader>& LooseFileLoader::get() {
     return instance;
 }
 
-std::optional<std::string> LooseFileLoader::on_initialize() {
-    return Mod::on_initialize();
-}
-
 void LooseFileLoader::on_frame() {
     if (!m_attempted_hook && m_enabled->value()) {
         hook();

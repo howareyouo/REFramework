@@ -324,7 +324,6 @@ public:
     static std::shared_ptr<ScriptRunner>& get();
 
     std::string_view get_name() const override { return "ScriptRunner"; }
-    std::optional<std::string> on_initialize() override;
     void on_config_load(const utility::Config& cfg) override;
     void on_config_save(utility::Config& cfg) override;
 
@@ -431,28 +430,28 @@ private:
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
     std::optional<uint8_t> m_last_battle_type{};
-    const ModToggle::Ptr m_log_to_disk{ ModToggle::create(generate_name("LogToDisk"), false) };
-    const ModToggle::Ptr m_script_generated_ui_open_state{ ModToggle::create(generate_name("ScriptGeneratedUIOpenState"), false) };
+    const ModToggle::Ptr m_log_to_disk{ make_option<ModToggle>("LogToDisk", false) };
+    const ModToggle::Ptr m_script_generated_ui_open_state{ make_option<ModToggle>("ScriptGeneratedUIOpenState", false) };
 
-    const ModCombo::Ptr m_gc_handler { 
-        ModCombo::create(generate_name("GarbageCollectionHandlerV2"),
-        {
+    const ModCombo::Ptr m_gc_handler {
+        make_option<ModCombo>("GarbageCollectionHandlerV2",
+        std::vector<std::string>{
             "Managed by REFramework",
             "Managed by Lua"
         }, (int)ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED)
     };
 
     const ModCombo::Ptr m_gc_type {
-        ModCombo::create(generate_name("GarbageCollectionTypeV2"),
-        {
+        make_option<ModCombo>("GarbageCollectionTypeV2",
+        std::vector<std::string>{
             "Step",
             "Full",
         }, (int)ScriptState::GarbageCollectionType::STEP)
     };
 
     const ModCombo::Ptr m_gc_mode {
-        ModCombo::create(generate_name("GarbageCollectionMode"),
-        {
+        make_option<ModCombo>("GarbageCollectionMode",
+        std::vector<std::string>{
             "Generational",
             "Incremental (Mark & Sweep)",
         }, (int)ScriptState::GarbageCollectionMode::GENERATIONAL)
@@ -460,26 +459,15 @@ private:
 
     // Garbage collection budget in microseconds.
     const ModSlider::Ptr m_gc_budget {
-        ModSlider::create(generate_name("GarbageCollectionBudget"), 0.0f, 2000.0f, 1000.0f)
+        make_option<ModSlider>("GarbageCollectionBudget", 0.0f, 2000.0f, 1000.0f)
     };
 
     const ModSlider::Ptr m_gc_minor_multiplier {
-        ModSlider::create(generate_name("GarbageCollectionMinorMultiplier"), 1.0f, 200.0f, 1.0f)
+        make_option<ModSlider>("GarbageCollectionMinorMultiplier", 1.0f, 200.0f, 1.0f)
     };
 
     const ModSlider::Ptr m_gc_major_multiplier {
-        ModSlider::create(generate_name("GarbageCollectionMajorMultiplier"), 1.0f, 1000.0f, 100.0f)
-    };
-
-    ValueList m_options{
-        *m_log_to_disk,
-        *m_gc_handler,
-        *m_gc_type,
-        *m_gc_mode,
-        *m_gc_budget,
-        *m_gc_minor_multiplier,
-        *m_gc_major_multiplier,
-        *m_script_generated_ui_open_state
+        make_option<ModSlider>("GarbageCollectionMajorMultiplier", 1.0f, 1000.0f, 100.0f)
     };
 
     // Resets the ScriptState and runs autorun scripts again.

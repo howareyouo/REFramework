@@ -4,6 +4,7 @@
 
 #include "../ScriptRunner.hpp"
 #include "sdk/SceneManager.hpp"
+#include "sdk/Renderer.hpp"
 #include "REFramework.hpp"
 #include "utility/ImGui.hpp"
 
@@ -11,6 +12,11 @@
 
 namespace api::imgui {
 int32_t g_disabled_counts{0};
+
+// Lua strings can arrive as NULL; ImGui expects non-null throughout.
+const char* safe_str(const char* s) {
+    return s == nullptr ? "" : s;
+}
 
 void cleanup() {
     for (auto i = 0; i < g_disabled_counts; ++i) {
@@ -75,9 +81,7 @@ ImVec4 create_imvec4(sol::object obj) {
 };
 
 bool button(const char* label, sol::object size_object) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     const auto size = create_imvec2(size_object);
 
@@ -85,17 +89,13 @@ bool button(const char* label, sol::object size_object) {
 }
 
 bool small_button(const char* label) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     return ImGui::SmallButton(label);
 }
 
 bool invisible_button(const char* id, sol::object size_object, sol::object flags_object) {
-    if (id == nullptr) {
-        id = "";
-    }
+    id = safe_str(id);
 
     const auto size = create_imvec2(size_object);
 
@@ -109,25 +109,19 @@ bool invisible_button(const char* id, sol::object size_object, sol::object flags
 }
 
 bool arrow_button(const char* str_id, int dir) {
-    if (str_id == nullptr) {
-        str_id = "";
-    }
+    str_id = safe_str(str_id);
 
     return ImGui::ArrowButton(str_id, (ImGuiDir)dir);
 }
 
 void text(const char* text) {
-    if (text == nullptr) {
-        text = "";
-    }
+    text = safe_str(text);
 
     ImGui::TextUnformatted(text);
 }
 
 void text_colored(const char* text, unsigned int color) {
-    if (text == nullptr) {
-        text = "";
-    }
+    text = safe_str(text);
 
     auto r = color & 0xFF;
     auto g = (color >> 8) & 0xFF;
@@ -137,12 +131,15 @@ void text_colored(const char* text, unsigned int color) {
     ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, "%s", text);
 }
 
-sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
-    if (label == nullptr) {
-        label = "";
-    }
+// Shared body for the "widget returns (changed, value)" wrappers: sanitizes the
+// label, calls the underlying ImGui widget and packs {changed, value} into the
+// Lua return list. ImGuiT is the scalar type the widget takes a pointer to
+// (e.g. float for DragFloat2, which receives &v of a Vector2f).
+template <typename T, typename ImGuiT, typename... Args>
+sol::variadic_results widget_changed_value(sol::this_state s, const char* label, T v, bool (*widget)(const char*, ImGuiT*, Args...), Args... args) {
+    label = safe_str(label);
 
-    auto changed = ImGui::Checkbox(label, &v);
+    auto changed = widget(label, (ImGuiT*)&v, args...);
 
     sol::variadic_results results{};
 
@@ -150,121 +147,44 @@ sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
     results.push_back(sol::make_object(s, v));
 
     return results;
+}
+
+sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
+    return widget_changed_value(s, label, v, ImGui::Checkbox);
 }
 
 sol::variadic_results drag_float(sol::this_state s, const char* label, float v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::DragFloat(label, &v, v_speed, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::DragFloat, v_speed, v_min, v_max, display_format, 0);
 }
 
 sol::variadic_results drag_float2(sol::this_state s, const char* label, Vector2f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::DragFloat2(label, (float*)&v, v_speed, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::DragFloat2, v_speed, v_min, v_max, display_format, 0);
 }
 
 sol::variadic_results drag_float3(sol::this_state s, const char* label, Vector3f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::DragFloat3(label, (float*)&v, v_speed, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::DragFloat3, v_speed, v_min, v_max, display_format, 0);
 }
 
-
 sol::variadic_results drag_float4(sol::this_state s, const char* label, Vector4f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::DragFloat4(label, (float*)&v, v_speed, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::DragFloat4, v_speed, v_min, v_max, display_format, 0);
 }
 
 sol::variadic_results drag_int(sol::this_state s, const char* label, int v, float v_speed, int v_min, int v_max, const char* display_format = "%d") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::DragInt(label, &v, v_speed, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::DragInt, v_speed, v_min, v_max, display_format, 0);
 }
 
 sol::variadic_results slider_float(sol::this_state s, const char* label, float v, float v_min, float v_max, const char* display_format = "%.3f") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::SliderFloat(label, &v, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::SliderFloat, v_min, v_max, display_format, 0);
 }
 
-
 sol::variadic_results slider_int(sol::this_state s, const char* label, int v, int v_min, int v_max, const char* display_format = "%d") {
-    if (label == nullptr) {
-        label = "";
-    }
-
-    auto changed = ImGui::SliderInt(label, &v, v_min, v_max, display_format);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+    return widget_changed_value(s, label, v, ImGui::SliderInt, v_min, v_max, display_format, 0);
 }
 
 sol::variadic_results input_text(sol::this_state s, const char* label, const std::string& v, ImGuiInputTextFlags flags) {
     flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
 
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     static std::string buffer{""};
     buffer = v;
@@ -298,9 +218,7 @@ sol::variadic_results input_text(sol::this_state s, const char* label, const std
 sol::variadic_results input_text_multiline(sol::this_state s, const char* label, const std::string& v, sol::object size_obj, ImGuiInputTextFlags flags) {
     flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
 
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     static std::string buffer{""};
     buffer = v;
@@ -335,9 +253,7 @@ sol::variadic_results input_text_multiline(sol::this_state s, const char* label,
 
 
 sol::variadic_results combo(sol::this_state s, const char* label, sol::object selection, sol::table values) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     const char* preview_value = "";
 
@@ -382,25 +298,19 @@ sol::variadic_results combo(sol::this_state s, const char* label, sol::object se
 }
 
 bool tree_node(const char* label) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     return ImGui::TreeNode(label);
 }
 
 bool tree_node_ptr_id(const void* id, const char* label) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     return ImGui::TreeNode(id, label);
 }
 
 bool tree_node_str_id(const char* id, const char* label) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     return ImGui::TreeNode(id, label);
 }
@@ -432,9 +342,7 @@ bool is_item_focused() {
 }
 
 bool begin_window(const char* name, sol::object open_obj, ImGuiWindowFlags flags = 0) {
-    if (name == nullptr) {
-        name = "";
-    }
+    name = safe_str(name);
 
     bool open = true;
     bool* open_p = nullptr;
@@ -458,9 +366,7 @@ void end_window() {
 }
 
 bool begin_child_window(const char* name, sol::object size_obj, sol::object border_obj, ImGuiWindowFlags flags = 0) {
-    if (name == nullptr) {
-        name = "";
-    }
+    name = safe_str(name);
 
     const auto size = create_imvec2(size_obj);
     bool border{false};
@@ -679,9 +585,7 @@ sol::variadic_results color_picker_argb(sol::this_state s, const char* label, un
 }
 
 sol::variadic_results color_picker3(sol::this_state s, const char* label, Vector3f color, sol::object flags_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     ImGuiColorEditFlags flags{};
 
@@ -700,9 +604,7 @@ sol::variadic_results color_picker3(sol::this_state s, const char* label, Vector
 }
 
 sol::variadic_results color_picker4(sol::this_state s, const char* label, Vector4f color, sol::object flags_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     ImGuiColorEditFlags flags{};
 
@@ -804,9 +706,7 @@ sol::variadic_results color_edit_argb(sol::this_state s, const char* label, unsi
 }
 
 sol::variadic_results color_edit3(sol::this_state s, const char* label, Vector3f color, sol::object flags_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     ImGuiColorEditFlags flags{};
 
@@ -825,9 +725,7 @@ sol::variadic_results color_edit3(sol::this_state s, const char* label, Vector3f
 }
 
 sol::variadic_results color_edit4(sol::this_state s, const char* label, Vector4f color, sol::object flags_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     ImGuiColorEditFlags flags{};
 
@@ -958,17 +856,13 @@ void end_tooltip() {
 }
 
 void set_tooltip(const char* text) {
-    if (text == nullptr) {
-        text = "";
-    }
+    text = safe_str(text);
 
     ImGui::SetTooltip("%s", text);
 }
 
 void open_popup(const char* str_id, sol::object flags_obj) {
-    if (str_id == nullptr) {
-        str_id = "";
-    }
+    str_id = safe_str(str_id);
 
     ImGuiWindowFlags flags{0};
 
@@ -1061,9 +955,7 @@ void set_next_item_open(bool is_open, sol::object condition_obj) {
 }
 
 bool begin_list_box(const char* label, sol::object size_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     auto size = create_imvec2(size_obj);
 
@@ -1091,9 +983,7 @@ void end_main_menu_bar() {
 }
 
 bool begin_menu(const char* label, sol::object enabled_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     bool enabled{true};
 
@@ -1109,9 +999,7 @@ void end_menu() {
 }
 
 bool menu_item(const char* label, sol::object shortcut_obj, sol::object selected_obj, sol::object enabled_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     const char* shortcut{nullptr};
     bool selected{false};
@@ -1168,9 +1056,7 @@ void item_size(sol::object pos, sol::object size, sol::object text_baseline_y) {
 }
 
 bool item_add(const char* label, sol::object pos, sol::object size) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     const auto window = ImGui::GetCurrentWindow();
 
@@ -1265,17 +1151,13 @@ const char* get_clipboard() {
 }
 
 void progress_bar(float progress, sol::object size, const char* overlay ){
-    if (overlay == nullptr) {
-        overlay = "";
-    }
+    overlay = safe_str(overlay);
 
     ImGui::ProgressBar(progress, create_imvec2(size), overlay);
 }
 
 bool begin_table(const char* str_id, int column, sol::object flags_obj, sol::object outer_size_obj, sol::object inner_width_obj) {
-    if (str_id == nullptr) {
-        str_id = "";
-    }
+    str_id = safe_str(str_id);
 
     ImVec2 outer_size{};
     if (outer_size_obj.is<Vector2f>()) {
@@ -1308,9 +1190,7 @@ bool table_set_column_index(int column_index) {
 }
 
 void table_setup_column(const char* label, sol::object flags_obj, sol::object init_width_or_weight_obj, sol::object user_id_obj) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     auto flags = flags_obj.is<int>() ? flags_obj.as<int>() : 0;
     auto init_width = init_width_or_weight_obj.is<float>() ? init_width_or_weight_obj.as<float>() : 0.0f;
@@ -1328,9 +1208,7 @@ void table_headers_row() {
 }
 
 void table_header(const char* label) {
-    if (label == nullptr) {
-        label = "";
-    }
+    label = safe_str(label);
 
     ImGui::TableHeader(label);
 }
@@ -1434,97 +1312,25 @@ void set_scroll_from_pos_y(float local_y, float center_y_ratio = 0.5f) {
 
 namespace api::draw {
 std::optional<Vector2f> world_to_screen(sol::object world_pos_object) {
-    auto scene = sdk::get_current_scene();
-
-    if (scene == nullptr) {
-        return std::nullopt;
-    }
-
-    auto context = sdk::get_thread_context();
-
-    static auto scene_def = sdk::find_type_definition("via.Scene");
-    auto first_transform = sdk::call_native_func_easy<RETransform*>(scene, scene_def, "get_FirstTransform");
-
-    if (first_transform == nullptr) {
-        return std::nullopt;
-    }
-
     if (world_pos_object.is<sol::nil_t>()) {
         return std::nullopt;
     }
 
-    Vector4f world_pos{};
+    Vector3f world_pos{};
 
     if (world_pos_object.is<Vector2f>()) {
         auto& v2f = world_pos_object.as<Vector2f&>();
-        world_pos = Vector4f{v2f.x, v2f.y, 0.0f, 1.0f};
+        world_pos = Vector3f{v2f.x, v2f.y, 0.0f};
     } else if (world_pos_object.is<Vector3f>()) {
-        auto& v3f = world_pos_object.as<Vector3f&>();
-        world_pos = Vector4f{v3f.x, v3f.y, v3f.z, 1.0f};
+        world_pos = world_pos_object.as<Vector3f&>();
     } else if (world_pos_object.is<Vector4f>()) {
         auto& v4f = world_pos_object.as<Vector4f&>();
-        world_pos = Vector4f{v4f.x, v4f.y, v4f.z, v4f.w};
+        world_pos = Vector3f{v4f.x, v4f.y, v4f.z};
     } else {
         return std::nullopt;
     }
 
-    static auto transform_def = utility::re_managed_object::get_type_definition(first_transform);
-    static auto next_transform_method = transform_def->get_method("get_Next");
-    static auto get_gameobject_method = transform_def->get_method("get_GameObject");
-    static auto get_position_method = transform_def->get_method("get_Position");
-    static auto get_axisz_method = transform_def->get_method("get_AxisZ");
-    static auto math_t = sdk::find_type_definition("via.math");
-
-    auto camera = sdk::get_primary_camera();
-
-    if (camera == nullptr) {
-        return std::nullopt;
-    }
-
-    auto main_view = sdk::get_main_view();
-
-    if (main_view == nullptr) {
-        return std::nullopt;
-    }
-
-    auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
-
-    if (camera_gameobject == nullptr) {
-        return std::nullopt;
-    }
-
-    auto camera_transform = camera_gameobject->transform;
-
-    Vector4f camera_origin{};
-    get_position_method->call<void*>(&camera_origin, context, camera_transform);
-
-    camera_origin.w = 1.0f;
-
-    Vector4f camera_forward{};
-    get_axisz_method->call<void*>(&camera_forward, context, camera_transform);
-
-    camera_forward.w = 1.0f;
-
-    // Translate 2d position to 3d position (screen to world)
-    Matrix4x4f proj{}, view{};
-    float screen_size[2]{};
-    sdk::call_object_func<void*>(camera, "get_ProjectionMatrix", &proj, context, camera);
-    sdk::call_object_func<void*>(camera, "get_ViewMatrix", &view, context, camera);
-    sdk::call_object_func<void*>(main_view, "get_WindowSize", &screen_size, context, main_view);
-
-    Vector4f screen_pos{};
-
-    const auto delta = world_pos - camera_origin;
-
-    // behind camera
-    if (glm::dot(Vector3f{delta}, Vector3f{-camera_forward}) <= 0.0f) {
-        return std::nullopt;
-    }
-
-    static auto world_to_screen_method = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)"); // there are 2 of them.
-    world_to_screen_method->call<void*>(&screen_pos, context, &world_pos, &view, &proj, &screen_size);
-
-    return Vector2f{screen_pos.x, screen_pos.y};
+    return sdk::renderer::world_to_screen(world_pos);
 }
 
 void world_text(const char* text, sol::object world_pos_object, ImU32 color = 0xFFFFFFFF) {

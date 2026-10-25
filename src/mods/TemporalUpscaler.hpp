@@ -280,43 +280,34 @@ private:
     std::array<ComPtr<ID3D12Resource>, 16> m_backbuffers{};
 
     const ModToggle::Ptr m_enabled{
-        ModToggle::create(generate_name("Enabled"), true)
+        make_option<ModToggle>("Enabled", true)
     };
 
     const ModToggle::Ptr m_sharpness{
-        ModToggle::create(generate_name("SharpnessEnable"), true)
+        make_option<ModToggle>("SharpnessEnable", true)
     };
 
     const ModSlider::Ptr m_sharpness_amount{
-        ModSlider::create(generate_name("SharpnessAmount"), 0.0f, 5.0f, 0.0f)
+        make_option<ModSlider>("SharpnessAmount", 0.0f, 5.0f, 0.0f)
     };
 
     const ModToggle::Ptr m_use_native_resolution{
-        ModToggle::create(generate_name("UseNativeResolution"), false)
+        make_option<ModToggle>("UseNativeResolution", false)
     };
 
-    const ModCombo::Ptr m_upscale_quality{ 
-        ModCombo::create(generate_name("UpscaleQuality"),
-        {
+    const ModCombo::Ptr m_upscale_quality{
+        make_option<ModCombo>("UpscaleQuality",
+        std::vector<std::string>{
             "Performance",
             "Balanced",
             "Quality",
             "Ultra Performance"
-        }, (int32_t)PDPerfQualityLevel::Balanced) 
+        }, (int32_t)PDPerfQualityLevel::Balanced)
     };
 
     // Hands the swapchain backbuffer to the plugin as its destination, skipping the
     // fullscreen CopyResource. Default OFF — see on_early_present for the safety guards.
     const ModToggle::Ptr m_direct_output{
-        ModToggle::create(generate_name("DirectOutput"), false)
-    };
-
-    ValueList m_options{
-        *m_enabled,
-        *m_sharpness,
-        *m_sharpness_amount,
-        *m_use_native_resolution,
-        *m_upscale_quality,
-        *m_direct_output
+        make_option<ModToggle>("DirectOutput", false)
     };
 };

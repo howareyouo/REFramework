@@ -923,6 +923,22 @@ void* get_real_obj(sol::object obj) {
     return real_obj;
 }
 
+// Hash used to dispatch on a type's full name; enums hash by their underlying
+// type so they marshal like their primitive representation.
+static size_t type_dispatch_hash(::sdk::RETypeDefinition* data_type) {
+    if (data_type->is_enum()) {
+        auto underlying_type = data_type->get_underlying_type();
+
+        if (underlying_type != nullptr) {
+            return utility::hash(underlying_type->get_full_name());
+        }
+
+        return 0;
+    }
+
+    return utility::hash(data_type->get_full_name());
+}
+
 sol::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_type, bool from_method) {
     if (data_type != nullptr) {
         if (!data_type->is_value_type()) {
@@ -931,18 +947,7 @@ sol::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_t
             }
         }
 
-        size_t full_name_hash{};
-
-        // Slightly different logic for enums
-        if (data_type->is_enum()) {
-            auto underlying_type = data_type->get_underlying_type();
-
-            if (underlying_type != nullptr) {
-                full_name_hash = utility::hash(underlying_type->get_full_name());
-            }
-        } else {
-            full_name_hash = utility::hash(data_type->get_full_name());
-        }
+        const auto full_name_hash = type_dispatch_hash(data_type);
 
         const auto vm_obj_type = data_type->get_vm_obj_type();
 
@@ -1084,18 +1089,8 @@ sol::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_t
 
 void set_data(void* data, ::sdk::RETypeDefinition* data_type, sol::object& value) {
     if (data_type != nullptr) {
-        size_t full_name_hash{};
+        const auto full_name_hash = type_dispatch_hash(data_type);
         const auto vm_obj_type = data_type->get_vm_obj_type();
-
-        if (data_type->is_enum()) {
-            auto underlying_type = data_type->get_underlying_type();
-
-            if (underlying_type != nullptr) {
-                full_name_hash = utility::hash(underlying_type->get_full_name());
-            }
-        } else {
-            full_name_hash = utility::hash(data_type->get_full_name());
-        }
 
         // Commemorating the moment I finally added support for this
         // ....... 2 years after the Lua API was first created
@@ -2095,66 +2090,69 @@ void bindings::open_sdk(ScriptState* s) {
         "get_address", [](::sdk::Resource* res) { return (uintptr_t)res; }
     );
 
+// Members shared by every dynamic array usertype binding.
+#define DYNAMIC_ARRAY_COMMON(C, T) \
+    "as_memoryview", [](C < T >& data) {\
+        return api::sdk::MemoryView((uint8_t*)&data, sizeof(C < T >));\
+    },\
+    "empty", & C < T >::empty, \
+    "emplace", & C < T >::emplace, \
+    "pop_back", & C < T >::pop_back,\
+    "size", & C < T >::size,\
+    "get_size", & C < T >::size,\
+    "erase", & C < T >::erase,\
+    "clear", & C < T >::clear
+
+// Value-semantics accessors: elements are pushed/read/written by value.
+#define DYNAMIC_ARRAY_VALUE_ACCESS(C, T) \
+    "push_back", [](C < T >& arr, T value) { arr.push_back(value); },\
+    sol::meta_function::index, [](sol::this_state s, C < T >& arr, uint32_t i) -> sol::object {\
+        if (i >= arr.size()) { \
+            return sol::make_object(s, sol::nil); \
+        } \
+        return sol::make_object(s, arr[i]);\
+    },\
+    sol::meta_function::new_index, [](C < T >& arr, uint32_t i, T value) {\
+        if (i >= arr.size()) { \
+            return; \
+        } \
+        arr[i] = value;\
+    }
+
+// pairs iteration for arrays whose elements convert to plain Lua values.
+#define DYNAMIC_ARRAY_PAIRS(C, T) \
+    sol::meta_function::pairs, [](sol::this_state s, sol::object arr) -> sol::variadic_results {\
+        auto next = [](sol::this_state s, C < T >& arr, sol::object k) -> sol::variadic_results {\
+            uint32_t i = k.is<sol::nil_t>() ? 0 : k.as<uint32_t>()+1;\
+            sol::variadic_results results{};\
+            if (i >= arr.size()) { \
+                results.push_back(sol::make_object(s, sol::nil));\
+                results.push_back(sol::make_object(s, sol::nil));\
+                return results;\
+            } \
+            results.push_back(sol::make_object(s, i));\
+            results.push_back(sol::make_object(s, arr[i]));\
+            return results;\
+        };\
+        sol::variadic_results results{};\
+        results.push_back(sol::make_object(s, next));\
+        results.push_back(arr);\
+        results.push_back(sol::make_object(s, sol::nil));\
+        return results;\
+    }
+
 #define DYNAMIC_ARRAY_TYPE(C, T, name) \
     lua.new_usertype< C < T >>( name , \
-        "as_memoryview", [](C < T >& data) {\
-            return api::sdk::MemoryView((uint8_t*)&data, sizeof(C < T >));\
-        },\
-        "empty", & C < T >::empty, \
-        "emplace", & C < T >::emplace, \
-        "push_back", [](C < T >& arr, T value) { arr.push_back(value); },\
-        "pop_back", & C < T >::pop_back,\
-        "size", & C < T >::size,\
-        "get_size", & C < T >::size,\
-        "erase", & C < T >::erase,\
-        "clear", & C < T >::clear,\
-        sol::meta_function::index, [](sol::this_state s, C < T >& arr, uint32_t i) -> sol::object {\
-            if (i >= arr.size()) { \
-                return sol::make_object(s, sol::nil); \
-            } \
-            return sol::make_object(s, arr[i]);\
-        },\
-        sol::meta_function::new_index, [](C < T >& arr, uint32_t i, T value) {\
-            if (i >= arr.size()) { \
-                return; \
-            } \
-            arr[i] = value;\
-        },\
-        sol::meta_function::pairs, [](sol::this_state s, sol::object arr) -> sol::variadic_results {\
-            auto next = [](sol::this_state s, C < T >& arr, sol::object k) -> sol::variadic_results {\
-                uint32_t i = k.is<sol::nil_t>() ? 0 : k.as<uint32_t>()+1;\
-                sol::variadic_results results{};\
-                if (i >= arr.size()) { \
-                    results.push_back(sol::make_object(s, sol::nil));\
-                    results.push_back(sol::make_object(s, sol::nil));\
-                    return results;\
-                } \
-                results.push_back(sol::make_object(s, i));\
-                results.push_back(sol::make_object(s, arr[i]));\
-                return results;\
-            };\
-            sol::variadic_results results{};\
-            results.push_back(sol::make_object(s, next));\
-            results.push_back(arr);\
-            results.push_back(sol::make_object(s, sol::nil));\
-            return results;\
-        },\
-        sol::meta_function::length, &C< T >::size\
+        DYNAMIC_ARRAY_COMMON(C, T), \
+        DYNAMIC_ARRAY_VALUE_ACCESS(C, T), \
+        DYNAMIC_ARRAY_PAIRS(C, T), \
+        sol::meta_function::length, &C< T >::size \
     )
 
 #define DYNAMIC_ARRAY_TYPE_REF(C, T, name) \
     lua.new_usertype< C < T >>( name , \
-        "as_memoryview", [](C < T >& data) {\
-            return api::sdk::MemoryView((uint8_t*)&data, sizeof(C < T >));\
-        },\
-        "empty", & C < T >::empty, \
-        "emplace", & C < T >::emplace, \
+        DYNAMIC_ARRAY_COMMON(C, T), \
         "push_back", [](C < T >& arr, T* value) { arr.push_back(*value); },\
-        "pop_back", & C < T >::pop_back,\
-        "size", & C < T >::size,\
-        "get_size", & C < T >::size,\
-        "erase", & C < T >::erase,\
-        "clear", & C < T >::clear,\
         sol::meta_function::index, [](sol::this_state s, C < T >& arr, uint32_t i) -> sol::object {\
             if (i >= arr.size()) { \
                 return sol::make_object(s, sol::nil); \
@@ -2170,33 +2168,11 @@ void bindings::open_sdk(ScriptState* s) {
         sol::meta_function::length, &C< T >::size\
     )
 
-
 #define DYNAMIC_ARRAY_TYPE_PTR(C, T, name) \
     lua.new_usertype< C < T >>( name , \
-        "as_memoryview", [](C < T >& data) {\
-            return api::sdk::MemoryView((uint8_t*)&data, sizeof(C < T >));\
-        },\
-        "empty", & C < T >::empty, \
-        "emplace", & C < T >::emplace, \
-        "push_back", [](C < T >& arr, T value) { arr.push_back(value); },\
-        "pop_back", & C < T >::pop_back,\
-        "size", & C < T >::size,\
-        "get_size", & C < T >::size,\
-        "erase", & C < T >::erase,\
-        "clear", & C < T >::clear,\
-        sol::meta_function::index, [](sol::this_state s, C < T >& arr, uint32_t i) -> sol::object {\
-            if (i >= arr.size()) { \
-                return sol::make_object(s, sol::nil); \
-            } \
-            return sol::make_object(s, arr[i]);\
-        },\
-        sol::meta_function::new_index, [](C < T >& arr, uint32_t i, T value) {\
-            if (i >= arr.size()) { \
-                return; \
-            } \
-            arr[i] = value;\
-        },\
-        sol::meta_function::length, &C< T >::size\
+        DYNAMIC_ARRAY_COMMON(C, T), \
+        DYNAMIC_ARRAY_VALUE_ACCESS(C, T), \
+        sol::meta_function::length, &C< T >::size \
     )
 
 #define DYNAMIC_ARRAY_NOCAP_TYPE(T, name) DYNAMIC_ARRAY_TYPE(sdk::NativeArrayNoCapacity, T, name)

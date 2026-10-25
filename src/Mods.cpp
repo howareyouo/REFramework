@@ -17,31 +17,35 @@
 #include "Mods.hpp"
 
 Mods::Mods() {
-    m_mods.emplace_back(BackBufferRenderer::get());
-    m_mods.emplace_back(REFrameworkConfig::get());
+    // Order is load-bearing: BackBufferRenderer must be first to intercept the
+    // frame, REFrameworkConfig gates the UI the other mods draw into, and the
+    // rest are kept in their historical order. Braced-init-lists are guaranteed
+    // to evaluate left-to-right, so this constructs the mods in this exact order.
+    const std::shared_ptr<Mod> ordered_mods[] = {
+        BackBufferRenderer::get(),
+        REFrameworkConfig::get(),
+        IntegrityCheckBypass::get_shared_instance(),
+        MethodDatabase::get(),
+        Hooks::get(),
+        LooseFileLoader::get(),
+        TemporalUpscaler::get(),
 
-    m_mods.emplace_back(IntegrityCheckBypass::get_shared_instance());
+        // All games!!!
+        Graphics::get(),
 
-    m_mods.emplace_back(MethodDatabase::get());
-    m_mods.emplace_back(Hooks::get());
-    m_mods.emplace_back(LooseFileLoader::get());
+        std::make_shared<FreeCam>(),
+        std::make_shared<SceneMods>(),
 
+        APIProxy::get(),
+        PluginLoader::get(),
+        ScriptRunner::get(),
+    };
 
-    m_mods.emplace_back(TemporalUpscaler::get());
+    m_mods.reserve(std::size(ordered_mods));
 
-
-    // All games!!!
-    m_mods.emplace_back(Graphics::get());
-
-
-    m_mods.emplace_back(std::make_unique<FreeCam>());
-
-    m_mods.emplace_back(std::make_unique<SceneMods>());
-
-
-    m_mods.emplace_back(APIProxy::get());
-    m_mods.emplace_back(PluginLoader::get());
-    m_mods.emplace_back(ScriptRunner::get());
+    for (auto& mod : ordered_mods) {
+        m_mods.emplace_back(std::move(mod));
+    }
 
     build_dispatch_lists();
 }

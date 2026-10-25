@@ -474,93 +474,83 @@ sol::protected_function_result ScriptState::handle_protected_result(sol::protect
     return result;
 }
 
-void ScriptState::on_frame() {
+namespace {
+// Standard dispatch skeleton for script callbacks: runs body under the
+// execution mutex and reports exceptions through spew_error. `what` is the
+// message used when the exception carries no text.
+template <typename Body>
+void run_guarded(std::recursive_mutex& mux, const char* what, Body&& body) {
     try {
-        std::scoped_lock _{ m_execution_mutex };
-
-        for (auto& fn : m_on_frame_fns) {
-            handle_protected_result(fn());
-        }
+        std::scoped_lock _{ mux };
+        body();
     } catch (const std::exception& e) {
         ScriptRunner::get()->spew_error(e.what());
     } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown error in on_frame");
+        ScriptRunner::get()->spew_error(what);
     }
+}
+}
+
+void ScriptState::on_frame() {
+    run_guarded(m_execution_mutex, "Unknown error in on_frame", [this] {
+        for (auto& fn : m_on_frame_fns) {
+            handle_protected_result(fn());
+        }
+    });
 
     api::imgui::cleanup();
     api::imnodes::cleanup();
 }
 
 void ScriptState::on_draw_ui() {
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
+    run_guarded(m_execution_mutex, "Unknown error in on_draw_ui", [this] {
         for (auto& fn : m_on_draw_ui_fns) {
             handle_protected_result(fn());
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown error in on_draw_ui");
-    }
+    });
 
     api::imgui::cleanup();
     api::imnodes::cleanup();
 }
 
 void ScriptState::on_update_transform(RETransform* transform) {
-    try {
-        std::scoped_lock _{m_execution_mutex};
+    run_guarded(m_execution_mutex, "Unknown exception in on_update_transform", [this, transform] {
         auto it = m_on_update_transform_fns.find(transform);
         if (it != m_on_update_transform_fns.end()) {
             handle_protected_result(it->second(transform));
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_update_transform");
-    }
+    });
 }
 
 void ScriptState::on_pre_application_entry(size_t hash) {
-    try {
-        if (m_pre_application_entry_fns.empty()) {
-            return;
-        }
-
-        auto range = m_pre_application_entry_fns.equal_range(hash);
-
-        if (range.first != range.second) {
-            std::scoped_lock _{ m_execution_mutex };
-
-            for (auto it = range.first; it != range.second; ++it) {
-                handle_protected_result(it->second());
-            }
-        }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_pre_application_entry");
+    if (m_pre_application_entry_fns.empty()) {
+        return;
     }
+
+    auto range = m_pre_application_entry_fns.equal_range(hash);
+
+    if (range.first == range.second) {
+        return;
+    }
+
+    run_guarded(m_execution_mutex, "Unknown exception in on_pre_application_entry", [&range, this] {
+        for (auto it = range.first; it != range.second; ++it) {
+            handle_protected_result(it->second());
+        }
+    });
 }
 
 void ScriptState::on_application_entry(size_t hash) {
-    try {
-        if (!m_application_entry_fns.empty()) {
-            auto range = m_application_entry_fns.equal_range(hash);
+    if (!m_application_entry_fns.empty()) {
+        auto range = m_application_entry_fns.equal_range(hash);
 
-            if (range.first != range.second) {
-                std::scoped_lock _{ m_execution_mutex };
-
+        if (range.first != range.second) {
+            run_guarded(m_execution_mutex, "Unknown exception in on_application_entry", [&range, this] {
                 for (auto it = range.first; it != range.second; ++it) {
                     handle_protected_result(it->second());
                 }
-            }
+            });
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_application_entry");
     }
 
     if (hash == "EndRendering"_fnv && m_gc_data.gc_handler == ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED) {
@@ -573,7 +563,7 @@ void ScriptState::on_application_entry(size_t hash) {
             case ScriptState::GarbageCollectionType::FULL:
                 lua_gc(m_lua, LUA_GCCOLLECT);
                 break;
-            case ScriptState::GarbageCollectionType::STEP: 
+            case ScriptState::GarbageCollectionType::STEP:
                 {
                     const auto now = std::chrono::high_resolution_clock::now();
 
@@ -602,19 +592,13 @@ bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* contex
 
     bool any_false = false;
 
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
+    run_guarded(m_execution_mutex, "Unknown exception in on_pre_gui_draw_element", [&] {
         for (auto& fn : m_pre_gui_draw_element_fns) {
             if (sol::object result = handle_protected_result(fn(gui_element, context)); !result.is<sol::nil_t>() && result.is<bool>() && result.as<bool>() == false) {
                 any_false = true;
             }
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_pre_gui_draw_element");
-    }
+    });
 
     return !any_false;
 }
@@ -624,47 +608,32 @@ void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
         return;
     }
 
-    try {
-        std::scoped_lock _{ m_execution_mutex };
-
+    run_guarded(m_execution_mutex, "Unknown exception in on_gui_draw_element", [this, gui_element, context] {
         for (auto& fn : m_gui_draw_element_fns) {
             handle_protected_result(fn(gui_element, context));
         }
-    } catch (const std::exception& e) {
-        ScriptRunner::get()->spew_error(e.what());
-    } catch (...) {
-        ScriptRunner::get()->spew_error("Unknown exception in on_gui_draw_element");
-    }
+    });
 }
 
-void ScriptState::on_script_reset() try {
-    std::scoped_lock _{ m_execution_mutex };
+void ScriptState::on_script_reset() {
+    run_guarded(m_execution_mutex, "Unknown exception in on_script_reset", [this] {
+        // We first call on_config_save functions so scripts can save prior to reset.
+        for (auto& fn : m_on_config_save_fns) {
+            handle_protected_result(fn());
+        }
 
-    // We first call on_config_save functions so scripts can save prior to reset.
-    for (auto& fn : m_on_config_save_fns) {
-        handle_protected_result(fn());
-    }
-
-    for (auto& fn : m_on_script_reset_fns) {
-        handle_protected_result(fn());
-    }
-} catch (const std::exception& e) {
-    ScriptRunner::get()->spew_error(e.what());
-} catch (...) {
-    ScriptRunner::get()->spew_error("Unknown exception in on_script_reset");
+        for (auto& fn : m_on_script_reset_fns) {
+            handle_protected_result(fn());
+        }
+    });
 }
 
-void ScriptState::on_config_save() try {
-    std::scoped_lock _{ m_execution_mutex };
-
-    for (auto& fn : m_on_config_save_fns) {
-        handle_protected_result(fn());
-    }
-}
-catch (const std::exception& e) {
-    ScriptRunner::get()->spew_error(e.what());
-} catch (...) {
-    ScriptRunner::get()->spew_error("Unknown exception in on_config_save");
+void ScriptState::on_config_save() {
+    run_guarded(m_execution_mutex, "Unknown exception in on_config_save", [this] {
+        for (auto& fn : m_on_config_save_fns) {
+            handle_protected_result(fn());
+        }
+    });
 }
 
 void ScriptState::add_hook(
@@ -885,10 +854,6 @@ void ScriptState::gc_data_changed(GarbageCollectionData data) {
 std::shared_ptr<ScriptRunner>& ScriptRunner::get() {
     static auto instance = std::make_shared<ScriptRunner>();
     return instance;
-}
-
-std::optional<std::string> ScriptRunner::on_initialize() {
-    return Mod::on_initialize();
 }
 
 void ScriptRunner::on_config_load(const utility::Config& cfg) {

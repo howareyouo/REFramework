@@ -109,6 +109,11 @@ public:
     HookId add(sdk::REMethodDefinition* fn, PreHookFn pre_fn, PostHookFn post_fn, bool ignore_jmp = false);
     HookId add_vtable(::REManagedObject* obj, sdk::REMethodDefinition* fn, PreHookFn pre_fn, PostHookFn post_fn);
 
+    // Convenience overload for hooks that only need a pre callback.
+    HookId add(sdk::REMethodDefinition* fn, PreHookFn pre_fn, bool ignore_jmp = false) {
+        return add(fn, std::move(pre_fn), nullptr, ignore_jmp);
+    }
+
     struct EitherOr {
         ::REManagedObject* obj{nullptr};
         sdk::REMethodDefinition* fn{nullptr};

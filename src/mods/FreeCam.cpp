@@ -314,20 +314,26 @@ void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t has
                 return;
             }
 
-            auto standard_skip_pre_fn = [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
-                if (!m_enabled->value() || !m_disable_movement->value()) {
+            // PlayerBodyUpdater methods receive the component in args[1]; ValueType-receiving
+            // methods like getPastFrameMoveDirVec push it to args[2].
+            auto make_standard_skip_pre_fn = [this](size_t comp_arg_index) {
+                return [this, comp_arg_index](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+                    if (!m_enabled->value() || !m_disable_movement->value()) {
+                        return HookManager::PreHookResult::CALL_ORIGINAL;
+                    }
+
+                    const auto comp = (REComponent*)args[comp_arg_index];
+                    const auto owner = utility::re_component::get_game_object(comp);
+
+                    if (owner == m_re4_body) {
+                        return HookManager::PreHookResult::SKIP_ORIGINAL;
+                    }
+
                     return HookManager::PreHookResult::CALL_ORIGINAL;
-                }
-
-                const auto comp = (REComponent*)args[1];
-                const auto owner = utility::re_component::get_game_object(comp);
-
-                if (owner == m_re4_body) {
-                    return HookManager::PreHookResult::SKIP_ORIGINAL;
-                }
-
-                return HookManager::PreHookResult::CALL_ORIGINAL;
+                };
             };
+
+            const auto standard_skip_pre_fn = make_standard_skip_pre_fn(1);
 
             if (!m_player_body_updater_hook.attempted_hook) {
                 m_player_body_updater_hook.attempted_hook = true;
@@ -342,41 +348,15 @@ void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t has
                 const auto get_past_frame_move_dir_fn = player_body_updater_t->get_method("getPastFrameMoveDirVec");
 
                 if (update_fn != nullptr) {
-                    m_player_body_updater_hook.update_id = g_hookman.add(update_fn,
-                        standard_skip_pre_fn,
-                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                        }
-                    );
+                    m_player_body_updater_hook.update_id = g_hookman.add(update_fn, standard_skip_pre_fn);
                 }
 
                 if (late_update_fn != nullptr) {
-                    m_player_body_updater_hook.late_update_id = g_hookman.add(late_update_fn,
-                        standard_skip_pre_fn,
-                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                        }
-                    );
+                    m_player_body_updater_hook.late_update_id = g_hookman.add(late_update_fn, standard_skip_pre_fn);
                 }
 
                 if (get_past_frame_move_dir_fn != nullptr) {
-                    m_player_body_updater_hook.get_past_move_frame_move_dir_vec_id = g_hookman.add(get_past_frame_move_dir_fn,
-                        [this](std::vector<uintptr_t>& args, std::vector<sdk::RETypeDefinition*>& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
-                            if (!m_enabled->value() || !m_disable_movement->value()) {
-                                return HookManager::PreHookResult::CALL_ORIGINAL;
-                            }
-
-                            // The component is in arg2 because ValueTypes push everything to the right
-                            const auto comp = (REComponent*)args[2];
-                            const auto owner = utility::re_component::get_game_object(comp);
-
-                            if (owner == m_re4_body) {
-                                return HookManager::PreHookResult::SKIP_ORIGINAL;
-                            }
-
-                            return HookManager::PreHookResult::CALL_ORIGINAL;
-                        },
-                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                        }
-                    );
+                    m_player_body_updater_hook.get_past_move_frame_move_dir_vec_id = g_hookman.add(get_past_frame_move_dir_fn, make_standard_skip_pre_fn(2));
                 }
             }
 
@@ -391,11 +371,7 @@ void FreeCam::on_pre_application_entry(void* entry, const char* name, size_t has
                 const auto change_motion_internal_fn = player_motion_controller_t->get_method("changeMotionInternal");
 
                 if (change_motion_internal_fn != nullptr) {
-                    m_player_motion_controller_hook.change_motion_internal_id = g_hookman.add(change_motion_internal_fn,
-                        standard_skip_pre_fn,
-                        [this](uintptr_t& ret_val, sdk::RETypeDefinition* ret_ty, uintptr_t ret_addr) {
-                        }
-                    );
+                    m_player_motion_controller_hook.change_motion_internal_id = g_hookman.add(change_motion_internal_fn, standard_skip_pre_fn);
                 }
             }
         }

@@ -111,7 +111,7 @@ private:
     void directstorage_open_pak_hook(safetyhook::Context& context);
     void correct_pak_load_path(safetyhook::Context& context, int register_index);
 
-    const ModToggle::Ptr m_load_pak_directory{ ModToggle::create(generate_name("LoadPakDirectory"), true) };
+    const ModToggle::Ptr m_load_pak_directory{ make_option<ModToggle>("LoadPakDirectory", true) };
 
     static inline std::vector<safetyhook::MidHook> s_before_create_file_w_hooks{};
     static inline safetyhook::MidHook s_directstorage_open_pak_hook{};
@@ -120,9 +120,5 @@ private:
     std::vector<std::wstring> m_custom_pak_in_directory_paths{};
     bool m_custom_pak_in_directory_paths_cached{ false };
     std::wregex m_sub_patch_scan_regex{SUB_PATCH_SCAN_REGEX, std::regex::ECMAScript};
-
-    ValueList m_options{
-        *m_load_pak_directory
-    };
 #pragma endregion 
 };

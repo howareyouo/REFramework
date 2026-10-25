@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <utility>
 
 #include <imgui.h>
 #include <sol/sol.hpp>
@@ -443,6 +444,10 @@ class Mod {
 protected:
     using ValueList = std::vector<std::reference_wrapper<IModValue>>;
 
+    // Options registered through make_option, in member declaration order.
+    // Config load/save iterates this list.
+    ValueList m_options{};
+
 public:
     using Component = Mod;
 
@@ -476,7 +481,20 @@ public:
     virtual void on_config_load(const utility::Config& cfg) {};
     virtual void on_config_save(utility::Config& cfg) {};
 
-    // Helper for subclasses that have a `ValueList m_options` member.
+    // Constructs an option for this mod from its config key suffix and registers
+    // it for config load/save in one step, so the option list can't drift out of
+    // sync with the declared members. Use it in a member initializer:
+    //   const ModToggle::Ptr m_enabled{ make_option<ModToggle>("Enabled", false) };
+    // Note: braced option lists must be spelled as std::vector<std::string>{...}
+    // because template arguments cannot be deduced from a bare braced-init-list.
+    template <typename T, typename... Args>
+    auto make_option(std::string_view key, Args&&... args) {
+        auto option = T::create(generate_name(key), std::forward<Args>(args)...);
+        m_options.push_back(*option);
+        return option;
+    }
+
+    // Helper for subclasses that persist options through m_options.
     // Call this from on_config_load/on_config_save to iterate all options.
     void config_load_options(const utility::Config& cfg, ValueList& options) {
         for (IModValue& option : options) {

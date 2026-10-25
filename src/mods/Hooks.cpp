@@ -1,5 +1,6 @@
 #include "Mods.hpp"
 #include "REFramework.hpp"
+#include <type_traits>
 #include <utility/Scan.hpp>
 #include <utility/Module.hpp>
 #include <utility/String.hpp>
@@ -82,6 +83,39 @@ LAYER_HOOK_BODY(prepare_output, PrepareOutput, update);
 LAYER_HOOK_BODY(prepare_output, PrepareOutput, draw);
 LAYER_HOOK_BODY(output, Output, update);
 LAYER_HOOK_BODY(output, Output, draw);
+
+namespace {
+// Standard mod-dispatch skeleton for hooked functions: while the framework is
+// not ready it forwards straight to the original; afterwards every mod's pre
+// callback runs, then the original, then every mod's post callback. The
+// callbacks receive the Mod& so adapters can forward whichever arguments the
+// corresponding Mod virtuals take.
+template <typename Ret, typename Original, typename Pre, typename Post>
+Ret dispatch_mods(Original&& original, Pre&& pre_cb, Post&& post_cb) {
+    if (!g_framework->is_ready()) {
+        return original();
+    }
+
+    const auto& mods = g_framework->get_mods()->get_mods();
+
+    for (auto& mod : mods) {
+        pre_cb(*mod);
+    }
+
+    if constexpr (std::is_void_v<Ret>) {
+        original();
+        for (auto& mod : mods) {
+            post_cb(*mod);
+        }
+    } else {
+        auto ret = original();
+        for (auto& mod : mods) {
+            post_cb(*mod);
+        }
+        return ret;
+    }
+}
+} // namespace
 
 std::optional<std::string> Hooks::hook_update_transform() {
     auto game = g_framework->get_module().as<HMODULE>();
@@ -550,23 +584,11 @@ void* Hooks::update_transform_hook(RETransform* t, uint8_t a2, uint32_t a3) {
 }
 
 void* Hooks::update_camera_controller_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
-    if (!g_framework->is_ready()) {
-        return m_update_camera_controller_hook->get_original<decltype(update_camera_controller_hook)>()(a1, camera_controller);
-    }
-
-    auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_update_camera_controller(camera_controller);
-    }
-
-    auto ret = m_update_camera_controller_hook->get_original<decltype(update_camera_controller_hook)>()(a1, camera_controller);
-
-    for (auto& mod : mods) {
-        mod->on_update_camera_controller(camera_controller);
-    }
-
-    return ret;
+    return dispatch_mods<void*>(
+        [this, a1, camera_controller] { return m_update_camera_controller_hook->get_original<decltype(update_camera_controller_hook)>()(a1, camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller(camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_update_camera_controller(camera_controller); }
+    );
 }
 
 void* Hooks::update_camera_controller_hook(void* a1, RopewayPlayerCameraController* camera_controller) {
@@ -574,23 +596,11 @@ void* Hooks::update_camera_controller_hook(void* a1, RopewayPlayerCameraControll
 }
 
 void* Hooks::update_camera_controller2_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
-    if (!g_framework->is_ready()) {
-        return m_update_camera_controller2_hook->get_original<decltype(update_camera_controller2_hook)>()(a1, camera_controller);
-    }
-
-    auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_update_camera_controller2(camera_controller);
-    }
-
-    auto ret = m_update_camera_controller2_hook->get_original<decltype(update_camera_controller2_hook)>()(a1, camera_controller);
-
-    for (auto& mod : mods) {
-        mod->on_update_camera_controller2(camera_controller);
-    }
-
-    return ret;
+    return dispatch_mods<void*>(
+        [this, a1, camera_controller] { return m_update_camera_controller2_hook->get_original<decltype(update_camera_controller2_hook)>()(a1, camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller2(camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_update_camera_controller2(camera_controller); }
+    );
 }
 
 void* Hooks::update_camera_controller2_hook(void* a1, RopewayPlayerCameraController* camera_controller) {
@@ -632,23 +642,11 @@ void* Hooks::gui_draw_hook(REComponent* gui_element, void* primitive_context) {
 }
 
 void Hooks::update_before_lock_scene_hook_internal(void* ctx) {
-    auto original = m_update_before_lock_scene_hook->get_original<decltype(update_before_lock_scene_hook)>();
-
-    if (!g_framework->is_ready()) {
-        return original(ctx);
-    }
-
-    auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_update_before_lock_scene(ctx);
-    }
-
-    original(ctx);
-
-    for (auto& mod : mods) {
-        mod->on_update_before_lock_scene(ctx);
-    }
+    dispatch_mods<void>(
+        [this, ctx] { m_update_before_lock_scene_hook->get_original<decltype(update_before_lock_scene_hook)>()(ctx); },
+        [ctx](Mod& mod) { mod.on_pre_update_before_lock_scene(ctx); },
+        [ctx](Mod& mod) { mod.on_update_before_lock_scene(ctx); }
+    );
 }
 
 void Hooks::update_before_lock_scene_hook(void* ctx) {
@@ -656,23 +654,11 @@ void Hooks::update_before_lock_scene_hook(void* ctx) {
 }
 
 void Hooks::lightshaft_draw_hook_internal(void* shaft, void* render_context) {
-    auto original = m_lightshaft_draw_hook->get_original<decltype(lightshaft_draw_hook)>();
-
-    if (!g_framework->is_ready()) {
-        return original(shaft, render_context);
-    }
-
-    auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_lightshaft_draw(shaft, render_context);
-    }
-
-    original(shaft, render_context);
-
-    for (auto& mod : mods) {
-        mod->on_lightshaft_draw(shaft, render_context);
-    }
+    dispatch_mods<void>(
+        [this, shaft, render_context] { m_lightshaft_draw_hook->get_original<decltype(lightshaft_draw_hook)>()(shaft, render_context); },
+        [shaft, render_context](Mod& mod) { mod.on_pre_lightshaft_draw(shaft, render_context); },
+        [shaft, render_context](Mod& mod) { mod.on_lightshaft_draw(shaft, render_context); }
+    );
 }
 
 void Hooks::lightshaft_draw_hook(void* shaft, void* render_context) {
@@ -720,25 +706,11 @@ void Hooks::global_application_entry_hook(void* entry, const char* name, size_t 
 }
 
 float* Hooks::view_get_size_hook_internal(REManagedObject* scene_view, float* result) {
-    if (!g_framework->is_ready()) {
-        return m_view_get_size_hook->get_original<decltype(view_get_size_hook)>()(scene_view, result);
-    }
-
-    const auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_view_get_size(scene_view, result);
-    }
-
-    auto original = m_view_get_size_hook->get_original<decltype(view_get_size_hook)>();
-
-    auto ret = original(scene_view, result);
-
-    for (auto& mod : mods) {
-        mod->on_view_get_size(scene_view, result);
-    }
-
-    return ret;
+    return dispatch_mods<float*>(
+        [this, scene_view, result] { return m_view_get_size_hook->get_original<decltype(view_get_size_hook)>()(scene_view, result); },
+        [scene_view, result](Mod& mod) { mod.on_pre_view_get_size(scene_view, result); },
+        [scene_view, result](Mod& mod) { mod.on_view_get_size(scene_view, result); }
+    );
 }
 
 float* Hooks::view_get_size_hook(REManagedObject* scene_view, float* result) {
@@ -746,25 +718,11 @@ float* Hooks::view_get_size_hook(REManagedObject* scene_view, float* result) {
 }
 
 Matrix4x4f* Hooks::camera_get_projection_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result) {
-    if (!g_framework->is_ready()) {
-        return m_camera_get_projection_matrix_hook->get_original<decltype(camera_get_projection_matrix_hook)>()(camera, result);
-    }
-
-    const auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_camera_get_projection_matrix(camera, result);
-    }
-
-    auto original = m_camera_get_projection_matrix_hook->get_original<decltype(camera_get_projection_matrix_hook)>();
-
-    auto ret = original(camera, result);
-
-    for (auto& mod : mods) {
-        mod->on_camera_get_projection_matrix(camera, result);
-    }
-
-    return ret;
+    return dispatch_mods<Matrix4x4f*>(
+        [this, camera, result] { return m_camera_get_projection_matrix_hook->get_original<decltype(camera_get_projection_matrix_hook)>()(camera, result); },
+        [camera, result](Mod& mod) { mod.on_pre_camera_get_projection_matrix(camera, result); },
+        [camera, result](Mod& mod) { mod.on_camera_get_projection_matrix(camera, result); }
+    );
 }
 
 Matrix4x4f* Hooks::camera_get_projection_matrix_hook(REManagedObject* camera, Matrix4x4f* result) {
@@ -772,25 +730,11 @@ Matrix4x4f* Hooks::camera_get_projection_matrix_hook(REManagedObject* camera, Ma
 }
 
 Matrix4x4f* Hooks::camera_get_view_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result) {
-    if (!g_framework->is_ready()) {
-        return m_camera_get_view_matrix_hook->get_original<decltype(camera_get_view_matrix_hook)>()(camera, result);
-    }
-
-    const auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
-        mod->on_pre_camera_get_view_matrix(camera, result);
-    }
-
-    auto original = m_camera_get_view_matrix_hook->get_original<decltype(camera_get_view_matrix_hook)>();
-
-    auto ret = original(camera, result);
-
-    for (auto& mod : mods) {
-        mod->on_camera_get_view_matrix(camera, result);
-    }
-
-    return ret;
+    return dispatch_mods<Matrix4x4f*>(
+        [this, camera, result] { return m_camera_get_view_matrix_hook->get_original<decltype(camera_get_view_matrix_hook)>()(camera, result); },
+        [camera, result](Mod& mod) { mod.on_pre_camera_get_view_matrix(camera, result); },
+        [camera, result](Mod& mod) { mod.on_camera_get_view_matrix(camera, result); }
+    );
 }
 
 Matrix4x4f* Hooks::camera_get_view_matrix_hook(REManagedObject* camera, Matrix4x4f* result) {
