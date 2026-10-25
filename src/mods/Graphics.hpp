@@ -156,32 +156,32 @@ private:
         std::chrono::steady_clock::time_point last_inventory_open{};
     } m_re4;
     
-    const ModToggle::Ptr m_ultrawide_fix{ ModToggle::create(generate_name("UltrawideFix"), false) };
+    const ModToggle::Ptr m_ultrawide_fix{ make_option<ModToggle>("UltrawideFix", false) };
 #ifdef MHWILDS
-    const ModToggle::Ptr m_ultrawide_vertical_fov{ ModToggle::create(generate_name("UltrawideFixVerticalFOV_V2"), true) };
-    const ModSlider::Ptr m_ultrawide_ui_correction{ ModSlider::create(generate_name("UltrawideUICorrection"), 0.0f, 100.0f, 100.0f) };
+    const ModToggle::Ptr m_ultrawide_vertical_fov{ make_option<ModToggle>("UltrawideFixVerticalFOV_V2", true) };
+    const ModSlider::Ptr m_ultrawide_ui_correction{ make_option<ModSlider>("UltrawideUICorrection", 0.0f, 100.0f, 100.0f) };
 #else
-    const ModToggle::Ptr m_ultrawide_vertical_fov{ ModToggle::create(generate_name("UltrawideFixVerticalFOV_V2"), false) };
+    const ModToggle::Ptr m_ultrawide_vertical_fov{ make_option<ModToggle>("UltrawideFixVerticalFOV_V2", false) };
 #endif
 
     // There is a trend with newer games where there actually is Ultrawide support, so we don't want to actually touch the FOV by default
     // And sometimes messing with the FOV causes permanent issues with the UI, so don't touch it by default
 #if TDB_VER >= 73
-    const ModToggle::Ptr m_ultrawide_custom_fov{ModToggle::create(generate_name("UltrawideCustomFOV"), true)};
+    const ModToggle::Ptr m_ultrawide_custom_fov{ make_option<ModToggle>("UltrawideCustomFOV", true) };
 #else
-    const ModToggle::Ptr m_ultrawide_custom_fov{ModToggle::create(generate_name("UltrawideCustomFOV"), false)};
+    const ModToggle::Ptr m_ultrawide_custom_fov{ make_option<ModToggle>("UltrawideCustomFOV", false) };
 #endif
 
-    const ModToggle::Ptr m_ultrawide_constrain_ui{ModToggle::create(generate_name("UltrawideConstrainUI"), false)};
-    const ModToggle::Ptr m_ultrawide_constrain_child_ui{ModToggle::create(generate_name("UltrawideConstrainChildUI"), false)};
-    const ModSlider::Ptr m_ultrawide_fov_multiplier{ ModSlider::create(generate_name("UltrawideFOVMultiplier_V2"), 0.01f, 3.0f, 1.0f) };
-    const ModToggle::Ptr m_disable_gui{ ModToggle::create(generate_name("DisableGUI"), false) };
-    const ModToggle::Ptr m_force_render_res_to_window{ ModToggle::create(generate_name("ForceRenderResToWindow"), false) };
-    const ModKey::Ptr m_disable_gui_key{ ModKey::create(generate_name("DisableGUIKey")) };
+    const ModToggle::Ptr m_ultrawide_constrain_ui{make_option<ModToggle>("UltrawideConstrainUI", false)};
+    const ModToggle::Ptr m_ultrawide_constrain_child_ui{make_option<ModToggle>("UltrawideConstrainChildUI", false)};
+    const ModSlider::Ptr m_ultrawide_fov_multiplier{ make_option<ModSlider>("UltrawideFOVMultiplier_V2", 0.01f, 3.0f, 1.0f) };
+    const ModToggle::Ptr m_disable_gui{ make_option<ModToggle>("DisableGUI", false) };
+    const ModToggle::Ptr m_force_render_res_to_window{ make_option<ModToggle>("ForceRenderResToWindow", false) };
+    const ModKey::Ptr m_disable_gui_key{ make_option<ModKey>("DisableGUIKey") };
 
 #if TDB_VER >= 69
-    const ModToggle::Ptr m_shader_playground { ModToggle::create(generate_name("ShaderPlayground"), false) };
-    const ModToggle::Ptr m_ray_tracing_tweaks { ModToggle::create(generate_name("RayTracingTweaks"), false) };
+    const ModToggle::Ptr m_shader_playground { make_option<ModToggle>("ShaderPlayground", false) };
+    const ModToggle::Ptr m_ray_tracing_tweaks { make_option<ModToggle>("RayTracingTweaks", false) };
 
     /*enum class RayTraceType : uint8_t {
         Disabled = 0,
@@ -224,22 +224,22 @@ private:
         "4"
     };
 
-    const ModCombo::Ptr m_ray_trace_type{ ModCombo::create(generate_name("RayTraceType"), s_ray_trace_type) };
-    const ModToggle::Ptr m_ray_trace_disable_raster_shadows{ ModToggle::create(generate_name("RayTraceDisableRasterShadowsWithPT"), true) };
-    const ModToggle::Ptr m_ray_trace_always_recreate_rt_component{ ModToggle::create(generate_name("RayTraceAlwaysRecreateRTComponent"), false) };
+    const ModCombo::Ptr m_ray_trace_type{ make_option<ModCombo>("RayTraceType", s_ray_trace_type) };
+    const ModToggle::Ptr m_ray_trace_disable_raster_shadows{ make_option<ModToggle>("RayTraceDisableRasterShadowsWithPT", true) };
+    const ModToggle::Ptr m_ray_trace_always_recreate_rt_component{ make_option<ModToggle>("RayTraceAlwaysRecreateRTComponent", false) };
     bool m_was_shadows_disabled{ false };
-    const ModCombo::Ptr m_ray_trace_clone_type_true{ ModCombo::create(generate_name("RayTraceTrueCloneType"), s_ray_trace_type) };
-    const ModCombo::Ptr m_ray_trace_clone_type_pre{ ModCombo::create(generate_name("RayTraceCloneTypePre"), s_ray_trace_type) };
-    const ModCombo::Ptr m_ray_trace_clone_type_post{ ModCombo::create(generate_name("RayTraceCloneTypePost"), s_ray_trace_type) };
+    const ModCombo::Ptr m_ray_trace_clone_type_true{ make_option<ModCombo>("RayTraceTrueCloneType", s_ray_trace_type) };
+    const ModCombo::Ptr m_ray_trace_clone_type_pre{ make_option<ModCombo>("RayTraceCloneTypePre", s_ray_trace_type) };
+    const ModCombo::Ptr m_ray_trace_clone_type_post{ make_option<ModCombo>("RayTraceCloneTypePost", s_ray_trace_type) };
 
-    const ModCombo::Ptr m_bounce_count{ ModCombo::create(generate_name("BounceCount"), s_bounce_count, 1) };
-    const ModCombo::Ptr m_samples_per_pixel{ ModCombo::create(generate_name("SamplesPerPixel"), s_samples_per_pixel, 1) };
+    const ModCombo::Ptr m_bounce_count{ make_option<ModCombo>("BounceCount", s_bounce_count, 1) };
+    const ModCombo::Ptr m_samples_per_pixel{ make_option<ModCombo>("SamplesPerPixel", s_samples_per_pixel, 1) };
 #endif
 
 #ifdef RE4
-    const ModToggle::Ptr m_scope_tweaks{ ModToggle::create(generate_name("ScopeTweaks"), false) };
-    const ModToggle::Ptr m_scope_interlaced_rendering{ ModToggle::create(generate_name("ScopeInterlacedRendering"), false) };
-    const ModSlider::Ptr m_scope_image_quality{ ModSlider::create(generate_name("ScopeImageQuality"), 0.01f, 2.0f, 1.0f) };
+    const ModToggle::Ptr m_scope_tweaks{ make_option<ModToggle>("ScopeTweaks", false) };
+    const ModToggle::Ptr m_scope_interlaced_rendering{ make_option<ModToggle>("ScopeInterlacedRendering", false) };
+    const ModSlider::Ptr m_scope_image_quality{ make_option<ModSlider>("ScopeImageQuality", 0.01f, 2.0f, 1.0f) };
 #endif
 
     // Atomics so the present thread can write them without holding a mutex
@@ -247,39 +247,4 @@ private:
     std::atomic<uint32_t> m_backbuffer_width{0};
     std::atomic<uint32_t> m_backbuffer_height{0};
 
-    ValueList m_options{
-        *m_ultrawide_fix,
-        *m_ultrawide_vertical_fov,
-        *m_ultrawide_custom_fov,
-        *m_ultrawide_constrain_ui,
-        *m_ultrawide_constrain_child_ui,
-#ifdef MHWILDS
-        *m_ultrawide_ui_correction,
-#endif
-
-
-        *m_ultrawide_fov_multiplier,
-        *m_disable_gui,
-        *m_force_render_res_to_window,
-        *m_disable_gui_key,
-
-#if TDB_VER >= 69
-        *m_shader_playground,
-        *m_ray_tracing_tweaks,
-        *m_ray_trace_type,
-        *m_ray_trace_disable_raster_shadows,
-        *m_ray_trace_always_recreate_rt_component,
-        *m_ray_trace_clone_type_true,
-        *m_ray_trace_clone_type_pre,
-        *m_ray_trace_clone_type_post,
-        *m_bounce_count,
-        *m_samples_per_pixel,
-#endif
-
-#ifdef RE4
-        *m_scope_tweaks,
-        *m_scope_interlaced_rendering,
-        *m_scope_image_quality,
-#endif
-    };
 };

@@ -20,47 +20,59 @@
 #include "Mods.hpp"
 
 Mods::Mods() {
-    m_mods.emplace_back(BackBufferRenderer::get());
-    m_mods.emplace_back(REFrameworkConfig::get());
+    // Order is load-bearing: BackBufferRenderer must be first to intercept the
+    // frame, REFrameworkConfig gates the UI the other mods draw into, and the
+    // rest are kept in their historical order. Braced-init-lists are guaranteed
+    // to evaluate left-to-right, so this constructs the mods in this exact order.
+    const std::shared_ptr<Mod> ordered_mods[] = {
+        BackBufferRenderer::get(),
+        REFrameworkConfig::get(),
 
 #if defined(REENGINE_AT)
-    m_mods.emplace_back(IntegrityCheckBypass::get_shared_instance());
+        IntegrityCheckBypass::get_shared_instance(),
 #endif
 
 #ifndef BAREBONES
-    m_mods.emplace_back(MethodDatabase::get());
-    m_mods.emplace_back(Hooks::get());
-    m_mods.emplace_back(LooseFileLoader::get());
+        MethodDatabase::get(),
+        Hooks::get(),
+        LooseFileLoader::get(),
 
 #if defined(MHWILDS)
-    m_mods.emplace_back(FaultyFileDetector::get());
+        FaultyFileDetector::get(),
 #endif
 
-    m_mods.emplace_back(TemporalUpscaler::get());
+        TemporalUpscaler::get(),
 
 #if defined(RE8) || defined(RE7)
-    m_mods.emplace_back(RE8VR::get());
+        RE8VR::get(),
 #endif
 
-    // All games!!!
-    m_mods.emplace_back(Camera::get());
-    m_mods.emplace_back(Graphics::get());
+        // All games!!!
+        Camera::get(),
+        Graphics::get(),
 
 #if defined(RE2) || defined(RE3) || defined(RE8)
-    m_mods.emplace_back(std::make_unique<ManualFlashlight>());
+        std::make_shared<ManualFlashlight>(),
 #endif
 
-    m_mods.emplace_back(std::make_unique<FreeCam>());
+        std::make_shared<FreeCam>(),
 
 #if TDB_VER > 49
-    m_mods.emplace_back(std::make_unique<SceneMods>());
+        std::make_shared<SceneMods>(),
 #endif
 
 #endif
 
-    m_mods.emplace_back(APIProxy::get());
-    m_mods.emplace_back(PluginLoader::get());
-    m_mods.emplace_back(ScriptRunner::get());
+        APIProxy::get(),
+        PluginLoader::get(),
+        ScriptRunner::get(),
+    };
+
+    m_mods.reserve(std::size(ordered_mods));
+
+    for (auto& mod : ordered_mods) {
+        m_mods.emplace_back(std::move(mod));
+    }
 
     build_dispatch_lists();
 }

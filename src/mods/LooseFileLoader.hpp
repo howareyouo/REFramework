@@ -60,18 +60,12 @@ private:
 
     std::unique_ptr<FunctionHook> m_path_to_hash_hook{nullptr};
 
-    ModToggle::Ptr m_enabled{ ModToggle::create(generate_name("Enabled")) };
-    ModToggle::Ptr m_log_accessed_files{ ModToggle::create(generate_name("LogAccessedFiles")) };
-    ModToggle::Ptr m_log_loose_files{ ModToggle::create(generate_name("LogLooseFiles")) };
+    ModToggle::Ptr m_enabled{ make_option<ModToggle>("Enabled") };
+    ModToggle::Ptr m_log_accessed_files{ make_option<ModToggle>("LogAccessedFiles") };
+    ModToggle::Ptr m_log_loose_files{ make_option<ModToggle>("LogLooseFiles") };
     bool m_show_recent_files{false}; // Not persistent because its for dev purposes
     bool m_enable_file_cache{true};
 
     std::shared_ptr<spdlog::logger> m_logger{nullptr};
     std::shared_ptr<spdlog::logger> m_loose_file_logger{nullptr};
-
-    ValueList m_options{
-        *m_enabled,
-        *m_log_accessed_files,
-        *m_log_loose_files,
-    };
 };

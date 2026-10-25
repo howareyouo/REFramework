@@ -6,10 +6,6 @@
 
 #include "Scene.hpp"
 
-std::optional<std::string> SceneMods::on_initialize() {
-    return Mod::on_initialize();
-}
-
 void SceneMods::on_config_load(const utility::Config& cfg) {
     config_load_options(cfg, m_options);
 }

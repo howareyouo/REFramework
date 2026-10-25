@@ -16,6 +16,8 @@
 #include <utility/Scan.hpp>
 #include <utility/ScopeGuard.hpp>
 
+#include "utility/MemoryProtection.hpp"
+
 #include "REFramework.hpp"
 
 #include "WindowFilter.hpp"
@@ -26,19 +28,6 @@ static D3D12Hook* g_d3d12_hook = nullptr;
 thread_local bool g_inside_d3d12_hook = false;
 
 static std::once_flag s_streamline_once{};
-
-// Replacement for deprecated IsBadReadPtr - uses VirtualQuery instead
-static bool is_protection_readable(DWORD protect) {
-    // PAGE_GUARD is a modifier rather than a protection, reading it raises an exception.
-    if (protect & (PAGE_NOACCESS | PAGE_GUARD)) {
-        return false;
-    }
-
-    constexpr DWORD readable_protections = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-                                         | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-
-    return (protect & readable_protections) != 0;
-}
 
 // Invokes fn(address) for every readable pointer-sized slot in [base, base + max_size),
 // stopping early once fn returns true.
@@ -60,7 +49,7 @@ static bool scan_readable_slots(const void* base, size_t max_size, Fn&& fn) {
         }
 
         // The first region we cannot read through is where the object ends.
-        if (mbi.State != MEM_COMMIT || !is_protection_readable(mbi.Protect)) {
+        if (mbi.State != MEM_COMMIT || !utility::is_protection_readable(mbi.Protect)) {
             return false;
         }
 

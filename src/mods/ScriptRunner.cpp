@@ -858,9 +858,6 @@ std::shared_ptr<ScriptRunner>& ScriptRunner::get() {
     return instance;
 }
 
-std::optional<std::string> ScriptRunner::on_initialize() {
-    return Mod::on_initialize();
-}
 
 void ScriptRunner::on_config_load(const utility::Config& cfg) {
     std::scoped_lock _{m_access_mutex};

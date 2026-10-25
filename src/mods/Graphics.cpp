@@ -41,6 +41,132 @@
 #endif
 #endif
 
+namespace {
+
+// Type and method cache for everything Graphics looks up in the type database,
+// resolved once on first use (function-local statics are thread-safe). One walk
+// of the TDB instead of a lazily-initialized static scattered across every call
+// site; see TemporalUpscaler's reflection() for the same pattern.
+struct Reflection {
+    sdk::RETypeDefinition* raytracing_enum{};
+
+    sdk::RETypeDefinition* gui{};
+    sdk::REMethodDefinition* gui_get_view{};
+
+    sdk::RETypeDefinition* view{};
+    sdk::REMethodDefinition* view_set_res_adjust_scale{};
+    sdk::REMethodDefinition* view_set_res_adjust_anchor{};
+    sdk::REMethodDefinition* view_set_resolution_adjust{};
+    sdk::REMethodDefinition* view_get_view_type{};
+    sdk::REMethodDefinition* view_get_child{};
+
+    sdk::RETypeDefinition* letter_box_behavior{};
+    ::REType* letter_box_behavior_type{};
+
+    sdk::RETypeDefinition* csmaskui{};
+    ::REType* csmaskui_type{};
+
+    sdk::RETypeDefinition* render_output{};
+    ::REType* render_output_type{};
+    sdk::REMethodDefinition* render_output_set_image_quality{};
+    sdk::REMethodDefinition* render_output_set_interleave{};
+
+    sdk::RETypeDefinition* scene_view{};
+    sdk::REMethodDefinition* scene_view_set_display_type{};
+
+    sdk::RETypeDefinition* camera{};
+    sdk::REMethodDefinition* camera_set_fov{};
+    sdk::REMethodDefinition* camera_get_fov{};
+    sdk::REMethodDefinition* camera_set_vertical_enable{};
+    sdk::REMethodDefinition* camera_get_vertical_enable{};
+    sdk::REMethodDefinition* camera_get_aspect_ratio{};
+
+    sdk::RETypeDefinition* ray_trace{};
+    ::REType* ray_trace_type{};
+    sdk::REMethodDefinition* rt_set_raytracing_mode{};
+    sdk::REMethodDefinition* rt_set_bounce{};
+    sdk::REMethodDefinition* rt_set_spp{};
+    sdk::REMethodDefinition* rt_set_enabled{};
+
+    sdk::RETypeDefinition* renderer{};
+    sdk::REMethodDefinition* renderer_set_dynamic_shadow_enable{};
+    sdk::REMethodDefinition* renderer_get_dynamic_shadow_enable{};
+};
+
+const Reflection& reflection() {
+    static const Reflection api = [] {
+        Reflection api{};
+
+        api.raytracing_enum = sdk::find_type_definition("via.render.ExperimentalRayTrace.Raytracing");
+
+        api.gui = sdk::find_type_definition("via.gui.GUI");
+        if (api.gui != nullptr) {
+            api.gui_get_view = api.gui->get_method("get_View");
+        }
+
+        api.view = sdk::find_type_definition("via.gui.View");
+        if (api.view != nullptr) {
+            api.view_set_res_adjust_scale = api.view->get_method("set_ResAdjustScale(via.gui.ResolutionAdjustScale)");
+            api.view_set_res_adjust_anchor = api.view->get_method("set_ResAdjustAnchor(via.gui.ResolutionAdjustAnchor)");
+            api.view_set_resolution_adjust = api.view->get_method("set_ResolutionAdjust(System.Boolean)");
+            api.view_get_view_type = api.view->get_method("get_ViewType");
+            api.view_get_child = api.view->get_method("get_Child");
+        }
+
+        api.letter_box_behavior = sdk::find_type_definition("app.LetterBoxBehavior");
+        if (api.letter_box_behavior != nullptr) {
+            api.letter_box_behavior_type = api.letter_box_behavior->get_type();
+        }
+
+        api.csmaskui = sdk::find_type_definition("app.solid.gui.CSMaskUI");
+        if (api.csmaskui != nullptr) {
+            api.csmaskui_type = api.csmaskui->get_type();
+        }
+
+        api.render_output = sdk::find_type_definition("via.render.RenderOutput");
+        if (api.render_output != nullptr) {
+            api.render_output_type = api.render_output->get_type();
+            api.render_output_set_image_quality = api.render_output->get_method("set_ImageQuality");
+            api.render_output_set_interleave = api.render_output->get_method("set_Interleave");
+        }
+
+        api.scene_view = sdk::find_type_definition("via.SceneView");
+        if (api.scene_view != nullptr) {
+            api.scene_view_set_display_type = api.scene_view->get_method("set_DisplayType");
+        }
+
+        api.camera = sdk::find_type_definition("via.Camera");
+        if (api.camera != nullptr) {
+            api.camera_set_fov = api.camera->get_method("set_FOV");
+            api.camera_get_fov = api.camera->get_method("get_FOV");
+            api.camera_set_vertical_enable = api.camera->get_method("set_VerticalEnable");
+            api.camera_get_vertical_enable = api.camera->get_method("get_VerticalEnable");
+            api.camera_get_aspect_ratio = api.camera->get_method("get_AspectRatio");
+        }
+
+        api.ray_trace = sdk::find_type_definition("via.render.ExperimentalRayTrace");
+        if (api.ray_trace != nullptr) {
+            api.ray_trace_type = api.ray_trace->get_type();
+            api.rt_set_raytracing_mode = api.ray_trace->get_method("set_RaytracingMode");
+            api.rt_set_bounce = api.ray_trace->get_method("setBounce");
+            api.rt_set_spp = api.ray_trace->get_method("setSpp");
+            api.rt_set_enabled = api.ray_trace->get_method("set_Enabled");
+        }
+
+        api.renderer = sdk::find_type_definition("via.render.Renderer");
+        if (api.renderer != nullptr) {
+            api.renderer_set_dynamic_shadow_enable = api.renderer->get_method("set_DynamicShadowEnable");
+            api.renderer_get_dynamic_shadow_enable = api.renderer->get_method("get_DynamicShadowEnable");
+        }
+
+        return api;
+    }();
+
+    return api;
+}
+
+} // namespace
+
 std::shared_ptr<Graphics>& Graphics::get() {
     static auto mod = std::make_shared<Graphics>();
     return mod;
@@ -119,7 +245,7 @@ static int64_t read_enum_value(const void* data, uint32_t size) {
 
 std::optional<std::string> Graphics::on_initialize() {
 #if TDB_VER >= 69
-    const auto raytracing_enum = sdk::find_type_definition("via.render.ExperimentalRayTrace.Raytracing");
+    const auto raytracing_enum = reflection().raytracing_enum;
 
     if (raytracing_enum == nullptr) {
         return Mod::on_initialize(); // OK
@@ -551,23 +677,22 @@ void Graphics::fix_ui_element(REComponent* gui_element) {
         return;
     }
 
-    static const auto gui_t = sdk::find_type_definition("via.gui.GUI");
-    static const auto view_t = sdk::find_type_definition("via.gui.View");
+    const auto& refl = reflection();
 
-    if (gui_t == nullptr || view_t == nullptr) {
+    if (refl.gui == nullptr || refl.view == nullptr) {
         return;
     }
 
-    static const auto set_res_adjust_scale = view_t->get_method("set_ResAdjustScale(via.gui.ResolutionAdjustScale)");
-    static const auto set_res_adjust_anchor = view_t->get_method("set_ResAdjustAnchor(via.gui.ResolutionAdjustAnchor)");
-    static const auto set_resolution_adjust = view_t->get_method("set_ResolutionAdjust(System.Boolean)");
-    static const auto get_view_type = view_t->get_method("get_ViewType");
+    const auto set_res_adjust_scale = refl.view_set_res_adjust_scale;
+    const auto set_res_adjust_anchor = refl.view_set_res_adjust_anchor;
+    const auto set_resolution_adjust = refl.view_set_resolution_adjust;
+    const auto get_view_type = refl.view_get_view_type;
 
     if (set_res_adjust_scale == nullptr || set_res_adjust_anchor == nullptr || set_resolution_adjust == nullptr || get_view_type == nullptr) {
         return;
     }
 
-    static const auto get_view_method = gui_t->get_method("get_View");
+    const auto get_view_method = refl.gui_get_view;
 
     if (get_view_method == nullptr) {
         return;
@@ -587,7 +712,7 @@ void Graphics::fix_ui_element(REComponent* gui_element) {
         set_res_adjust_anchor->call<void>(sdk::get_thread_context(), view, (int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
         set_resolution_adjust->call<void>(sdk::get_thread_context(), view, true); // Causes the options to be applied/used
 
-        static const auto get_child = view_t->get_method("get_Child");
+        static const auto get_child = refl.view_get_child;
 
         if (get_child != nullptr && m_ultrawide_constrain_child_ui->value()) {
             const auto child = get_child->call<::REManagedObject*>(sdk::get_thread_context(), view);
@@ -622,10 +747,11 @@ bool Graphics::on_pre_gui_draw_element(REComponent* gui_element, void* primitive
 #endif
 
     auto game_object = utility::re_component::get_game_object(gui_element);
-    static auto letter_box_behavior_t = sdk::find_type_definition("app.LetterBoxBehavior");
-    static auto letter_box_behavior_retype = letter_box_behavior_t != nullptr ? letter_box_behavior_t->get_type() : nullptr;
-    static auto csmaskui_t = sdk::find_type_definition("app.solid.gui.CSMaskUI");
-    static auto csmaskui_retype = csmaskui_t != nullptr ? csmaskui_t->get_type() : nullptr;
+    const auto& refl = reflection();
+    const auto letter_box_behavior_t = refl.letter_box_behavior;
+    const auto letter_box_behavior_retype = refl.letter_box_behavior_type;
+    const auto csmaskui_t = refl.csmaskui;
+    const auto csmaskui_retype = refl.csmaskui_type;
 
     if (game_object != nullptr && game_object->transform != nullptr) {
         // Ultrawide for Dead Rising Deluxe Remaster
@@ -750,17 +876,22 @@ void Graphics::do_scope_tweaks(sdk::renderer::layer::Scene* layer) {
         return;
     }
 
-    static auto render_output_t = sdk::find_type_definition("via.render.RenderOutput");
-    static auto render_output_tt = render_output_t->get_type();
+    const auto& refl = reflection();
 
-    auto render_output = utility::re_component::find(camera, render_output_tt);
+    // Old code dereferenced the typedef unconditionally; guarding keeps the
+    // same behavior on RE4 (type always present) without the crash risk.
+    if (refl.render_output_type == nullptr) {
+        return;
+    }
+
+    auto render_output = utility::re_component::find(camera, refl.render_output_type);
 
     if (render_output == nullptr) {
         return;
     }
 
-    static auto set_image_quality_method = render_output_t->get_method("set_ImageQuality");
-    static auto set_interleave_method = render_output_t->get_method("set_Interleave");
+    const auto set_image_quality_method = refl.render_output_set_image_quality;
+    const auto set_interleave_method = refl.render_output_set_interleave;
 
     if (set_image_quality_method != nullptr) {
         set_image_quality_method->call(sdk::get_thread_context(), render_output, m_scope_image_quality->value());
@@ -798,8 +929,7 @@ void Graphics::do_ultrawide_fix() {
     }
 #endif
 
-    static auto via_scene_view = sdk::find_type_definition("via.SceneView");
-    static auto set_display_type_method = via_scene_view->get_method("set_DisplayType");
+    const auto set_display_type_method = reflection().scene_view_set_display_type;
 
     // Re-query the main view every frame. Caching a raw REManagedObject* across
     // frames is a use-after-free hazard: the main scene view can be destroyed
@@ -856,9 +986,9 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
     }
 #endif
 
-    static auto via_camera = sdk::find_type_definition("via.Camera");
-    static auto set_fov_method = via_camera->get_method("set_FOV");
-    static auto set_vertical_enable_method = via_camera->get_method("set_VerticalEnable");
+    const auto& refl = reflection();
+    const auto set_fov_method = refl.camera_set_fov;
+    const auto set_vertical_enable_method = refl.camera_set_vertical_enable;
 
     std::scoped_lock _{m_fov_mutex};
 
@@ -906,12 +1036,12 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     }
 #endif
 
-    static auto via_camera = sdk::find_type_definition("via.Camera");
-    static auto get_vertical_enable_method = via_camera->get_method("get_VerticalEnable");
-    static auto set_vertical_enable_method = via_camera->get_method("set_VerticalEnable");
-    static auto get_fov_method = via_camera->get_method("get_FOV");
-    static auto set_fov_method = via_camera->get_method("set_FOV");
-    static auto get_aspect_method = via_camera->get_method("get_AspectRatio");
+    const auto& refl = reflection();
+    const auto get_vertical_enable_method = refl.camera_get_vertical_enable;
+    const auto set_vertical_enable_method = refl.camera_set_vertical_enable;
+    const auto get_fov_method = refl.camera_get_fov;
+    const auto set_fov_method = refl.camera_set_fov;
+    const auto get_aspect_method = refl.camera_get_aspect_ratio;
 
     bool was_vertical_fov_enabled = false;
     bool is_vertical_fov_enabled = false;
@@ -1151,7 +1281,7 @@ void Graphics::setup_path_trace_hook() {
 }
 
 void Graphics::setup_rt_component() {
-    static const auto rt_t = sdk::find_type_definition("via.render.ExperimentalRayTrace");
+    const auto rt_t = reflection().ray_trace;
 
     if (rt_t == nullptr) {
         return;
@@ -1216,27 +1346,25 @@ void Graphics::apply_ray_tracing_tweaks() {
         return;
     }
 
-    static const auto rt_t = sdk::find_type_definition("via.render.ExperimentalRayTrace");
+    const auto& refl = reflection();
 
-    if (rt_t == nullptr) {
+    if (refl.ray_trace == nullptr) {
         return;
     }
 
-    static const auto set_RaytracingMode = rt_t->get_method("set_RaytracingMode");
-    static const auto setBounce = rt_t->get_method("setBounce");
-    static const auto setSpp = rt_t->get_method("setSpp");
-    static const auto set_enabled = rt_t->get_method("set_Enabled");
+    const auto set_RaytracingMode = refl.rt_set_raytracing_mode;
+    const auto setBounce = refl.rt_set_bounce;
+    const auto setSpp = refl.rt_set_spp;
+    const auto set_enabled = refl.rt_set_enabled;
 
     bool any_pt = false;
 
-    static const auto renderer_t = sdk::find_type_definition("via.render.Renderer");
-
-    static const auto set_DynamicShadowEnable = renderer_t != nullptr ? renderer_t->get_method("set_DynamicShadowEnable") : nullptr;
-    static const auto get_DynamicShadowEnable = renderer_t != nullptr ? renderer_t->get_method("get_DynamicShadowEnable") : nullptr;
+    const auto set_DynamicShadowEnable = refl.renderer_set_dynamic_shadow_enable;
+    const auto get_DynamicShadowEnable = refl.renderer_get_dynamic_shadow_enable;
 
     const auto context = sdk::get_thread_context();
 
-    auto fix = [this, &any_pt, &context](sdk::ManagedObject* target, int32_t rt_type) {
+    auto fix = [this, &any_pt, &context, &set_RaytracingMode, &setBounce, &setSpp, &set_enabled, &set_DynamicShadowEnable, &get_DynamicShadowEnable](sdk::ManagedObject* target, int32_t rt_type) {
         if (target == nullptr) {
             return;
         }
@@ -1312,7 +1440,7 @@ void* Graphics::rt_draw_hook(REComponent* rt, void* draw_context, void* r8, void
             return call();
         }
 
-        static auto rt_t = sdk::find_type_definition("via.render.ExperimentalRayTrace");
+        const auto rt_t = reflection().ray_trace;
 
         if (rt_t == nullptr) {
             return call();

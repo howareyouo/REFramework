@@ -31,25 +31,18 @@ public:
     }
 
 private:
-    ModKey::Ptr m_menu_key{ ModKey::create(generate_name("MenuKey_V2"), VK_INSERT) };
-    ModToggle::Ptr m_menu_open{ ModToggle::create(generate_name("MenuOpen"), true) };
-    ModToggle::Ptr m_remember_menu_state{ ModToggle::create(generate_name("RememberMenuState"), false) };
+    ModKey::Ptr m_menu_key{ make_option<ModKey>("MenuKey_V2", VK_INSERT) };
+    ModToggle::Ptr m_menu_open{ make_option<ModToggle>("MenuOpen", true) };
+    ModToggle::Ptr m_remember_menu_state{ make_option<ModToggle>("RememberMenuState", false) };
 #ifdef RE8
-    ModToggle::Ptr m_always_show_cursor{ ModToggle::create(generate_name("DrawCursorWithMenuOpen"), true) };
+    ModToggle::Ptr m_always_show_cursor{ make_option<ModToggle>("DrawCursorWithMenuOpen", true) };
 #else
-    ModToggle::Ptr m_always_show_cursor{ ModToggle::create(generate_name("DrawCursorWithMenuOpen"), false) };
+    ModToggle::Ptr m_always_show_cursor{ make_option<ModToggle>("DrawCursorWithMenuOpen", false) };
 #endif
-    ModKey::Ptr m_show_cursor_key{ ModKey::create(generate_name("ShowCursorKey")) };
-    ModInt32::Ptr m_font_size{ModInt32::create(generate_name("FontSize"), 16)};
+    ModKey::Ptr m_show_cursor_key{ make_option<ModKey>("ShowCursorKey") };
+    ModInt32::Ptr m_font_size{ make_option<ModInt32>("FontSize", 16) };
     std::vector<std::string> fonts{};
+    // Created in on_initialize once the font directory has been scanned; it
+    // registers itself into the inherited m_options there.
     ModComboString::Ptr m_font_file{};
-
-    ValueList m_options {
-        *m_menu_key,
-        *m_menu_open,
-        *m_remember_menu_state,
-        *m_always_show_cursor,
-        *m_show_cursor_key,
-        *m_font_size,
-    };
 };

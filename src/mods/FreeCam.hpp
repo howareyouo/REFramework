@@ -45,37 +45,21 @@ private:
     void setup_re4_hooks();
 #endif
 
-    const ModToggle::Ptr m_enabled{              ModToggle::create(generate_name("Enabled"), false) };
-    const ModToggle::Ptr m_lock_camera{          ModToggle::create(generate_name("LockPosition"), false) };
-    const ModToggle::Ptr m_disable_movement{     ModToggle::create(generate_name("DisableMovement"), false) };
-    const ModKey::Ptr m_toggle_key{              ModKey::create(generate_name("ToggleKey_V2")) };
-    const ModKey::Ptr m_lock_camera_key{         ModKey::create(generate_name("LockKey_V2")) };
-    const ModKey::Ptr m_move_up_key{             ModKey::create(generate_name("MoveUpKey_V2"), VK_SPACE) };
-    const ModKey::Ptr m_move_down_key{           ModKey::create(generate_name("MoveDownKey_V2"), VK_LCONTROL) };
-    const ModKey::Ptr m_disable_movement_key{    ModKey::create(generate_name("DisableMoveKey_V2")) };
-    const ModKey::Ptr m_speed_modifier_fast_key{ ModKey::create(generate_name("SpeedModifierFast_V2"), VK_LSHIFT)};
-    const ModKey::Ptr m_speed_modifier_slow_key{ ModKey::create(generate_name("SpeedModifierSlow_V2"), VK_LMENU)};
+    const ModToggle::Ptr m_enabled{              make_option<ModToggle>("Enabled", false) };
+    const ModToggle::Ptr m_lock_camera{          make_option<ModToggle>("LockPosition", false) };
+    const ModToggle::Ptr m_disable_movement{     make_option<ModToggle>("DisableMovement", false) };
+    const ModKey::Ptr m_toggle_key{              make_option<ModKey>("ToggleKey_V2") };
+    const ModKey::Ptr m_lock_camera_key{         make_option<ModKey>("LockKey_V2") };
+    const ModKey::Ptr m_move_up_key{             make_option<ModKey>("MoveUpKey_V2", VK_SPACE) };
+    const ModKey::Ptr m_move_down_key{           make_option<ModKey>("MoveDownKey_V2", VK_LCONTROL) };
+    const ModKey::Ptr m_disable_movement_key{    make_option<ModKey>("DisableMoveKey_V2") };
+    const ModKey::Ptr m_speed_modifier_fast_key{ make_option<ModKey>("SpeedModifierFast_V2", VK_LSHIFT)};
+    const ModKey::Ptr m_speed_modifier_slow_key{ make_option<ModKey>("SpeedModifierSlow_V2", VK_LMENU)};
 
-    const ModSlider::Ptr m_speed{ ModSlider::create(generate_name("Speed"), 0.0f, 1.0f, 0.1f) };
-    const ModSlider::Ptr m_speed_modifier{ ModSlider::create(generate_name("SpeedModifier"), 1.f, 50.f, 4.f) };
+    const ModSlider::Ptr m_speed{ make_option<ModSlider>("Speed", 0.0f, 1.0f, 0.1f) };
+    const ModSlider::Ptr m_speed_modifier{ make_option<ModSlider>("SpeedModifier", 1.f, 50.f, 4.f) };
 
-    const ModSlider::Ptr m_rotation_speed{ ModSlider::create(generate_name("RotationSpeed"), 0.0f, 1.0f, 0.1f) };
-
-    ValueList m_options{
-        *m_enabled,
-        *m_lock_camera,
-        *m_disable_movement,
-        *m_toggle_key,
-        *m_lock_camera_key,
-        *m_move_up_key,
-        *m_move_down_key,
-        *m_disable_movement_key,
-        *m_speed,
-        *m_speed_modifier,
-        *m_speed_modifier_fast_key,
-        *m_speed_modifier_slow_key,
-        *m_rotation_speed,
-    };
+    const ModSlider::Ptr m_rotation_speed{ make_option<ModSlider>("RotationSpeed", 0.0f, 1.0f, 0.1f) };
 
 #if defined(RE2) || defined(RE3)
     RopewaySurvivorManager* m_survivor_manager{ nullptr };
