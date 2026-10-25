@@ -6,13 +6,13 @@
 #include "REString.hpp"
 #include "RENativeArray.hpp"
 
-#include "regenny/mhrise_tdb71/via/behaviortree/BehaviorTreeCoreHandleArray.hpp"
-#include "regenny/mhrise_tdb71/via/motion/MotionFsm2Layer.hpp"
-#include "regenny/mhrise_tdb71/via/behaviortree/TreeNodeData.hpp"
-#include "regenny/mhrise_tdb71/via/behaviortree/TreeNode.hpp"
-#include "regenny/mhrise_tdb71/via/behaviortree/TreeObjectData.hpp"
-#include "regenny/mhrise_tdb71/via/behaviortree/TreeObject.hpp"
-#include "regenny/mhrise_tdb71/via/behaviortree/BehaviorTree.hpp"
+#include "regenny/re4/via/behaviortree/BehaviorTreeCoreHandleArray.hpp"
+#include "regenny/re4/via/motion/MotionFsm2Layer.hpp"
+#include "regenny/re4/via/behaviortree/TreeNodeData.hpp"
+#include "regenny/re4/via/behaviortree/TreeNode.hpp"
+#include "regenny/re4/via/behaviortree/TreeObjectData.hpp"
+#include "regenny/re4/via/behaviortree/TreeObject.hpp"
+#include "regenny/re4/via/behaviortree/BehaviorTree.hpp"
 
 namespace sdk {
 class MotionFsm2Layer;
