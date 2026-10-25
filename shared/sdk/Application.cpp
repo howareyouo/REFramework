@@ -50,12 +50,12 @@ Application::Function* Application::get_functions() {
                 try {
                     const auto ptr = (Application::Function*)((uintptr_t)this + candidate);
 
-                    if (ptr == nullptr || utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
+                    if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
                         spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
                         continue;
                     }
 
-                    if (ptr->description == nullptr || utility::is_readable(ptr->description, 32)) {
+                    if (ptr->description == nullptr || !utility::is_readable(ptr->description, 32)) {
                         spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
                         continue;
                     }
@@ -88,12 +88,12 @@ Application::Function* Application::get_functions() {
                 try {
                     const auto ptr = (Application::Function*)((uintptr_t)this + candidate);
 
-                    if (ptr == nullptr || utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
+                    if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
                         spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
                         continue;
                     }
 
-                    if (ptr->description == nullptr || utility::is_readable(ptr->description, 32)) {
+                    if (ptr->description == nullptr || !utility::is_readable(ptr->description, 32)) {
                         spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
                         continue;
                     }
@@ -126,18 +126,18 @@ Application::Function* Application::get_functions() {
         for (auto i = 0x100; i < 0x1000; i += sizeof(void*)) try {
             const auto ptr = (Application::Function*)((uintptr_t)this + i);
 
-            if (ptr == nullptr || utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
+            if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
                 continue;
             }
 
             for (auto j = 0; j < 1024; ++j) try {
                 const auto& func = ptr[j];
 
-                if (func.description == nullptr || utility::is_readable(func.description, 32)) {
+                if (func.description == nullptr || !utility::is_readable(func.description, 32)) {
                     break;
                 }
 
-                if (j == 0 && func.entry == nullptr || utility::is_readable(func.entry, sizeof(void*))) {
+                if (j == 0 && func.entry == nullptr || !utility::is_readable(func.entry, sizeof(void*))) {
                     break; // the first one should always be valid.
                 }
                 
