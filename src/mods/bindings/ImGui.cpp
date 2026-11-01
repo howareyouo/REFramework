@@ -2081,8 +2081,8 @@ void bindings::open_imgui(ScriptState* s) {
     });
 
     imgui.new_enum<int>("ImGuiKey", std::initializer_list<std::pair<std::string_view, int>>{
-        { "// Keys
-        "Key_None", ImGuiKey_None },
+        // Keys
+        { "Key_None", ImGuiKey_None },
         { "Key_Tab", ImGuiKey_Tab },
         { "Key_LeftArrow", ImGuiKey_LeftArrow },
         { "Key_RightArrow", ImGuiKey_RightArrow },
@@ -2234,8 +2234,8 @@ void bindings::open_imgui(ScriptState* s) {
         { "Key_MouseX2", ImGuiKey_MouseX2 },
         { "Key_MouseWheelX", ImGuiKey_MouseWheelX },
         { "Key_MouseWheelY", ImGuiKey_MouseWheelY },
-        { "// Modifiers
-        "Mod_None", ImGuiMod_None },
+        // Modifiers
+        { "Mod_None", ImGuiMod_None },
         { "Mod_Ctrl", ImGuiMod_Ctrl },
         { "Mod_Shift", ImGuiMod_Shift },
         { "Mod_Alt", ImGuiMod_Alt },
