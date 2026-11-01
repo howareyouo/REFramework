@@ -165,6 +165,12 @@ public:
     auto get_default_font() const { return m_default_font; }
 
     void set_font(std::string path) { 
+        // An empty name means the combo box hasn't been populated with the
+        // config value yet; the caller will call us again once it has.
+        if (path.empty()) {
+            return;
+        }
+
         if (m_default_font_file != path) {
             m_default_font_file = path;
             loaded_fonts.clear();
