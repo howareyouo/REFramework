@@ -96,6 +96,16 @@ typedef ND_UINT32 NDSTATUS;
 // Enumerations
 // ---------------------------------------------------------------------------
 
+// GPR numbers, as bddisasm's registers.h defines them. These are the values the
+// decoder puts in ND_OPDESC_REGISTER::Reg and ND_OPDESC_MEMORY::Base/Index, so
+// IntegrityCheckBypass's "which register holds the patch version" switch can
+// compare against them directly. Only the 64-bit block is needed; the 32/16/8-bit
+// aliases, segment, control, debug and test-register blocks have no callers.
+enum {
+    NDR_RAX = 0, NDR_RCX, NDR_RDX, NDR_RBX, NDR_RSP, NDR_RBP, NDR_RSI, NDR_RDI,
+    NDR_R8,      NDR_R9,  NDR_R10, NDR_R11, NDR_R12, NDR_R13, NDR_R14, NDR_R15,
+};
+
 // Order matches bddisasm's ND_OPERAND_TYPE.
 typedef enum _ND_OPERAND_TYPE {
     ND_OP_NOT_PRESENT = 0,
