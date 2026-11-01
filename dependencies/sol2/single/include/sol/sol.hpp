@@ -8154,41 +8154,55 @@ namespace sol { namespace detail {
 		return ctti_get_type_name_from_sig(__PRETTY_FUNCTION__);
 	}
 #elif SOL_IS_ON(SOL_COMPILER_VCXX_I_)
-	inline std::string ctti_get_type_name_from_sig(std::string name) {
-		std::size_t start = name.find("get_type_name");
-		if (start == std::string::npos)
+	// REFramework patch: the signature surgery below is byte-level, so it runs
+	// entirely on string_view and only materialises the final std::string. The
+	// upstream version took `std::string` by value and built the result through
+	// substr/erase/replace, which instantiated a full basic_string machinery
+	// (find/erase/insert) once per type. Nothing changes semantically: the same
+	// substrings are cut and the same `removals` are deleted.
+	inline std::string ctti_get_type_name_from_sig(string_view name_sv) {
+		std::size_t start = name_sv.find("get_type_name");
+		if (start == string_view::npos)
 			start = 0;
 		else
 			start += 13;
-		if (start < name.size() - 1)
+		if (start + 1 < name_sv.size())
 			start += 1;
-		std::size_t end = name.find_last_of('>');
-		if (end == std::string::npos)
-			end = name.size();
-		name = name.substr(start, end - start);
-		if (name.find("struct", 0) == 0)
-			name.replace(0, 6, "", 0);
-		if (name.find("class", 0) == 0)
-			name.replace(0, 5, "", 0);
-		while (!name.empty() && isblank(name.front()))
-			name.erase(name.begin());
-		while (!name.empty() && isblank(name.back()))
-			name.pop_back();
+		std::size_t end = name_sv.find_last_of('>');
+		if (end == string_view::npos)
+			end = name_sv.size();
+		if (end < start) {
+			end = start;
+		}
+		string_view name = name_sv.substr(start, end - start);
+		if (name.substr(0, 6) == string_view("struct"))
+			name = name.substr(6);
+		else if (name.substr(0, 5) == string_view("class"))
+			name = name.substr(5);
+		while (!name.empty() && isblank(static_cast<unsigned char>(name.front())))
+			name = name.substr(1);
+		while (!name.empty() && isblank(static_cast<unsigned char>(name.back())))
+			name = name.substr(0, name.size() - 1);
 
+		std::string result(name);
 		for (std::size_t r = 0; r < removals.size(); ++r) {
-			auto found = name.find(removals[r]);
+			const string_view removal = removals[r];
+			if (removal.empty()) {
+				continue;
+			}
+			auto found = result.find(removal.data(), 0, removal.size());
 			while (found != std::string::npos) {
-				name.erase(found, removals[r].size());
-				found = name.find(removals[r]);
+				result.erase(found, removal.size());
+				found = result.find(removal.data(), found, removal.size());
 			}
 		}
 
-		return name;
+		return result;
 	}
 
 	template <typename T>
 	std::string ctti_get_type_name() {
-		return ctti_get_type_name_from_sig(__FUNCSIG__);
+		return ctti_get_type_name_from_sig(string_view(__FUNCSIG__));
 	}
 #else
 #error Compiler not supported for demangling
