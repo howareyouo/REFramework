@@ -132,10 +132,6 @@ condition = "build-framework-dependencies"
 git = "https://github.com/cursey/safetyhook"
 tag = "b046e123dc69821f2c375161e0adef3c6d9c9db4"
 
-[fetch-content.freetype]
-git = "https://github.com/freetype/freetype"
-tag = "f1cd6dbfa0c98f352b698448f40ac27e8fb3832e"
-
 [target.imgui]
 type = "static"
 sources = [
@@ -143,17 +139,12 @@ sources = [
     "dependencies/imgui/imgui_draw.cpp",
     "dependencies/imgui/imgui_tables.cpp",
     "dependencies/imgui/imgui_widgets.cpp",
-    "dependencies/imgui/misc/freetype/imgui_freetype.cpp",
 ]
 include-directories = [
     "dependencies/imgui",
-    "dependencies/imgui/misc/freetype",
     "src/re2-imgui"]
 compile-definitions = [
     "IMGUI_USER_CONFIG=\"${CMAKE_CURRENT_SOURCE_DIR}/src/re2-imgui/re2_imconfig.hpp\"",
-]
-link-libraries = [
-    "freetype"
 ]
 condition = "build-framework"
 
