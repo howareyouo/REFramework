@@ -956,14 +956,24 @@ void IntegrityCheckBypass::setup_pristine_syscall() {
     spdlog::info("[IntegrityCheckBypass]: Copied NtProtectVirtualMemory to 0x{:X}", (uintptr_t)s_pristine_protect_virtual_memory);
 }
 
+IntegrityCheckBypass::VirtualProtectSuspension::VirtualProtectSuspension() {
+    s_virtual_protect_suspended.store(true, std::memory_order_release);
+}
+
+IntegrityCheckBypass::VirtualProtectSuspension::~VirtualProtectSuspension() {
+    s_virtual_protect_suspended.store(false, std::memory_order_release);
+}
+
 // hahahah i hate this
 void IntegrityCheckBypass::fix_virtual_protect() try {
     spdlog::info("[IntegrityCheckBypass]: Fixing VirtualProtect...");
 
     setup_pristine_syscall(); // Called earlier in DllMain
 
-    // Hook VirtualProtect
-    s_virtual_protect_hook = std::make_unique<FunctionHookMinHook>(VirtualProtect, (uintptr_t)virtual_protect_hook);
+    // Hook VirtualProtect. safetyhook opens the page with VirtualProtect before
+    // its hook goes live, so create() has to run while the passthrough is armed.
+    VirtualProtectSuspension suspension{};
+    s_virtual_protect_hook = std::make_unique<FunctionHook>(VirtualProtect, (uintptr_t)virtual_protect_hook);
     if (!s_virtual_protect_hook->create()) {
         spdlog::error("[IntegrityCheckBypass]: Could not hook VirtualProtect!");
         return;
@@ -1007,6 +1017,12 @@ BOOL WINAPI IntegrityCheckBypass::virtual_protect_impl(LPVOID lpAddress, SIZE_T 
 
 // This allows our calls to VirtualProtect to go through without being hindered by... something.
 BOOL WINAPI IntegrityCheckBypass::virtual_protect_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect) try {
+    // safetyhook is mid-create: let the call through untouched, otherwise it
+    // re-enters this function before its own hook is fully installed.
+    if (s_virtual_protect_suspended.load(std::memory_order_acquire)) {
+        return virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    }
+
     static bool once = true;
     if (once) {
         spdlog::info("[IntegrityCheckBypass]: VirtualProtect called");
@@ -1129,7 +1145,8 @@ void IntegrityCheckBypass::hook_rtl_exit_user_process() {
         return;
     }
 
-    s_rtl_exit_user_process_hook = std::make_unique<FunctionHookMinHook>(RtlExitUserProcess, &rtl_exit_user_process_hook);
+    VirtualProtectSuspension suspension{};
+    s_rtl_exit_user_process_hook = std::make_unique<FunctionHook>((uintptr_t)RtlExitUserProcess, (uintptr_t)&rtl_exit_user_process_hook);
     if (!s_rtl_exit_user_process_hook->create()) {
         spdlog::error("[IntegrityCheckBypass]: Could not hook RtlExitUserProcess!");
         return;

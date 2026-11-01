@@ -119,15 +119,6 @@ sources = ["dependencies/glm/glm/**.cpp"]
 include-directories = ["dependencies/glm"]
 condition = "build-framework-dependencies"
 
-[target.minhook]
-type = "static"
-sources = ["dependencies/minhook/src/**.c"]
-include-directories = [
-    "dependencies/minhook/include",
-    "dependencies/minhook/src/hde",
-]
-condition = "build-framework-dependencies"
-
 [fetch-content.safetyhook]
 git = "https://github.com/cursey/safetyhook"
 tag = "b046e123dc69821f2c375161e0adef3c6d9c9db4"
@@ -206,7 +197,6 @@ headers = ["shared/utility/**.hpp", "shared/utility/**.h"]
 compile-features = ["cxx_std_23"]
 link-libraries = [
     "spdlog",
-    "minhook",
     "safetyhook",
     "kananlib"
 ]
@@ -247,7 +237,6 @@ link-libraries = [
     "imgui",
     "imguizmo",
     "imnodes",
-    "minhook",
     "d3d11",
     "glm_static",
     "shlwapi",

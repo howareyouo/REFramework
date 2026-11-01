@@ -11,11 +11,6 @@
 
 #include <spdlog/sinks/basic_file_sink.h>
 
-// minhook, used for AllocateBuffer
-extern "C" {
-#include <../buffer.h>
-};
-
 #include <imgui.h>
 #include <ImGuizmo.h>
 #include <imnodes.h>
@@ -264,7 +259,7 @@ REFramework::REFramework(HMODULE reframework_module)
 
     setup_logging();
     detect_game_path();
-    preallocate_minhook_buffer();
+    fix_virtual_protect();
     detect_os_version();
     copy_storage_files();
     register_ldr_notification();
@@ -317,13 +312,10 @@ void REFramework::detect_game_path() {
     }
 }
 
-void REFramework::preallocate_minhook_buffer() {
-    // Preallocate some memory for minhook to mitigate failures.
-    // TODO: modify minhook to use absolute jumps when failing to allocate memory nearby.
-    const auto halfway_module = (uintptr_t)m_game_module + (*utility::get_module_size(m_game_module) / 2);
-    const auto pre_allocated_buffer = (uintptr_t)AllocateBuffer((LPVOID)halfway_module);
-    spdlog::info("Preallocated buffer: {:x}", pre_allocated_buffer);
-
+void REFramework::fix_virtual_protect() {
+    // The safetyhook allocator is pre-seeded near the module midpoint in DllMain,
+    // which is what keeps trampolines reachable now that minhook's preallocated
+    // buffer is gone.
     IntegrityCheckBypass::fix_virtual_protect();
 }
 

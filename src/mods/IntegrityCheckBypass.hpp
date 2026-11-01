@@ -3,11 +3,11 @@
 #include <memory>
 #include <string_view>
 #include <regex>
+#include <atomic>
 
 #include "Mod.hpp"
 #include "utility/Patch.hpp"
 #include "utility/FunctionHook.hpp"
-#include "utility/FunctionHookMinHook.hpp"
 
 #include <bddisasm.h>
 
@@ -31,6 +31,16 @@ public:
 
     static void setup_pristine_syscall();
     static void fix_virtual_protect();
+
+    // Arms the VirtualProtect passthrough for as long as this object lives.
+    // Every safetyhook create/destroy that can touch VirtualProtect has to be
+    // wrapped in one, including from other translation units.
+    struct VirtualProtectSuspension {
+        VirtualProtectSuspension();
+        ~VirtualProtectSuspension();
+        VirtualProtectSuspension(const VirtualProtectSuspension&) = delete;
+        VirtualProtectSuspension& operator=(const VirtualProtectSuspension&) = delete;
+    };
 
     static void hook_add_vectored_exception_handler();
     static void hook_rtl_exit_user_process();
@@ -76,19 +86,27 @@ private:
     static BOOL WINAPI virtual_protect_impl(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
     static BOOL WINAPI virtual_protect_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
     
-    static PVOID WINAPI add_vectored_exception_handler_hook(ULONG FirstHandler, PVECTORED_EXCEPTION_HANDLER VectoredHandler);
-    static inline bool s_veh_allowed{false};
-    static inline bool s_veh_called{false};
-    using NtProtectVirtualMemory_t =  NTSTATUS(NTAPI*)(HANDLE ProcessHandle, PVOID* BaseAddress, SIZE_T* NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection);
     static inline NtProtectVirtualMemory_t s_pristine_protect_virtual_memory{ nullptr };
     static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };;
 
-    // Using minhook because safetyhook crashes on trying to hook VirtualProtect
-    static inline std::unique_ptr<FunctionHookMinHook> s_virtual_protect_hook{};
-    static inline std::unique_ptr<FunctionHookMinHook> s_add_vectored_exception_handler_hook{};
+    // safetyhook creates inline hooks by calling VirtualProtect to open up the
+    // target page. Hooking VirtualProtect means that call lands back in
+    // virtual_protect_hook before the hook being installed is even complete,
+    // which is what made this unrunnable under safetyhook. The hook passes
+    // everything straight through while this flag is set; every safetyhook
+    // create/destroy is bracketed with a VirtualProtectSuspension.
+    static inline std::atomic_bool s_virtual_protect_suspended{false};
+
+    static inline std::unique_ptr<FunctionHook> s_virtual_protect_hook{};
+
+    static PVOID WINAPI add_vectored_exception_handler_hook(ULONG FirstHandler, PVECTORED_EXCEPTION_HANDLER VectoredHandler);
+    static inline bool s_veh_allowed{false};
+    static inline bool s_veh_called{false};
+
+    static inline std::unique_ptr<FunctionHook> s_add_vectored_exception_handler_hook{};
 
     static void* rtl_exit_user_process_hook(uint32_t code);
-    static inline std::unique_ptr<FunctionHookMinHook> s_rtl_exit_user_process_hook{};
+    static inline std::unique_ptr<FunctionHook> s_rtl_exit_user_process_hook{};
     static void pak_store_flags_hook(safetyhook::Context& context);
 
     void disable_update_timers(std::string_view name) const;

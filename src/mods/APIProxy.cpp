@@ -7,17 +7,18 @@
 
 #include <spdlog/spdlog.h>
 
-#include "utility/FunctionHookMinHook.hpp"
+#include "utility/FunctionHook.hpp"
 #include "utility/String.hpp"
 
 #include "ScriptRunner.hpp"
 
 #include "PluginLoader.hpp"
 #include "APIProxy.hpp"
+#include "IntegrityCheckBypass.hpp"
 
 // For cimgui redirection when on_imgui_frame is called.
 namespace cimgui {
-std::unique_ptr<FunctionHookMinHook> g_load_library_ex_w_hook{nullptr};
+std::unique_ptr<FunctionHook> g_load_library_ex_w_hook{nullptr};
 
 HMODULE load_library_ex_w_hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags) {
     if (lpLibFileName != nullptr) {
@@ -44,7 +45,10 @@ void setup_hook() {
         if (llxw != nullptr) {
             spdlog::info("[REFramework] Hooking LoadLibraryExW for cimgui.dll redirection");
 
-            cimgui::g_load_library_ex_w_hook = std::make_unique<FunctionHookMinHook>(LoadLibraryExW, cimgui::load_library_ex_w_hook);
+            // safetyhook opens the page with VirtualProtect; keep the
+            // IntegrityCheckBypass hook out of the way while it does.
+            IntegrityCheckBypass::VirtualProtectSuspension suspension{};
+            cimgui::g_load_library_ex_w_hook = std::make_unique<FunctionHook>(LoadLibraryExW, cimgui::load_library_ex_w_hook);
 
             if (!cimgui::g_load_library_ex_w_hook->create()) {
                 spdlog::error("[REFramework] Failed to hook LoadLibraryExW for cimgui.dll redirection");
