@@ -258,19 +258,37 @@ REFramework::REFramework(HMODULE reframework_module)
     spdlog::flush_on(spdlog::level::info);
 
     setup_logging();
+    // Keep info-level logging on through the startup phases so a crash before
+    // the monitor thread starts leaves a usable trace; drop to warn after.
+#define RF_STARTUP_PHASE(name) spdlog::info("### startup phase: " name)
+    RF_STARTUP_PHASE("detect_game_path");
     detect_game_path();
+    RF_STARTUP_PHASE("fix_virtual_protect");
     fix_virtual_protect();
+    RF_STARTUP_PHASE("detect_os_version");
     detect_os_version();
+    RF_STARTUP_PHASE("copy_storage_files");
     copy_storage_files();
+    RF_STARTUP_PHASE("register_ldr_notification");
     register_ldr_notification();
+    RF_STARTUP_PHASE("wait_for_d3d_if_packed");
     wait_for_d3d_if_packed();
+    RF_STARTUP_PHASE("load_vr_dlls");
     load_vr_dlls();
+    RF_STARTUP_PHASE("crash_fix_and_mhwilds");
     setup_re8_crash_fix();
     setup_mhwilds_early_init();
+    RF_STARTUP_PHASE("setup_integrity_bypass");
     setup_integrity_bypass();
+    RF_STARTUP_PHASE("plugin_early_init");
     plugin_early_init();
+    RF_STARTUP_PHASE("wait_for_vm_and_renderer");
     wait_for_vm_and_renderer();
+    RF_STARTUP_PHASE("start_monitor_thread");
     start_monitor_thread();
+#undef RF_STARTUP_PHASE
+    spdlog::info("Startup complete, dropping log level to warn");
+    spdlog::set_level(spdlog::level::warn);
 }
 
 // ---------------------------------------------------------------------------
@@ -295,8 +313,6 @@ void REFramework::setup_logging() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-
-    spdlog::set_level(spdlog::level::warn);
 }
 
 void REFramework::detect_game_path() {
