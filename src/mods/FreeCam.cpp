@@ -389,15 +389,19 @@ void FreeCam::setup_re4_hooks() {
             return std::nullopt;
         }
 
-        return g_hookman.add(fn, make_skip_hook(comp_arg_index), [](uintptr_t&, sdk::RETypeDefinition*, uintptr_t) {});
+        return g_hookman.add(fn, make_skip_hook(comp_arg_index));
     };
 
     auto& body_updater = m_player_body_updater_hook;
 
     if (!body_updater.attempted_hook) {
-        body_updater.attempted_hook = true;
-
         const auto t = sdk::find_type_definition(game_namespace("PlayerBodyUpdater"));
+
+        if (t == nullptr) {
+            return;
+        }
+
+        body_updater.attempted_hook = true;
 
         body_updater.update_id = add_skip_hook(t, "update", 1);
         body_updater.late_update_id = add_skip_hook(t, "lateUpdate", 1);
@@ -408,8 +412,14 @@ void FreeCam::setup_re4_hooks() {
     auto& motion_controller = m_player_motion_controller_hook;
 
     if (!motion_controller.attempted_hook) {
+        const auto t = sdk::find_type_definition(game_namespace("MotionController"));
+
+        if (t == nullptr) {
+            return;
+        }
+
         motion_controller.attempted_hook = true;
-        motion_controller.change_motion_internal_id = add_skip_hook(sdk::find_type_definition(game_namespace("MotionController")), "changeMotionInternal", 1);
+        motion_controller.change_motion_internal_id = add_skip_hook(t, "changeMotionInternal", 1);
     }
 }
 #endif
