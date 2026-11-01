@@ -90,6 +90,11 @@ private:
     static inline NtProtectVirtualMemory_t s_pristine_protect_virtual_memory{ nullptr };
     static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };
 
+    // Kernelbase's VirtualProtect, captured before our hook goes in. The
+    // fallback below has to reach the real thing without re-entering the hook.
+    using VirtualProtect_t = BOOL(WINAPI*)(LPVOID, SIZE_T, DWORD, PDWORD);
+    static inline VirtualProtect_t s_real_virtual_protect{ nullptr };
+
     // safetyhook creates inline hooks by calling VirtualProtect to open up the
     // target page. Hooking VirtualProtect means that call lands back in
     // virtual_protect_hook before the hook being installed is even complete,

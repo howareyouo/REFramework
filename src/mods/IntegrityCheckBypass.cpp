@@ -911,6 +911,13 @@ void IntegrityCheckBypass::remove_stack_destroyer() {
 }
 
 void IntegrityCheckBypass::setup_pristine_syscall() {
+    // Capture the real VirtualProtect before anything can hook it. Every
+    // passthrough path in this file depends on it, including the hooks
+    // installed further down DllMain.
+    if (s_real_virtual_protect == nullptr) {
+        s_real_virtual_protect = VirtualProtect;
+    }
+
     if (s_pristine_protect_virtual_memory != nullptr) {
         spdlog::info("[IntegrityCheckBypass]: NtProtectVirtualMemory already setup!");
         return;
@@ -985,6 +992,14 @@ void IntegrityCheckBypass::fix_virtual_protect() try {
 }
 
 BOOL WINAPI IntegrityCheckBypass::virtual_protect_impl(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect) {
+    // Nothing to fall through to yet. setup_pristine_syscall runs early in
+    // DllMain, but the other hooks installed around it can still reach here
+    // first, and calling through a null pointer takes the whole process down
+    // before the exception handler is even installed.
+    if (s_og_protect_virtual_memory == nullptr) {
+        return s_real_virtual_protect(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    }
+
     static const auto this_process = GetCurrentProcess();
 
     LPVOID address_to_protect = lpAddress;
