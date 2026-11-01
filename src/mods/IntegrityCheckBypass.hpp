@@ -86,8 +86,9 @@ private:
     static BOOL WINAPI virtual_protect_impl(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
     static BOOL WINAPI virtual_protect_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
     
+    using NtProtectVirtualMemory_t = NTSTATUS(NTAPI*)(HANDLE ProcessHandle, PVOID* BaseAddress, SIZE_T* NumberOfBytesToProtect, ULONG NewAccessProtection, PULONG OldAccessProtection);
     static inline NtProtectVirtualMemory_t s_pristine_protect_virtual_memory{ nullptr };
-    static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };;
+    static inline NtProtectVirtualMemory_t s_og_protect_virtual_memory{ nullptr };
 
     // safetyhook creates inline hooks by calling VirtualProtect to open up the
     // target page. Hooking VirtualProtect means that call lands back in
