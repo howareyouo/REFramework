@@ -164,15 +164,6 @@ FetchContent_Declare(safetyhook
 )
 FetchContent_MakeAvailable(safetyhook)
 
-message(STATUS "Fetching freetype (f1cd6dbfa0c98f352b698448f40ac27e8fb3832e)...")
-FetchContent_Declare(freetype
-	GIT_REPOSITORY
-		"https://github.com/freetype/freetype"
-	GIT_TAG
-		f1cd6dbfa0c98f352b698448f40ac27e8fb3832e
-)
-FetchContent_MakeAvailable(freetype)
-
 message(STATUS "Fetching bddisasm (70db095765ab2066dd88dfb7bbcc42259ed167c5)...")
 FetchContent_Declare(bddisasm
 	GIT_REPOSITORY
@@ -230,7 +221,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"${imgui_SOURCE_DIR}/imgui_draw.cpp"
 		"${imgui_SOURCE_DIR}/imgui_tables.cpp"
 		"${imgui_SOURCE_DIR}/imgui_widgets.cpp"
-		"${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp"
 		cmake.toml
 	)
 
@@ -245,12 +235,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 
 	target_include_directories(imgui PUBLIC
 		${imgui_SOURCE_DIR}
-		"${imgui_SOURCE_DIR}/misc/freetype"
 		"src/re2-imgui"
-	)
-
-	target_link_libraries(imgui PUBLIC
-		freetype
 	)
 
 endif()

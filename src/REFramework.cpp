@@ -12,7 +12,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include <imgui.h>
-#include <imgui_freetype.h>
 #include <ImGuizmo.h>
 #include <imnodes.h>
 #include "re2-imgui/imgui_impl_dx11.h"
@@ -1015,7 +1014,6 @@ void REFramework::init_fonts() {
     m_fonts_need_init = false;
 
     auto& fonts = ImGui::GetIO().Fonts;
-    fonts->FontLoader = ImGuiFreeType::GetFontLoader();
 
     ImFontConfig custom_icons{};
     custom_icons.FontDataOwnedByAtlas = false;
@@ -1038,7 +1036,6 @@ void REFramework::init_fonts() {
 
                 ImFontConfig cfg{};
                 cfg.FontDataOwnedByAtlas = true;
-                cfg.FontLoaderFlags |= ImGuiFreeTypeLoaderFlags_LoadColor;
                 cfg.MergeMode        = true;
                 fonts->AddFontFromFileTTF(seguiemj_path.string().c_str(), m_font_size, &cfg);
             } else {
