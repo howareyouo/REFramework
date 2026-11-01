@@ -56,6 +56,7 @@ typedef ND_UINT32 NDSTATUS;
 #define ND_SUCCESS(status) ((status) < 0x80000000)
 #define ND_STATUS_SUCCESS 0x00000000
 #define ND_STATUS_INVALID_INSTRUX 0x80000001
+#define ND_STATUS_BUFFER_TOO_SMALL 0x80000002
 
 // ---------------------------------------------------------------------------
 // Decode modes
@@ -316,6 +317,20 @@ NdDecodeEx(
     ND_SIZET Size,
     ND_UINT8 DefCode,
     ND_UINT8 DefData);
+
+// Renders an instruction back to text. Produces "<mnemonic> <op0>, <op1>, ..."
+// with a leading "lock " when the LOCK prefix is present, operands as register
+// names, "[base+index*scale+0xdisp]" for memory and "0x..." for immediates and
+// relative offsets. That is enough for the one caller
+// (shared/sdk/ResourceManager.cpp, which lowercases the result, collapses
+// spaces and tests for "lock" / "lea rcx, ["), and it is deliberately not a
+// cycle-accurate reimplementation of bddisasm's formatter.
+NDSTATUS
+NdToText(
+    const INSTRUX* Instrux,
+    ND_UINT64 Rip,
+    ND_UINT32 BufferSize,
+    char* Buffer);
 
 #ifdef __cplusplus
 }

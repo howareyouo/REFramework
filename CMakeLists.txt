@@ -144,7 +144,11 @@ FetchContent_MakeAvailable(safetyhook)
 # It must be defined before kananlib is made available: KANANLIB_FETCH_BDDISASM
 # defaults to OFF, so kananlib expects the host project to supply these targets.
 # tools/bdshim_diff measures the two decoders against each other.
-add_library(bddisasm STATIC "shared/utility/bdshim/bdshim.cpp" "shared/utility/ScanSelf.cpp")
+add_library(bddisasm STATIC
+	"shared/utility/bdshim/bdshim.cpp"
+	"shared/utility/bdshim/bdshim_text.cpp"
+	"shared/utility/ScanSelf.cpp"
+)
 
 target_compile_features(bddisasm PUBLIC
 	cxx_std_23

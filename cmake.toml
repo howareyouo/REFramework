@@ -187,7 +187,7 @@ condition = "build-framework"
 # them, so keep this in sync by hand if you regenerate.
 [target.bddisasm]
 type = "static"
-sources = ["shared/utility/bdshim/bdshim.cpp", "shared/utility/ScanSelf.cpp"]
+sources = ["shared/utility/bdshim/bdshim.cpp", "shared/utility/bdshim/bdshim_text.cpp", "shared/utility/ScanSelf.cpp"]
 include-directories = ["shared/utility/bdshim"]
 compile-features = ["cxx_std_23"]
 
@@ -197,6 +197,10 @@ tag = "8c27b656734355db0f2893581fd62e838fa130ad"
 
 [target.utility]
 type = "static"
+# NOTE: shared/utility/bdshim/*.cpp and shared/utility/ScanSelf.cpp are also
+# compiled into the `bddisasm` target below. If you ever regenerate
+# CMakeLists.txt with cmkr, remove them from this glob list by hand or the link
+# will fail with duplicate symbols. CI builds the hand-written CMakeLists.txt.
 sources = ["shared/utility/**.cpp", "shared/utility/**.c"]
 headers = ["shared/utility/**.hpp", "shared/utility/**.h"]
 compile-features = ["cxx_std_23"]
