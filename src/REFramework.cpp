@@ -314,8 +314,7 @@ void REFramework::detect_game_path() {
 
 void REFramework::fix_virtual_protect() {
     // The safetyhook allocator is pre-seeded near the module midpoint in DllMain,
-    // which is what keeps trampolines reachable now that minhook's preallocated
-    // buffer is gone.
+    // which is what keeps trampolines within reach of their targets.
     IntegrityCheckBypass::fix_virtual_protect();
 }
 
