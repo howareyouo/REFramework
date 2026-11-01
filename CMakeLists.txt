@@ -5130,6 +5130,15 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"/EHa"
 	)
 
+	# 体积实验：三个 Lua 绑定翻译单元贡献了 62% 的镜像体积，多为模板展开出的
+	# 一次性代码，热路径不在这里，降一级优化换体积。
+	set_source_files_properties(
+		"src/mods/bindings/Sdk.cpp"
+		"src/mods/bindings/ImGui.cpp"
+		"src/mods/ScriptRunner.cpp"
+		PROPERTIES COMPILE_OPTIONS "/O1"
+	)
+
 	target_include_directories(RE4 PUBLIC
 		"shared/"
 		"src/"
