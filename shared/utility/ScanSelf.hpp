@@ -47,8 +47,35 @@ struct Insn {
     bool rip_operand{};     // has a RIP-relative memory operand (not a 67-prefixed absolute)
     int32_t disp{};         // that operand's displacement (valid when rip_operand)
     uintptr_t target{};     // rip_operand: ip + len + disp. relative branch: ip + len + rel
+
+    // The rest exists for the bddisasm compatibility layer in
+    // shared/utility/bdshim, which has to fill in a full INSTRUX. The walker
+    // above reads none of it, so filling it cannot change how a scan behaves.
+    uint8_t opcode{};       // main opcode byte, after any escape
+    uint8_t map{};          // 0 legacy, 1 = 0F, 2 = 0F38, 3 = 0F3A
     uint8_t modrm{};
+    uint8_t modrm_reg{};
+    uint8_t modrm_mod{};
     bool has_modrm{};
+    bool has_sib{};
+    uint8_t sib{};
+    uint8_t scale{};        // 1, 2, 4, 8 (valid when has_index)
+    bool has_base{};
+    uint8_t base{};         // GPR number, 0 = rax
+    bool has_index{};
+    uint8_t index{};        // GPR number, 0 = rax
+    uint8_t disp_size{};    // 0, 1, 2 or 4
+    bool has_imm{};
+    uint8_t imm_size{};
+    uint64_t imm{};         // raw (zero-extended) immediate
+    bool rel8{};            // the relative offset is 1 byte wide
+    bool vex{};             // VEX2/VEX3/EVEX encoded
+    bool opsize{};          // 0x66 present
+    bool addrsize{};        // 0x67 present
+    bool lock{};            // 0xF0 present
+    bool rep{};             // 0xF2/0xF3 present
+    uint8_t rex{};          // the REX byte, 0 when absent (0x40 with all bits clear is still a REX)
+    bool has_rex{};
 };
 
 // Decodes one instruction at `ip`. Returns false for encodings this decoder

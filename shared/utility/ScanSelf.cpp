@@ -267,18 +267,31 @@ bool decode(const uint8_t* ip, Insn& out) {
     bool opsize = false;   // 0x66
     bool addrsize = false; // 0x67
     bool rexw = false;
+    bool rexr = false;
+    bool rexx = false;
+    bool rexb = false;
+    bool lock = false;
+    bool rep = false;
+    uint8_t rex = 0;
+    bool has_rex = false;
 
     for (;;) {
         const uint8_t b = *ip;
         if (b >= 0x40 && b <= 0x4f) { // REX, must stay adjacent to the opcode
             rexw = (b & 0x08) != 0;
+            rexr = (b & 0x04) != 0;
+            rexx = (b & 0x02) != 0;
+            rexb = (b & 0x01) != 0;
+            rex = b;
+            has_rex = true;
             ++ip;
             continue;
         }
         switch (b) {
         case 0x66: opsize = true; ++ip; continue;
         case 0x67: addrsize = true; ++ip; continue;
-        case 0xf0: case 0xf2: case 0xf3:
+        case 0xf0: lock = true; ++ip; continue;
+        case 0xf2: case 0xf3: rep = true; ++ip; continue;
         case 0x2e: case 0x36: case 0x3e: case 0x26: case 0x64: case 0x65:
             ++ip;
             continue;
@@ -305,11 +318,15 @@ bool decode(const uint8_t* ip, Insn& out) {
         default: map = 1; opcode = op1; attrs = map0f_attrs(op1); break;
         }
     } else if (op0 == 0xc5) { // VEX2: R vvvv L pp
-        vex = true; map = 1; ip += 1; opcode = *ip++;
+        vex = true; map = 1; rexr = (ip[0] & 0x80) == 0; ip += 1; opcode = *ip++;
     } else if (op0 == 0xc4) { // VEX3: R X B mmmmm | W vvvv L pp
-        vex = true; map = ip[0] & 0x1f; rexw = rexw || (ip[1] & 0x80) != 0; ip += 2; opcode = *ip++;
+        vex = true; map = ip[0] & 0x1f;
+        rexr = (ip[0] & 0x80) == 0; rexx = (ip[0] & 0x40) == 0; rexb = (ip[0] & 0x20) == 0;
+        rexw = rexw || (ip[1] & 0x80) != 0; ip += 2; opcode = *ip++;
     } else if (op0 == 0x62) { // EVEX: R X B R' 0 0 mm | W vvvv 1 pp | z L' L b V' aaa
-        vex = true; map = ip[0] & 0x03; rexw = rexw || (ip[1] & 0x80) != 0; ip += 3; opcode = *ip++;
+        vex = true; map = ip[0] & 0x03;
+        rexr = (ip[0] & 0x80) == 0; rexx = (ip[0] & 0x40) == 0; rexb = (ip[0] & 0x20) == 0;
+        rexw = rexw || (ip[1] & 0x80) != 0; ip += 3; opcode = *ip++;
     } else {
         attrs = legacy_attrs(op0);
     }
@@ -345,32 +362,66 @@ bool decode(const uint8_t* ip, Insn& out) {
         const uint8_t mod = m >> 6;
         const uint8_t rm = m & 7;
         out.modrm = m;
+        out.modrm_mod = mod;
+        // The register field with REX.R / VEX.R applied, which is the numbering
+        // bddisasm reports in ND_OPERAND::Info.Register.Reg (it indexes the GPR
+        // file). The group selector of a group opcode is the raw 3 bits, i.e.
+        // (out.modrm >> 3) & 7.
+        out.modrm_reg = static_cast<uint8_t>(((m >> 3) & 7) | (rexr ? 8 : 0));
         out.has_modrm = true;
 
         if (mod != 3) {
+            uint8_t base = static_cast<uint8_t>(rm | (rexb ? 8 : 0));
+            bool has_base = true;
+
             if (rm == 4) { // SIB
-                const uint8_t sib = *ip++;
-                if (mod == 0 && (sib & 7) == 5) { // no base, disp32
+                const uint8_t s = *ip++;
+                out.has_sib = true;
+                out.sib = s;
+                out.scale = static_cast<uint8_t>(1u << (s >> 6));
+
+                const uint8_t index = (s >> 3) & 7;
+                // index 4 is rsp, the encoding for "no index" - unless REX.X
+                // promotes it to r12, which is a real index.
+                if (index != 4 || rexx) {
+                    out.has_index = true;
+                    out.index = static_cast<uint8_t>(index | (rexx ? 8 : 0));
+                }
+
+                base = static_cast<uint8_t>((s & 7) | (rexb ? 8 : 0));
+                if (mod == 0 && (s & 7) == 5) { // no base, disp32
+                    has_base = false;
                     disp = static_cast<int32_t>(read_u32(ip));
                     ip += 4;
                     has_disp = true;
+                    out.disp_size = 4;
                 }
             }
+
             if (mod == 1) {
                 disp = static_cast<int8_t>(*ip);
                 ip += 1;
                 has_disp = true;
+                out.disp_size = 1;
             } else if (mod == 2) {
                 disp = static_cast<int32_t>(read_u32(ip));
                 ip += 4;
                 has_disp = true;
+                out.disp_size = 4;
             } else if (mod == 0 && rm == 5) {
                 // RIP-relative in 64-bit mode; with 0x67 it is an absolute
                 // disp32, which is neither addressable nor followable.
                 disp = static_cast<int32_t>(read_u32(ip));
                 ip += 4;
                 has_disp = true;
+                out.disp_size = 4;
                 out.rip_operand = !addrsize;
+                has_base = false;
+            }
+
+            if (has_base) {
+                out.has_base = true;
+                out.base = base;
             }
         }
     }
@@ -395,18 +446,39 @@ bool decode(const uint8_t* ip, Insn& out) {
 
     int32_t rel{};
     bool has_rel = false;
+    uint8_t imm_size = 0;
 
     switch (imm) {
     case ImmKind::None: break;
-    case ImmKind::B: ip += 1; break;
-    case ImmKind::W: ip += 2; break;
-    case ImmKind::Z: ip += opsize ? 2 : 4; break;
-    case ImmKind::MovImm: ip += rexw ? 8 : (opsize ? 2 : 4); break;
-    case ImmKind::Moffs: ip += addrsize ? 4 : 8; break;
-    case ImmKind::Enter: ip += 3; break;
-    case ImmKind::Rel8: rel = static_cast<int8_t>(*ip); ip += 1; has_rel = true; break;
-    case ImmKind::Rel32: rel = static_cast<int32_t>(read_u32(ip)); ip += 4; has_rel = true; break;
+    case ImmKind::B: imm_size = 1; break;
+    case ImmKind::W: imm_size = 2; break;
+    case ImmKind::Z: imm_size = opsize ? 2 : 4; break;
+    case ImmKind::MovImm: imm_size = rexw ? 8 : (opsize ? 2 : 4); break;
+    case ImmKind::Moffs: imm_size = addrsize ? 4 : 8; break;
+    case ImmKind::Enter: imm_size = 3; break;
+    case ImmKind::Rel8:
+        rel = static_cast<int8_t>(*ip);
+        out.rel8 = true;
+        ip += 1;
+        has_rel = true;
+        break;
+    case ImmKind::Rel32:
+        rel = static_cast<int32_t>(read_u32(ip));
+        ip += 4;
+        has_rel = true;
+        break;
     default: break;
+    }
+
+    if (imm_size != 0) {
+        uint64_t value = 0;
+        for (uint8_t i = 0; i < imm_size; ++i) {
+            value |= static_cast<uint64_t>(ip[i]) << (8 * i);
+        }
+        ip += imm_size;
+        out.has_imm = true;
+        out.imm_size = imm_size;
+        out.imm = value;
     }
 
     const ptrdiff_t len = ip - start;
@@ -416,6 +488,15 @@ bool decode(const uint8_t* ip, Insn& out) {
 
     out.len = static_cast<uint8_t>(len);
     out.kind = kind;
+    out.opcode = opcode;
+    out.map = static_cast<uint8_t>(map);
+    out.vex = vex;
+    out.opsize = opsize;
+    out.addrsize = addrsize;
+    out.lock = lock;
+    out.rep = rep;
+    out.rex = rex;
+    out.has_rex = has_rex;
     if (has_disp) {
         out.disp = disp;
     }

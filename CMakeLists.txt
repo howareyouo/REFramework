@@ -164,14 +164,26 @@ FetchContent_Declare(safetyhook
 )
 FetchContent_MakeAvailable(safetyhook)
 
-message(STATUS "Fetching bddisasm (70db095765ab2066dd88dfb7bbcc42259ed167c5)...")
-FetchContent_Declare(bddisasm
-	GIT_REPOSITORY
-		"https://github.com/bitdefender/bddisasm"
-	GIT_TAG
-		70db095765ab2066dd88dfb7bbcc42259ed167c5
+# bddisasm is no longer fetched. shared/utility/bdshim/ provides the small slice
+# of its API that kananlib and src/ actually use (NdDecodeEx plus the operand and
+# instruction fields behind it), backed by the self-contained decoder in
+# shared/utility/ScanSelf.cpp. Saves ~585 KB of static library.
+#
+# It must be defined before kananlib is made available: KANANLIB_FETCH_BDDISASM
+# defaults to OFF, so kananlib expects the host project to supply these targets.
+# tools/bdshim_diff measures the two decoders against each other.
+add_library(bddisasm STATIC "shared/utility/bdshim/bdshim.cpp" "shared/utility/ScanSelf.cpp")
+
+target_compile_features(bddisasm PUBLIC
+	cxx_std_23
 )
-FetchContent_MakeAvailable(bddisasm)
+
+target_include_directories(bddisasm PUBLIC
+	"shared/utility/bdshim"
+)
+
+add_library(bddisasm::bddisasm ALIAS bddisasm)
+add_library(bddisasm::bdshemu ALIAS bddisasm)
 
 message(STATUS "Fetching kananlib (8c27b656734355db0f2893581fd62e838fa130ad)...")
 FetchContent_Declare(kananlib

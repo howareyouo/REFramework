@@ -198,9 +198,16 @@ type = "interface"
 include-directories = ["dependencies/nlohmann"]
 condition = "build-framework"
 
-[fetch-content.bddisasm]
-git = "https://github.com/bitdefender/bddisasm"
-tag = "70db095765ab2066dd88dfb7bbcc42259ed167c5"
+# bddisasm is intentionally not fetched: shared/utility/bdshim/ implements the
+# small API slice kananlib and src/ use on top of shared/utility/ScanSelf.cpp.
+# The hand-written CMakeLists.txt adds the `bddisasm::bddisasm` /
+# `bddisasm::bdshemu` aliases that kananlib links against; cmkr cannot express
+# them, so keep this in sync by hand if you regenerate.
+[target.bddisasm]
+type = "static"
+sources = ["shared/utility/bdshim/bdshim.cpp", "shared/utility/ScanSelf.cpp"]
+include-directories = ["shared/utility/bdshim"]
+compile-features = ["cxx_std_23"]
 
 [fetch-content.kananlib]
 git = "https://github.com/cursey/kananlib"
