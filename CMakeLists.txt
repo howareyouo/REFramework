@@ -133,6 +133,8 @@ FetchContent_Declare(safetyhook
 		"https://github.com/cursey/safetyhook"
 	GIT_TAG
 		b046e123dc69821f2c375161e0adef3c6d9c9db4
+	PATCH_COMMAND
+		"cmd;/c;git checkout -- . && git apply -p1 --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/patches/safetyhook-ntprotect.patch"
 )
 FetchContent_MakeAvailable(safetyhook)
 

@@ -14,7 +14,6 @@
 
 #include "PluginLoader.hpp"
 #include "APIProxy.hpp"
-#include "IntegrityCheckBypass.hpp"
 
 // For cimgui redirection when on_imgui_frame is called.
 namespace cimgui {
@@ -45,9 +44,6 @@ void setup_hook() {
         if (llxw != nullptr) {
             spdlog::info("[REFramework] Hooking LoadLibraryExW for cimgui.dll redirection");
 
-            // safetyhook opens the page with VirtualProtect; keep the
-            // IntegrityCheckBypass hook out of the way while it does.
-            IntegrityCheckBypass::VirtualProtectSuspension suspension{};
             cimgui::g_load_library_ex_w_hook = std::make_unique<FunctionHook>(LoadLibraryExW, cimgui::load_library_ex_w_hook);
 
             if (!cimgui::g_load_library_ex_w_hook->create()) {

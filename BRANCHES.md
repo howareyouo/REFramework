@@ -81,3 +81,22 @@
   修复 commit 摘出了分支,导致非快进推送。整理历史前先 `git log origin/<branch>` 对一遍。
 - **本地跟踪引用可能陈旧。** 一度以为远端有上千个新提交,实际是 `origin/novr` 的本地引用
   没刷新。用 `git ls-remote origin refs/heads/<branch>` 直接问远端,不要只信 `git log origin/x`。
+
+## 教训记录:2026-11-02 safetyhook 补丁没跟上迁移
+
+`novr` 在 `79ac87ee` 上修掉了 safetyhook 挂钩 VirtualProtect 导致启动即崩的问题:
+safetyhook 应用补丁时用**导出的** `VirtualProtect` 改页保护,而该导出本身就是挂钩
+目标,那次恢复调用会在钩子还没装完时重入自己。修法是让 safetyhook 内部改页直接
+走 `NtProtectVirtualMemory`(`patches/safetyhook-ntprotect.patch` + `cmake.toml` 的
+`PATCH_COMMAND`),并在 `virtual_protect_hook` 里加一个 `thread_local` 重入守卫兜底。
+
+`novr_re4` 从来没拿到它:`ff51ad81`(M1-M11 逐模块移植)的提交信息里明写
+Not ported by design: ... CI/build-system migration,而这个修复恰好是纯构建系统
+改动;之后 `novr_re4` 又在 `4dbf6298` 自己重做了一遍迁移(没有 patch),于是踩回
+同一个崩溃:启动 38ms、`0xC0000005` 静默退出。
+
+规则:
+
+- 纯构建系统改动不能当不摘的理由。`patches/`、`FetchContent` 的 `PATCH_COMMAND`
+  和 `GIT_TAG` 正是多分支之间最容易漏、后果又最重的一类。
+- 同一件事在两条线上各写一遍,就按 is_readable 事件的规则办:cherry-pick,不要重做。

@@ -963,23 +963,12 @@ void IntegrityCheckBypass::setup_pristine_syscall() {
     spdlog::info("[IntegrityCheckBypass]: Copied NtProtectVirtualMemory to 0x{:X}", (uintptr_t)s_pristine_protect_virtual_memory);
 }
 
-IntegrityCheckBypass::VirtualProtectSuspension::VirtualProtectSuspension() {
-    s_virtual_protect_suspended.store(true, std::memory_order_release);
-}
-
-IntegrityCheckBypass::VirtualProtectSuspension::~VirtualProtectSuspension() {
-    s_virtual_protect_suspended.store(false, std::memory_order_release);
-}
-
 // hahahah i hate this
 void IntegrityCheckBypass::fix_virtual_protect() try {
     spdlog::info("[IntegrityCheckBypass]: Fixing VirtualProtect...");
 
     setup_pristine_syscall(); // Called earlier in DllMain
 
-    // Hook VirtualProtect. safetyhook opens the page with VirtualProtect before
-    // its hook goes live, so create() has to run while the passthrough is armed.
-    VirtualProtectSuspension suspension{};
     s_virtual_protect_hook = std::make_unique<FunctionHook>(VirtualProtect, (uintptr_t)virtual_protect_hook);
     if (!s_virtual_protect_hook->create()) {
         spdlog::error("[IntegrityCheckBypass]: Could not hook VirtualProtect!");
@@ -1032,11 +1021,15 @@ BOOL WINAPI IntegrityCheckBypass::virtual_protect_impl(LPVOID lpAddress, SIZE_T 
 
 // This allows our calls to VirtualProtect to go through without being hindered by... something.
 BOOL WINAPI IntegrityCheckBypass::virtual_protect_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect) try {
-    // safetyhook is mid-create: let the call through untouched, otherwise it
-    // re-enters this function before its own hook is fully installed.
-    if (s_virtual_protect_suspended.load(std::memory_order_acquire)) {
+    // Re-entered: the hook being installed (this one or another) caused a
+    // nested call through the exported VirtualProtect (e.g. safetyhook toggling
+    // page protections while applying a patch). Delegate straight to the
+    // syscall to avoid recursion, then return.
+    if (s_virtual_protect_in_hook) {
         return virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
     }
+
+    s_virtual_protect_in_hook = true;
 
     static bool once = true;
     if (once) {
@@ -1087,8 +1080,11 @@ BOOL WINAPI IntegrityCheckBypass::virtual_protect_hook(LPVOID lpAddress, SIZE_T 
         spdlog::error("[IntegrityCheckBypass]: Failed to verify NtProtectVirtualMemory integrity!");
     }
 
-    return virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    BOOL result = virtual_protect_impl(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+    s_virtual_protect_in_hook = false;
+    return result;
 } catch(...) {
+    s_virtual_protect_in_hook = false;
     spdlog::error("[IntegrityCheckBypass]: VirtualProtect hook failed! falling back to original");
     return s_virtual_protect_hook->get_original<decltype(virtual_protect_hook)>()(lpAddress, dwSize, flNewProtect, lpflOldProtect);
 }
@@ -1160,7 +1156,6 @@ void IntegrityCheckBypass::hook_rtl_exit_user_process() {
         return;
     }
 
-    VirtualProtectSuspension suspension{};
     s_rtl_exit_user_process_hook = std::make_unique<FunctionHook>((uintptr_t)RtlExitUserProcess, (uintptr_t)&rtl_exit_user_process_hook);
     if (!s_rtl_exit_user_process_hook->create()) {
         spdlog::error("[IntegrityCheckBypass]: Could not hook RtlExitUserProcess!");

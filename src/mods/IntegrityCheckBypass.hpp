@@ -3,7 +3,6 @@
 #include <memory>
 #include <string_view>
 #include <regex>
-#include <atomic>
 
 #include "Mod.hpp"
 #include "utility/Patch.hpp"
@@ -31,16 +30,6 @@ public:
 
     static void setup_pristine_syscall();
     static void fix_virtual_protect();
-
-    // Arms the VirtualProtect passthrough for as long as this object lives.
-    // Every safetyhook create/destroy that can touch VirtualProtect has to be
-    // wrapped in one, including from other translation units.
-    struct VirtualProtectSuspension {
-        VirtualProtectSuspension();
-        ~VirtualProtectSuspension();
-        VirtualProtectSuspension(const VirtualProtectSuspension&) = delete;
-        VirtualProtectSuspension& operator=(const VirtualProtectSuspension&) = delete;
-    };
 
     static void hook_add_vectored_exception_handler();
     static void hook_rtl_exit_user_process();
@@ -95,13 +84,12 @@ private:
     using VirtualProtect_t = BOOL(WINAPI*)(LPVOID, SIZE_T, DWORD, PDWORD);
     static inline VirtualProtect_t s_real_virtual_protect{ nullptr };
 
-    // safetyhook creates inline hooks by calling VirtualProtect to open up the
-    // target page. Hooking VirtualProtect means that call lands back in
-    // virtual_protect_hook before the hook being installed is even complete,
-    // which is what made this unrunnable under safetyhook. The hook passes
-    // everything straight through while this flag is set; every safetyhook
-    // create/destroy is bracketed with a VirtualProtectSuspension.
-    static inline std::atomic_bool s_virtual_protect_suspended{false};
+    // Re-entry guard: safetyhook used to open the target page by calling the
+    // exported VirtualProtect, which landed back in virtual_protect_hook while
+    // the hook was still being installed. The root fix is
+    // patches/safetyhook-ntprotect.patch (safetyhook now calls
+    // NtProtectVirtualMemory directly); this stays as a second line of defense.
+    static inline thread_local bool s_virtual_protect_in_hook{ false };
 
     static inline std::unique_ptr<FunctionHook> s_virtual_protect_hook{};
 
