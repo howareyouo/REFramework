@@ -511,13 +511,9 @@ void run_guarded(std::recursive_mutex& mux, const char* what, Body&& body) {
 
 void ScriptState::on_frame() {
     run_guarded(m_execution_mutex, "Unknown error in on_frame", [this] {
-        auto guard = m_on_frame_fns.acquire_iteration();
-
-        for (auto& fn : m_on_frame_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn()))) {
-                m_on_frame_fns.remove(fn);
-            }
-        }
+        m_on_frame_fns.dispatch([this](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn()));
+        });
     });
 
     api::imgui::cleanup();
@@ -526,13 +522,9 @@ void ScriptState::on_frame() {
 
 void ScriptState::on_draw_ui() {
     run_guarded(m_execution_mutex, "Unknown error in on_draw_ui", [this] {
-        auto guard = m_on_draw_ui_fns.acquire_iteration();
-
-        for (auto& fn : m_on_draw_ui_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn()))) {
-                m_on_draw_ui_fns.remove(fn);
-            }
-        }
+        m_on_draw_ui_fns.dispatch([this](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn()));
+        });
     });
 
     api::imgui::cleanup();
@@ -619,17 +611,16 @@ bool ScriptState::on_pre_gui_draw_element(REComponent* gui_element, void* contex
     bool any_false = false;
 
     run_guarded(m_execution_mutex, "Unknown exception in on_pre_gui_draw_element", [&] {
-        auto guard = m_pre_gui_draw_element_fns.acquire_iteration();
-
-        for (auto& fn : m_pre_gui_draw_element_fns.get()) {
+        m_pre_gui_draw_element_fns.dispatch([&](sol::protected_function& fn) {
             auto result = handle_protected_result(fn(gui_element, context));
 
             if (sol::object result_obj = result; !result_obj.is<sol::nil_t>() && result_obj.is<bool>() && result_obj.as<bool>() == false) {
                 any_false = true;
-            } else if (should_remove_hook(result)) {
-                m_pre_gui_draw_element_fns.remove(fn);
+                return false;
             }
-        }
+
+            return should_remove_hook(result);
+        });
     });
 
     return !any_false;
@@ -641,46 +632,30 @@ void ScriptState::on_gui_draw_element(REComponent* gui_element, void* context) {
     }
 
     run_guarded(m_execution_mutex, "Unknown exception in on_gui_draw_element", [this, gui_element, context] {
-        auto guard = m_gui_draw_element_fns.acquire_iteration();
-
-        for (auto& fn : m_gui_draw_element_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn(gui_element, context)))) {
-                m_gui_draw_element_fns.remove(fn);
-            }
-        }
+        m_gui_draw_element_fns.dispatch([this, gui_element, context](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn(gui_element, context)));
+        });
     });
 }
 
 void ScriptState::on_script_reset() {
     run_guarded(m_execution_mutex, "Unknown exception in on_script_reset", [this] {
         // We first call on_config_save functions so scripts can save prior to reset.
-        auto guard_save = m_on_config_save_fns.acquire_iteration();
+        m_on_config_save_fns.dispatch([this](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn()));
+        });
 
-        for (auto& fn : m_on_config_save_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn()))) {
-                m_on_config_save_fns.remove(fn);
-            }
-        }
-
-        auto guard_reset = m_on_script_reset_fns.acquire_iteration();
-
-        for (auto& fn : m_on_script_reset_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn()))) {
-                m_on_script_reset_fns.remove(fn);
-            }
-        }
+        m_on_script_reset_fns.dispatch([this](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn()));
+        });
     });
 }
 
 void ScriptState::on_config_save() {
     run_guarded(m_execution_mutex, "Unknown exception in on_config_save", [this] {
-        auto guard = m_on_config_save_fns.acquire_iteration();
-
-        for (auto& fn : m_on_config_save_fns.get()) {
-            if (should_remove_hook(handle_protected_result(fn()))) {
-                m_on_config_save_fns.remove(fn);
-            }
-        }
+        m_on_config_save_fns.dispatch([this](sol::protected_function& fn) {
+            return should_remove_hook(handle_protected_result(fn()));
+        });
     });
 }
 
@@ -842,9 +817,8 @@ void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
     }
 
     auto __ = owner_state->scoped_lock();
-    auto guard = delegate->callbacks.acquire_iteration();
 
-    for (auto& fn : delegate->callbacks.get()) {
+    delegate->callbacks.dispatch([&](sol::protected_function& fn) {
         try {
             auto script_result = fn(obj);
 
@@ -856,7 +830,9 @@ void ScriptState::delegate_callback(sdk::VMContext* ctx, REManagedObject* obj) {
         } catch(...) {
             ScriptRunner::get()->spew_error("Unknown error executing delegate callback");
         }
-    }
+
+        return false;
+    });
 }
 
 void ScriptState::gc_data_changed(GarbageCollectionData data) {

@@ -11,6 +11,39 @@
 template <typename T>
 class SafeCallbackVector {
 public:
+    bool empty() const { return m_callbacks.empty(); }
+
+    // Invokes every callback in order. `invoke` is called with each callback
+    // and returns true when that callback asked to be unregistered, which is
+    // how a callback says "don't call me again" without the caller having to
+    // know anything about the deferral rules.
+    //
+    // The whole iteration is guarded, so a callback may add or remove
+    // callbacks while it runs.
+    template <typename Invoke>
+    void dispatch(Invoke&& invoke) {
+        auto guard = acquire_iteration();
+
+        for (auto& callback : m_callbacks) {
+            if (invoke(callback)) {
+                remove(callback);
+            }
+        }
+    }
+
+    void add(const T& fn) {
+        (m_use_count > 0 ? m_pending : m_callbacks).push_back(fn);
+    }
+
+    void remove(const T& fn) {
+        if (m_use_count > 0) {
+            m_pending_removals.push_back(fn);
+        } else {
+            std::erase(m_callbacks, fn);
+        }
+    }
+
+private:
     [[nodiscard]] auto acquire_iteration() {
         ++m_use_count;
 
@@ -29,22 +62,6 @@ public:
         });
     }
 
-    auto& get() { return m_callbacks; }
-    bool empty() const { return m_callbacks.empty(); }
-
-    void add(const T& fn) {
-        (m_use_count > 0 ? m_pending : m_callbacks).push_back(fn);
-    }
-
-    void remove(const T& fn) {
-        if (m_use_count > 0) {
-            m_pending_removals.push_back(fn);
-        } else {
-            std::erase(m_callbacks, fn);
-        }
-    }
-
-private:
     std::vector<T> m_callbacks{};
     std::vector<T> m_pending{};
     std::vector<T> m_pending_removals{};
