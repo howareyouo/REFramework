@@ -21,6 +21,22 @@ set(BUILD_TOOLS OFF CACHE BOOL "" FORCE) # DirectXTK
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE) # Freetype
 
+# asmjit is only used for the x86 assembler in HookManager (JitRuntime + x86::Assembler):
+# no formatter, logger, instruction-name or validator API is referenced anywhere. Plain
+# variables, not CACHE, because asmjit reads these with a bare "if (...)" and only
+# promotes ASMJIT_STATIC-like options to CACHE. The -D flags reach our own TUs through
+# asmjit's INTERFACE compile options, so both sides get the same configuration.
+set(ASMJIT_NO_LOGGING ON)    # drops Logger/Formatter (required by ASMJIT_NO_TEXT)
+set(ASMJIT_NO_TEXT ON)       # drops the instruction name tables
+set(ASMJIT_NO_VALIDATION ON) # drops the operand validator (emit results are never checked)
+
+# Zydis is fetched by safetyhook (see SAFETYHOOK_FETCH_ZYDIS above). Nothing in this
+# project uses the encoder - safetyhook only decodes - but Zydis refuses to configure
+# when KNC is disabled while the encoder is enabled, so the two go off together. The
+# encoder only saves compile time there; the KNC instruction tables save actual bytes.
+set(ZYDIS_FEATURE_ENCODER OFF CACHE BOOL "" FORCE)
+set(ZYDIS_FEATURE_KNC OFF CACHE BOOL "" FORCE)
+
 if ("${CMAKE_BUILD_TYPE}" MATCHES "Release")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MT")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MT")
