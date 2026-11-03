@@ -282,6 +282,8 @@ REFramework::REFramework(HMODULE reframework_module)
     setup_integrity_bypass();
     RF_STARTUP_PHASE("plugin_early_init");
     plugin_early_init();
+    RF_STARTUP_PHASE("load_config");
+    load_config();
     RF_STARTUP_PHASE("wait_for_vm_and_renderer");
     wait_for_vm_and_renderer();
     RF_STARTUP_PHASE("start_monitor_thread");
@@ -444,6 +446,16 @@ void REFramework::plugin_early_init() {
     PluginLoader::get()->early_init();
 }
 
+void REFramework::load_config() {
+    // The configuration file is read exactly once, here. Every consumer --
+    // the mods, the framework itself -- reads the same snapshot afterwards.
+    if (m_config_store.load()) {
+        spdlog::info("Loaded config {}", m_config_store.file_path());
+    } else {
+        spdlog::info("No config found at {}, using defaults", m_config_store.file_path());
+    }
+}
+
 void REFramework::wait_for_vm_and_renderer() {
     // Wait for TDB and render device to be initialized before allowing D3D hooking.
     const auto start_time = std::chrono::high_resolution_clock::now();
@@ -472,9 +484,10 @@ void REFramework::wait_for_vm_and_renderer() {
         auto& integrity_bypass = IntegrityCheckBypass::get_shared_instance();
 
 
-        const auto config_path = get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string();
-        if (fs::exists(utility::widen(config_path))) {
-            utility::Config cfg{ config_path };
+        // The config file was already read during startup; these two mods
+        // simply need their values before they hook anything.
+        {
+            const auto& cfg = m_config_store.config();
             loader->on_config_load(cfg);
 
             integrity_bypass->on_config_load(cfg);
@@ -754,7 +767,7 @@ bool REFramework::on_frame_common_init() {
     if (is_init_ok) {
         // Write default config once if it doesn't exist.
         if (!std::exchange(m_created_default_cfg, true)) {
-            if (!fs::exists({utility::widen(get_persistent_dir(REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string())})) {
+            if (!m_config_store.file_exists()) {
                 save_config();
             }
         }
@@ -1318,7 +1331,7 @@ void REFramework::save_config() {
 
     m_wants_save_config = false;
 
-    spdlog::info("Saving config {}", REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data());
+    spdlog::info("Saving config {}", ConfigStore::CONFIG_FILE_NAME);
 
     utility::Config cfg{};
 
@@ -1327,7 +1340,7 @@ void REFramework::save_config() {
     }
 
     try {
-        if (!cfg.save((get_persistent_dir() / REFrameworkConfig::REFRAMEWORK_CONFIG_NAME.data()).string())) {
+        if (!m_config_store.save(cfg)) {
             spdlog::error("Failed to save config");
             return;
         }

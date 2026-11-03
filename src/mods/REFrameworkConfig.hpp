@@ -4,7 +4,6 @@
 
 class REFrameworkConfig : public Mod {
 public:
-    static inline constexpr std::string_view REFRAMEWORK_CONFIG_NAME{ "reframework_config.txt" };
     static std::shared_ptr<REFrameworkConfig>& get();
 
 public:

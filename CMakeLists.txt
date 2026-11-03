@@ -500,6 +500,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/re2-imgui/imgui_impl_win32.cpp"
 		"src/re2-imgui/imgui_impl_win32.h"
 		"src/re2-imgui/re2_imconfig.hpp"
+		"src/utility/ConfigStore.hpp"
 		"src/utility/ImGui.cpp"
 		"src/utility/ImGui.hpp"
 		"src/utility/d3d12/ComPtr.hpp"

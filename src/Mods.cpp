@@ -147,7 +147,9 @@ std::optional<std::string> Mods::on_initialize() const {
         }
     }
 
-    utility::Config cfg{ (REFramework::get_persistent_dir() / REFrameworkConfig::REFRAMEWORK_CONFIG_NAME).string() };
+    // The config file was read once during startup; every consumer reads
+    // the same snapshot from the store.
+    const auto& cfg = g_framework->get_config();
 
     for (auto& mod : m_mods) {
         spdlog::info("{:s}::on_config_load()", mod->get_name().data());
@@ -161,7 +163,7 @@ std::optional<std::string> Mods::on_initialize() const {
 std::optional<std::string> Mods::on_initialize_d3d_thread() const {
     auto do_not_hook_d3d = g_framework->acquire_do_not_hook_d3d();
 
-    utility::Config cfg{ (REFramework::get_persistent_dir() / REFrameworkConfig::REFRAMEWORK_CONFIG_NAME).string() };
+    const auto& cfg = g_framework->get_config();
 
     // once here to at least setup the values
     for (auto& mod : m_mods) {

@@ -13,6 +13,7 @@
 
 #include <../../directxtk12-src/Inc/GraphicsMemory.h>
 #include "utility/d3d12/CommandContext.hpp"
+#include "utility/ConfigStore.hpp"
 
 class Mods;
 class REGlobals;
@@ -46,6 +47,7 @@ private:
     void setup_mhwilds_early_init();
     void setup_integrity_bypass();
     void plugin_early_init();
+    void load_config();
     void wait_for_vm_and_renderer();
     void start_monitor_thread();
 
@@ -84,6 +86,16 @@ public:
     bool is_dx12() const { return m_is_d3d12; }
 
     const auto& get_mods() const { return m_mods; }
+
+    // The framework's configuration file and its loaded contents. The file is
+    // read once during startup; everything else reads the snapshot from here.
+    const utility::Config& get_config() const {
+        return m_config_store.config();
+    }
+
+    ConfigStore& config_store() {
+        return m_config_store;
+    }
 
     const auto& get_mouse_delta() const { return m_mouse_delta; }
     const auto& get_keyboard_state() const { return m_last_keys; }
@@ -288,6 +300,8 @@ private:
 
     // Game-specific stuff
     std::unique_ptr<Mods> m_mods;
+
+    ConfigStore m_config_store{ (get_persistent_dir() / std::string{ ConfigStore::CONFIG_FILE_NAME }).string() };
 
     std::shared_mutex m_hook_monitor_mutex{};
     std::recursive_mutex m_startup_mutex{};
