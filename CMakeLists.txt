@@ -169,6 +169,8 @@ FetchContent_Declare(kananlib
 		"https://github.com/cursey/kananlib"
 	GIT_TAG
 		8c27b656734355db0f2893581fd62e838fa130ad
+	PATCH_COMMAND
+		"cmd;/c;git checkout -- . && git apply -p1 --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/patches/kananlib-no-ppl.patch"
 )
 FetchContent_MakeAvailable(kananlib)
 

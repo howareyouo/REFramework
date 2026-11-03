@@ -57,7 +57,7 @@ bool FunctionHook::create() {
                     error = "not enough space";
                     break;
                 default:
-                    error = std::format("unknown error {}", (int32_t)m_inline_hook.error().type);
+                    error = fmt::format("unknown error {}", (int32_t)m_inline_hook.error().type);
                     break;
             };
 

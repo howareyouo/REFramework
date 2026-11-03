@@ -1,0 +1,88 @@
+diff --git a/include/utility/thirdparty/parallel-util.hpp b/include/utility/thirdparty/parallel-util.hpp
+index 1a9b2f5..2088c57 100644
+--- a/include/utility/thirdparty/parallel-util.hpp
++++ b/include/utility/thirdparty/parallel-util.hpp
+@@ -37,7 +37,9 @@ SOFTWARE.
+ 
+ #include <utility/Logging.hpp>
+ 
++#include <algorithm>
+ #include <functional>
++#include <memory>
+ #include <mutex>
+ #include <queue>
+ #include <thread>
+diff --git a/src/RTTI.cpp b/src/RTTI.cpp
+index 909e298..d88e96c 100644
+--- a/src/RTTI.cpp
++++ b/src/RTTI.cpp
+@@ -1,4 +1,3 @@
+-#include <ppl.h>
+ 
+ // Include MSVC internal RTTI headers
+ #ifdef __clang__
+@@ -450,7 +449,7 @@ std::optional<uintptr_t> find_object_inline(HMODULE m, std::string_view type_nam
+ 
+     std::optional<uintptr_t> result{};
+ 
+-    concurrency::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
++    parallelutil::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
+         if (result != std::nullopt || IsBadReadPtr((void*)addr, sizeof(void*))) {
+             return;
+         }
+@@ -487,7 +486,7 @@ std::optional<uintptr_t*> find_object_ptr(HMODULE m, std::string_view type_name)
+ 
+     std::optional<uintptr_t*> result{};
+ 
+-    concurrency::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
++    parallelutil::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
+         if (result != std::nullopt || IsBadReadPtr((void*)addr, sizeof(void*))) {
+             return;
+         }
+@@ -520,7 +519,7 @@ std::optional<uintptr_t*> find_object_ptr(HMODULE vtable_module, uintptr_t begin
+ 
+     std::optional<uintptr_t*> result{};
+ 
+-    concurrency::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
++    parallelutil::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
+         if (result != std::nullopt || IsBadReadPtr((void*)addr, sizeof(void*))) {
+             return;
+         }
+@@ -557,7 +556,7 @@ std::vector<uintptr_t*> find_objects_ptr(HMODULE m, std::string_view type_name)
+     std::vector<uintptr_t*> result{};
+     std::mutex result_mutex{};
+ 
+-    concurrency::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
++    parallelutil::parallel_for(begin, end, sizeof(void*), [&](uintptr_t addr) {
+         if (IsBadReadPtr((void*)addr, sizeof(void*))) {
+             return;
+         }
+diff --git a/src/Scan.cpp b/src/Scan.cpp
+index 87a89c6..1e2bd22 100644
+--- a/src/Scan.cpp
++++ b/src/Scan.cpp
+@@ -1,6 +1,5 @@
+ #define NOMINMAX
+ 
+-#include <ppl.h>
+ #include <intrin.h>
+ 
+ #include <numeric>
+@@ -441,7 +440,7 @@ namespace utility {
+             //SPDLOG_INFO("Segment {}: start: {:x}, length: {}", i, segment_start, corrected_length);
+         }
+ 
+-        concurrency::parallel_for((size_t)0, segments.size(), [&](size_t i) {
++        parallelutil::parallel_for((size_t)0, segments.size(), [&](size_t i) {
+             const auto& segment = segments[i];
+ 
+             const auto len = i < segments.size() - 1 ? segment.length + 4 : segment.length; // +4 because scan_relative_reference_scalar checks if i + 4 < end
+@@ -1728,7 +1727,7 @@ namespace utility {
+         std::vector<uint8_t> functions_populated(function_starts.size(), 0);
+         std::atomic<size_t> populated_count = 0;
+ 
+-        concurrency::parallel_for(size_t(0), indices.size(), [&](size_t j) {
++        parallelutil::parallel_for(size_t(0), indices.size(), [&](size_t j) {
+             const auto i = indices[j];
+             const auto& start_rva = function_starts[i];
+             const auto start_absolute = module + start_rva;

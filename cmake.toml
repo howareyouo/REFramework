@@ -192,6 +192,11 @@ compile-features = ["cxx_std_23"]
 [fetch-content.kananlib]
 git = "https://github.com/cursey/kananlib"
 tag = "8c27b656734355db0f2893581fd62e838fa130ad"
+# Patch kananlib's scan/RTTI helpers to use the std::thread-based parallel_for it
+# already bundles (include/utility/thirdparty/parallel-util.hpp) instead of
+# <ppl.h>. This drops the whole ConcRT runtime from the DLL (~141 KB).
+# Idempotent, same pattern as the safetyhook patch above.
+PATCH_COMMAND = "cmd;/c;git checkout -- . && git apply -p1 --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/patches/kananlib-no-ppl.patch"
 
 [target.utility]
 type = "static"

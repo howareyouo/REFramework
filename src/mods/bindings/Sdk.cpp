@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <spdlog/fmt/fmt.h>
 
 #include "HookManager.hpp"
 #include "sdk/REContext.hpp"
@@ -1101,7 +1102,7 @@ void set_data(void* data, ::sdk::RETypeDefinition* data_type, sol::object& value
 
             if (vt->type != data_type) {
                 if (vt->type != nullptr && data_type != nullptr) {
-                    throw sol::error(std::format("Attempted to set ValueType of type {} to field of type {}", vt->type->get_full_name(), data_type->get_full_name()));
+                    throw sol::error(fmt::format("Attempted to set ValueType of type {} to field of type {}", vt->type->get_full_name(), data_type->get_full_name()));
                 }
 
                 throw sol::error("Attempted to set ValueType to field of unknown type");
