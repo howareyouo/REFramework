@@ -383,18 +383,23 @@ Microsoft::WRL::ComPtr<IDXGISwapChain1> create_dummy_swapchain(IDXGIFactory4* fa
 bool is_frame_generation_swapchain(IDXGISwapChain1* swap_chain) {
     try {
         const auto ti = utility::rtti::get_type_info(swap_chain);
-        const auto classname = ti != nullptr && ti->name() != nullptr ? std::string_view{ti->name()} : "unknown";
+
+        // Matching on raw_name() on purpose: MSVC's type_info::name() demangles
+        // through __unDName, which links in the whole undname table (~43 KB) for
+        // strings these two checks only ever substring-match. A decorated name
+        // reverses namespace nesting and joins with '@', so the demangled
+        // "interposer::DXGISwapChain" reads back as "DXGISwapChain@interposer";
+        // requiring both tokens accepts every name the demangled check accepted.
         const auto raw_name = ti != nullptr && ti->raw_name() != nullptr ? std::string_view{ti->raw_name()} : "unknown";
 
-        spdlog::info("Swapchain type info: {}", classname);
         spdlog::info("Swapchain raw type info: {}", raw_name);
 
-        if (classname.contains("interposer::DXGISwapChain")) { // DLSS3
+        if (raw_name.contains("@interposer") && raw_name.contains("DXGISwapChain")) { // DLSS3
             spdlog::info("Found Streamline (DLSSFG) swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain);
             return true;
         }
 
-        if (classname.contains("FrameInterpolationSwapChain")) { // FSR3
+        if (raw_name.contains("FrameInterpolationSwapChain")) { // FSR3
             spdlog::info("Found FSR3 swapchain during dummy initialization: {:x}", (uintptr_t)swap_chain);
             return true;
         }
