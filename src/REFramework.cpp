@@ -257,40 +257,40 @@ REFramework::REFramework(HMODULE reframework_module)
     spdlog::set_default_logger(m_logger);
     spdlog::flush_on(spdlog::level::info);
 
-    setup_logging();
     // Keep info-level logging on through the startup phases so a crash before
     // the monitor thread starts leaves a usable trace; drop to warn after.
-#define RF_STARTUP_PHASE(name) spdlog::info("### startup phase: " name)
-    RF_STARTUP_PHASE("detect_game_path");
-    detect_game_path();
-    RF_STARTUP_PHASE("fix_virtual_protect");
-    fix_virtual_protect();
-    RF_STARTUP_PHASE("detect_os_version");
-    detect_os_version();
-    RF_STARTUP_PHASE("copy_storage_files");
-    copy_storage_files();
-    RF_STARTUP_PHASE("register_ldr_notification");
-    register_ldr_notification();
-    RF_STARTUP_PHASE("wait_for_d3d_if_packed");
-    wait_for_d3d_if_packed();
-    RF_STARTUP_PHASE("load_vr_dlls");
-    load_vr_dlls();
-    RF_STARTUP_PHASE("crash_fix_and_mhwilds");
-    setup_re8_crash_fix();
-    setup_mhwilds_early_init();
-    RF_STARTUP_PHASE("setup_integrity_bypass");
-    setup_integrity_bypass();
-    RF_STARTUP_PHASE("plugin_early_init");
-    plugin_early_init();
-    RF_STARTUP_PHASE("load_config");
-    load_config();
-    RF_STARTUP_PHASE("wait_for_vm_and_renderer");
-    wait_for_vm_and_renderer();
-    RF_STARTUP_PHASE("start_monitor_thread");
-    start_monitor_thread();
-#undef RF_STARTUP_PHASE
+    for (const auto& entry : startup_steps()) {
+        spdlog::info("### startup phase: {}", entry.name);
+        (this->*entry.step)();
+    }
+
     spdlog::info("Startup complete, dropping log level to warn");
     spdlog::set_level(spdlog::level::warn);
+}
+
+const std::vector<REFramework::StartupStepEntry>& REFramework::startup_steps() {
+    // The order of the startup phases. This list is the single source of
+    // truth: the constructor walks it and does nothing else, so a phase
+    // cannot be skipped or run out of order by editing the constructor.
+    static const std::vector<StartupStepEntry> steps{
+        { "setup_logging", &REFramework::setup_logging },
+        { "detect_game_path", &REFramework::detect_game_path },
+        { "fix_virtual_protect", &REFramework::fix_virtual_protect },
+        { "detect_os_version", &REFramework::detect_os_version },
+        { "copy_storage_files", &REFramework::copy_storage_files },
+        { "register_ldr_notification", &REFramework::register_ldr_notification },
+        { "wait_for_d3d_if_packed", &REFramework::wait_for_d3d_if_packed },
+        { "load_vr_dlls", &REFramework::load_vr_dlls },
+        { "crash_fix_and_mhwilds", &REFramework::setup_re8_crash_fix },
+        { "setup_mhwilds_early_init", &REFramework::setup_mhwilds_early_init },
+        { "setup_integrity_bypass", &REFramework::setup_integrity_bypass },
+        { "plugin_early_init", &REFramework::plugin_early_init },
+        { "load_config", &REFramework::load_config },
+        { "wait_for_vm_and_renderer", &REFramework::wait_for_vm_and_renderer },
+        { "start_monitor_thread", &REFramework::start_monitor_thread },
+    };
+
+    return steps;
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,8 @@
 #include <unordered_set>
 #include <filesystem>
 #include <map>
+#include <string_view>
+#include <vector>
 
 #include <spdlog/spdlog.h>
 #include <imgui.h>
@@ -33,6 +35,21 @@ private:
     // on_message helpers
     bool set_key_state(UINT vk, bool down);
     bool should_block_message(UINT message, WPARAM w_param, bool is_mouse_moving);
+
+    // The startup phases, in the order they run.
+    //
+    // startup_steps() is the single place that knows that order; the
+    // constructor only walks the list. A phase is one private method, so
+    // adding a phase means adding a method and one list entry -- the
+    // constructor cannot grow a step nobody listed.
+    using StartupStep = void (REFramework::*)();
+
+    struct StartupStepEntry {
+        std::string_view name;
+        StartupStep step;
+    };
+
+    static const std::vector<StartupStepEntry>& startup_steps();
 
     // Construction-phase helpers (extracted from the constructor for readability).
     void setup_logging();
