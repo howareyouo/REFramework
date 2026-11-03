@@ -1,5 +1,7 @@
 #include <spdlog/spdlog.h>
 
+#include <type_traits>
+
 #include "mods/BackBufferRenderer.hpp"
 #include "mods/APIProxy.hpp"
 #include "mods/Graphics.hpp"
@@ -62,7 +64,11 @@ namespace {
 // so the store is never optimized away.
 static volatile int s_probe_sink = 0;
 #define REF_PROBE_DEF(name, ret, args, tag) \
-    struct name##Probe : Mod { ret on_##name args override { s_probe_sink = (tag); } };
+    struct name##Probe : Mod { ret on_##name args override { \
+        s_probe_sink = (tag); \
+        if constexpr (std::is_same_v<ret, bool>) { return true; } \
+        else { return; } \
+    } };
 REF_GAME_CALLBACK_LIST(REF_PROBE_DEF)
 #undef REF_PROBE_DEF
 
