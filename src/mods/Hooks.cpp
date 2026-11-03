@@ -49,28 +49,6 @@ std::optional<std::string> Hooks::on_initialize() {
 
 
 
-#define LAYER_HOOK_BODY(x, x2, x3) \
-void Hooks::RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##(sdk::renderer::layer::##x2##* layer, void* render_ctx) {\
-    dispatch_mods<void>( \
-        all_mods(), \
-        nullptr, \
-        [this, layer, render_ctx] { g_hook->m_layer_hooks.##x##.##x3##_hook->get_original<decltype(RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##)>()(layer, render_ctx); }, \
-        [layer, render_ctx](Mod& mod) { return mod.on_pre_##x##_layer_##x3##(layer, render_ctx); }, \
-        [layer, render_ctx](Mod& mod) { mod.on_##x##_layer_##x3##(layer, render_ctx); } \
-    ); \
-}
-
-LAYER_HOOK_BODY(scene, Scene, update);
-LAYER_HOOK_BODY(scene, Scene, draw);
-LAYER_HOOK_BODY(post_effect, PostEffect, update);
-LAYER_HOOK_BODY(post_effect, PostEffect, draw);
-LAYER_HOOK_BODY(overlay, Overlay, update);
-LAYER_HOOK_BODY(overlay, Overlay, draw);
-LAYER_HOOK_BODY(prepare_output, PrepareOutput, update);
-LAYER_HOOK_BODY(prepare_output, PrepareOutput, draw);
-LAYER_HOOK_BODY(output, Output, update);
-LAYER_HOOK_BODY(output, Output, draw);
-
 namespace {
 // The one way a mod game callback fires: while the framework is not ready it
 // forwards straight to the original; afterwards every mod's pre callback runs,
@@ -132,8 +110,34 @@ const std::vector<Mod*>& all_mods() {
 REF_GAME_CALLBACK_LIST(REF_DISPATCH_ACCESSOR)
 #undef REF_DISPATCH_ACCESSOR
 
-
 } // namespace
+
+// The five render layers share one hook body per entry point; only the layer
+// type and the pair of callbacks it dispatches to differ. The draw and update
+// natives sit at DRAW/UPDATE_VTABLE_INDEX of the layer vtable in that order for
+// every layer type, so positional layout is what lets this stay ten lines.
+#define LAYER_HOOK_BODY(x, x2, x3) \
+void Hooks::RenderLayerHook<sdk::renderer::layer::x2>::x3(sdk::renderer::layer::x2* layer, void* render_ctx) {\
+    dispatch_mods( \
+        all_mods(), \
+        [layer, render_ctx] { g_hook->m_layer_hooks.x.x3##_hook->get_original<decltype(RenderLayerHook<sdk::renderer::layer::x2>::x3)>()(layer, render_ctx); }, \
+        [layer, render_ctx](Mod& mod) { return mod.on_pre_##x##_layer_##x3(layer, render_ctx); }, \
+        [layer, render_ctx](Mod& mod) { mod.on_##x##_layer_##x3(layer, render_ctx); } \
+    ); \
+}
+
+LAYER_HOOK_BODY(scene, Scene, update);
+LAYER_HOOK_BODY(scene, Scene, draw);
+LAYER_HOOK_BODY(post_effect, PostEffect, update);
+LAYER_HOOK_BODY(post_effect, PostEffect, draw);
+LAYER_HOOK_BODY(overlay, Overlay, update);
+LAYER_HOOK_BODY(overlay, Overlay, draw);
+LAYER_HOOK_BODY(prepare_output, PrepareOutput, update);
+LAYER_HOOK_BODY(prepare_output, PrepareOutput, draw);
+LAYER_HOOK_BODY(output, Output, update);
+LAYER_HOOK_BODY(output, Output, draw);
+
+#undef LAYER_HOOK_BODY
 
 std::optional<std::string> Hooks::hook_update_transform() {
     auto game = g_framework->get_module().as<HMODULE>();
