@@ -310,6 +310,67 @@ private:
 private: // D3D misc
     void set_imgui_style() noexcept;
 
+private: // Frame sequence
+    // The graphics-API-specific half of a frame. Everything that surrounds it
+    // — initialization, the bootstrap wait, the mod callbacks — is the same
+    // for every API and lives in on_frame(); only the steps below differ.
+    struct FrameRenderer {
+        enum class Status {
+            Ok,         // the frame can proceed
+            Abandoned,  // skip this frame, but the framework stays up
+            DeviceLost, // the device went away; reinitialize on a later frame
+        };
+
+        virtual ~FrameRenderer() = default;
+
+        virtual RendererType type() const = 0;
+
+        // Runs before the shared sequence starts. Returning anything but Ok
+        // skips the frame without touching the initialization state.
+        virtual Status begin_frame() { return Status::Ok; }
+
+        // Whether the graphics device is still usable.
+        virtual Status check_device() { return Status::Ok; }
+
+        // Prepares the ImGui backend for this frame.
+        virtual void new_frame() = 0;
+
+        // Draws the overlay. Returns false when the overlay could not be
+        // drawn, which skips the trailing post-frame callbacks.
+        virtual bool draw() = 0;
+
+        // Runs after the game's present, before the mods' post-present
+        // callbacks. Only D3D12 has anything to do here.
+        virtual void post_present() {}
+    };
+
+    struct D3D11Frame : FrameRenderer {
+        REFramework& framework;
+
+        explicit D3D11Frame(REFramework& f) : framework{f} {}
+
+        RendererType type() const override;
+        Status check_device() override;
+        void new_frame() override;
+        bool draw() override;
+    };
+
+    struct D3D12Frame : FrameRenderer {
+        REFramework& framework;
+
+        explicit D3D12Frame(REFramework& f) : framework{f} {}
+
+        RendererType type() const override;
+        Status begin_frame() override;
+        Status check_device() override;
+        void new_frame() override;
+        bool draw() override;
+        void post_present() override;
+    };
+
+    void on_frame(FrameRenderer& renderer);
+    void on_post_present(FrameRenderer& renderer);
+
 private: // D3D11 Init
     bool init_d3d11();
     void deinit_d3d11();

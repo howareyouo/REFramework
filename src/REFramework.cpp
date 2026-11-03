@@ -764,12 +764,10 @@ bool REFramework::on_frame_common_init() {
     return is_init_ok;
 }
 
-void REFramework::on_frame_d3d11() {
+void REFramework::on_frame(FrameRenderer& renderer) {
     std::scoped_lock _{ m_imgui_mtx };
 
-    spdlog::debug("on_frame (D3D11)");
-
-    m_renderer_type = RendererType::D3D11;
+    m_renderer_type = renderer.type();
 
     if (!m_initialized) {
         if (!initialize()) {
@@ -781,14 +779,24 @@ void REFramework::on_frame_d3d11() {
         return;
     }
 
+    const auto begin_status = renderer.begin_frame();
+    if (begin_status == FrameRenderer::Status::Abandoned) {
+        return;
+    }
+    if (begin_status == FrameRenderer::Status::DeviceLost) {
+        m_initialized = false;
+        return;
+    }
+
     if (m_message_hook_requested.load()) {
         initialize_windows_message_hook();
     }
 
-    auto device = m_d3d11_hook->get_device();
-    
-    if (device == nullptr) {
-        spdlog::error("D3D11 device was null when it shouldn't be, returning...");
+    const auto device_status = renderer.check_device();
+    if (device_status == FrameRenderer::Status::Abandoned) {
+        return;
+    }
+    if (device_status == FrameRenderer::Status::DeviceLost) {
         m_initialized = false;
         return;
     }
@@ -809,8 +817,7 @@ void REFramework::on_frame_d3d11() {
         init_fonts();
     }
 
-    invalidate_device_objects();
-    ImGui_ImplDX11_NewFrame();
+    renderer.new_frame();
 
     if (!m_has_frame) {
         run_imgui_frame(true);
@@ -820,27 +827,14 @@ void REFramework::on_frame_d3d11() {
         m_mods->on_present();
     }
 
-    ComPtr<ID3D11DeviceContext> context{};
-    float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-
-    m_d3d11_hook->get_device()->GetImmediateContext(&context);
-    context->ClearRenderTargetView(m_d3d11.blank_rt_rtv.Get(), clear_color);
-
-    // Set the back buffer to be the render target.
-    context->OMSetRenderTargets(1, m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-
-    // NewFrame() invalidates DrawData until Render(); GetDrawData() can return
-    // null if the frame was not rendered in this pass.
-    if (auto* draw_data = ImGui::GetDrawData()) {
-        ImGui_ImplDX11_RenderDrawData(draw_data);
-    }
-
-    if (is_init_ok) {
+    // A failed draw means the overlay never reached the screen, so the
+    // trailing post-frame callbacks have nothing to report on.
+    if (renderer.draw() && is_init_ok) {
         m_mods->on_post_frame();
     }
 }
 
-void REFramework::on_post_present_d3d11() {
+void REFramework::on_post_present(FrameRenderer& renderer) {
     const auto now = std::chrono::steady_clock::now();
 
     if (!m_error.empty() || !m_initialized || !m_game_data_initialized) {
@@ -851,6 +845,8 @@ void REFramework::on_post_present_d3d11() {
         return;
     }
 
+    renderer.post_present();
+
     for (auto& mod : m_mods->get_mods()) {
         mod->on_post_present();
     }
@@ -860,98 +856,112 @@ void REFramework::on_post_present_d3d11() {
     }
 }
 
-// D3D12 Draw funciton
-void REFramework::on_frame_d3d12() {
-    std::scoped_lock _{ m_imgui_mtx };
+// D3D11 Draw funciton
+REFramework::RendererType REFramework::D3D11Frame::type() const {
+    return RendererType::D3D11;
+}
 
-    m_renderer_type = RendererType::D3D12;
-
-    auto command_queue = m_d3d12_hook->get_command_queue();
-    //spdlog::debug("on_frame (D3D12)");
-    
-    if (!m_initialized) {
-        if (!initialize()) {
-            return;
-        }
-
-        spdlog::info("REFramework initialized");
-        m_initialized = true;
-        return;
+REFramework::FrameRenderer::Status REFramework::D3D11Frame::check_device() {
+    if (framework.m_d3d11_hook->get_device() == nullptr) {
+        spdlog::error("D3D11 device was null when it shouldn't be, returning...");
+        return Status::DeviceLost;
     }
 
-    if (command_queue == nullptr) {
+    return Status::Ok;
+}
+
+void REFramework::D3D11Frame::new_frame() {
+    framework.invalidate_device_objects();
+    ImGui_ImplDX11_NewFrame();
+}
+
+bool REFramework::D3D11Frame::draw() {
+    ComPtr<ID3D11DeviceContext> context{};
+    float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
+
+    framework.m_d3d11_hook->get_device()->GetImmediateContext(&context);
+    context->ClearRenderTargetView(framework.m_d3d11.blank_rt_rtv.Get(), clear_color);
+
+    // Set the back buffer to be the render target.
+    context->OMSetRenderTargets(1, framework.m_d3d11.bb_rtv.GetAddressOf(), nullptr);
+
+    // NewFrame() invalidates DrawData until Render(); GetDrawData() can return
+    // null if the frame was not rendered in this pass.
+    if (auto* draw_data = ImGui::GetDrawData()) {
+        ImGui_ImplDX11_RenderDrawData(draw_data);
+    }
+
+    return true;
+}
+
+void REFramework::on_frame_d3d11() {
+    spdlog::debug("on_frame (D3D11)");
+
+    D3D11Frame frame{*this};
+    on_frame(frame);
+}
+
+void REFramework::on_post_present_d3d11() {
+    D3D11Frame frame{*this};
+    on_post_present(frame);
+}
+
+REFramework::RendererType REFramework::D3D12Frame::type() const {
+    return RendererType::D3D12;
+}
+
+REFramework::FrameRenderer::Status REFramework::D3D12Frame::begin_frame() {
+    if (framework.m_d3d12_hook->get_command_queue() == nullptr) {
         spdlog::error("Null Command Queue");
-        return;
+        return Status::Abandoned;
     }
 
-    if (m_message_hook_requested.load()) {
-        initialize_windows_message_hook();
-    }
+    return Status::Ok;
+}
 
-    auto device = m_d3d12_hook->get_device();
-
-    if (device == nullptr) {
+REFramework::FrameRenderer::Status REFramework::D3D12Frame::check_device() {
+    if (framework.m_d3d12_hook->get_device() == nullptr) {
         spdlog::error("D3D12 Device was null when it shouldn't be, returning...");
-        m_initialized = false;
-        return;
+        return Status::DeviceLost;
     }
 
-    const auto is_init_ok = on_frame_common_init();
+    return Status::Ok;
+}
 
-    auto do_per_frame_thing = [&]() {
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
-        const auto prev_cleanup = m_wants_device_object_cleanup;
-        invalidate_device_objects();
-        ImGui_ImplDX12_NewFrame();
+void REFramework::D3D12Frame::new_frame() {
+    ImGui::GetIO().BackendRendererUserData = framework.m_d3d12.imgui_backend_datas[0];
+    const auto prev_cleanup = framework.m_wants_device_object_cleanup;
+    framework.invalidate_device_objects();
+    ImGui_ImplDX12_NewFrame();
 
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[1];
-        m_wants_device_object_cleanup = prev_cleanup;
-        invalidate_device_objects();
-        ImGui_ImplDX12_NewFrame();
-    };
+    ImGui::GetIO().BackendRendererUserData = framework.m_d3d12.imgui_backend_datas[1];
+    framework.m_wants_device_object_cleanup = prev_cleanup;
+    framework.invalidate_device_objects();
+    ImGui_ImplDX12_NewFrame();
+}
 
-    // is_init_ok already set by on_frame_common_init() above
-
-    // See on_frame_d3d11 for the bootstrap/wait rationale.
-    if (!m_has_frame && is_init_ok) {
-        return;
+bool REFramework::D3D12Frame::draw() {
+    if (framework.m_d3d12.cmd_ctxs.empty()) {
+        return false;
     }
 
-    if (!m_has_frame) {
-        init_fonts();
-    }
-
-    do_per_frame_thing();
-
-    if (!m_has_frame) {
-        run_imgui_frame(true);
-    }
-
-    if (is_init_ok) {
-        m_mods->on_present();
-    }
-
-    if (m_d3d12.cmd_ctxs.empty()) {
-        return;
-    }
-
-    auto& cmd_ctx = m_d3d12.cmd_ctxs[m_d3d12.cmd_ctx_index++ % m_d3d12.cmd_ctxs.size()];
+    auto& cmd_ctx = framework.m_d3d12.cmd_ctxs[framework.m_d3d12.cmd_ctx_index++ % framework.m_d3d12.cmd_ctxs.size()];
 
     if (cmd_ctx == nullptr) {
-        return;
+        return false;
     }
 
-    auto swapchain = m_d3d12_hook->get_swap_chain();
+    auto swapchain = framework.m_d3d12_hook->get_swap_chain();
     const auto bb_index = swapchain->GetCurrentBackBufferIndex();
 
     // Test if our RT for this index is valid.
-    if (m_d3d12.get_rt((D3D12::RTV)bb_index) == nullptr) {
+    if (framework.m_d3d12.get_rt((D3D12::RTV)bb_index) == nullptr) {
         spdlog::error("RTV for index {} is null, reinitializing...", bb_index);
-        deinit_d3d12();
-        m_has_frame = false;
-        m_first_initialize = false;
-        m_initialized = false;
-        return;
+        framework.deinit_d3d12();
+        framework.m_has_frame = false;
+        framework.m_first_initialize = false;
+        framework.m_initialized = false;
+        return false;
     }
 
     cmd_ctx->wait(INFINITE);
@@ -967,34 +977,34 @@ void REFramework::on_frame_d3d12() {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rts[1]{};
 
-        barrier.Transition.pResource = m_d3d12.get_rt(D3D12::RTV::IMGUI).Get();
+        barrier.Transition.pResource = framework.m_d3d12.get_rt(D3D12::RTV::IMGUI).Get();
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
 
         float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-        cmd_ctx->cmd_list->ClearRenderTargetView(m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI], clear_color, 0, nullptr);
-        rts[0] = m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI];
+        cmd_ctx->cmd_list->ClearRenderTargetView(framework.m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI], clear_color, 0, nullptr);
+        rts[0] = framework.m_d3d12.cpu_rtvs[(int)D3D12::RTV::IMGUI];
         cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
-        cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
+        cmd_ctx->cmd_list->SetDescriptorHeaps(1, framework.m_d3d12.srv_desc_heap.GetAddressOf());
 
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
+        ImGui::GetIO().BackendRendererUserData = framework.m_d3d12.imgui_backend_datas[0];
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_ctx->cmd_list.Get());
-        
+
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
 
         // Draw to the back buffer.
-        barrier.Transition.pResource = m_d3d12.rts[bb_index].Get();
+        barrier.Transition.pResource = framework.m_d3d12.rts[bb_index].Get();
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         cmd_ctx->cmd_list->ResourceBarrier(1, &barrier);
-        rts[0] = m_d3d12.cpu_rtvs[bb_index];
+        rts[0] = framework.m_d3d12.cpu_rtvs[bb_index];
         cmd_ctx->cmd_list->OMSetRenderTargets(1, rts, FALSE, NULL);
-        cmd_ctx->cmd_list->SetDescriptorHeaps(1, m_d3d12.srv_desc_heap.GetAddressOf());
+        cmd_ctx->cmd_list->SetDescriptorHeaps(1, framework.m_d3d12.srv_desc_heap.GetAddressOf());
 
-        ImGui::GetIO().BackendRendererUserData = m_d3d12.imgui_backend_datas[0];
+        ImGui::GetIO().BackendRendererUserData = framework.m_d3d12.imgui_backend_datas[0];
 
         if (auto* draw_data = ImGui::GetDrawData()) {
             ImGui_ImplDX12_RenderDrawData(draw_data, cmd_ctx->cmd_list.Get());
@@ -1007,38 +1017,27 @@ void REFramework::on_frame_d3d12() {
         cmd_ctx->execute();
     }
 
-    if (is_init_ok) {
-        m_mods->on_post_frame();
+    return true;
+}
+
+void REFramework::D3D12Frame::post_present() {
+    if (framework.m_d3d12.graphics_memory != nullptr) {
+        auto command_queue = framework.m_d3d12_hook->get_command_queue();
+
+        framework.m_d3d12.graphics_memory->Commit(command_queue);
     }
+}
+
+// D3D12 Draw funciton
+void REFramework::on_frame_d3d12() {
+    D3D12Frame frame{*this};
+    on_frame(frame);
 }
 
 void REFramework::on_post_present_d3d12() {
-    const auto now = std::chrono::steady_clock::now();
-
-    if (!m_error.empty() || !m_initialized || !m_game_data_initialized) {
-        if (m_last_present_time.load() <= now) {
-            m_last_present_time.store(now);
-        }
-
-        return;
-    }
-
-    if (m_d3d12.graphics_memory != nullptr) {
-        auto& hook = get_d3d12_hook();
-        auto command_queue = hook->get_command_queue();
-
-        m_d3d12.graphics_memory->Commit(command_queue);
-    }
-
-    for (auto& mod : m_mods->get_mods()) {
-        mod->on_post_present();
-    }
-
-    if (m_last_present_time.load() <= now) {
-        m_last_present_time.store(now);
-    }
+    D3D12Frame frame{*this};
+    on_post_present(frame);
 }
-
 void REFramework::on_reset() {
     std::scoped_lock _{ m_imgui_mtx };
 
