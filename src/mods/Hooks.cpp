@@ -51,26 +51,13 @@ std::optional<std::string> Hooks::on_initialize() {
 
 #define LAYER_HOOK_BODY(x, x2, x3) \
 void Hooks::RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##(sdk::renderer::layer::##x2##* layer, void* render_ctx) {\
-    if (!g_framework->is_ready()) {\
-        auto original_func = g_hook->m_layer_hooks.##x##.##x3##_hook->get_original<decltype(RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##)>();\
-        original_func(layer, render_ctx); \
-        return; \
-    } \
-    bool any_false = false; \
-    const auto& mods = g_framework->get_mods()->get_mods(); \
-    for (auto& mod : mods) { \
-        const auto result = mod->on_pre_##x##_layer_##x3##(layer, render_ctx); \
-        if (!result) { \
-            any_false = true; \
-        } \
-    } \
-    if (!any_false) { \
-        auto original_func = g_hook->m_layer_hooks.##x##.##x3##_hook->get_original<decltype(RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##)>();\
-        original_func(layer, render_ctx); \
-    } \
-    for (auto& mod : mods) { \
-        mod->on_##x##_layer_##x3##(layer, render_ctx); \
-    }\
+    dispatch_mods<void>( \
+        all_mods(), \
+        nullptr, \
+        [this, layer, render_ctx] { g_hook->m_layer_hooks.##x##.##x3##_hook->get_original<decltype(RenderLayerHook<sdk::renderer::layer::##x2##>::##x3##)>()(layer, render_ctx); }, \
+        [layer, render_ctx](Mod& mod) { return mod.on_pre_##x##_layer_##x3##(layer, render_ctx); }, \
+        [layer, render_ctx](Mod& mod) { mod.on_##x##_layer_##x3##(layer, render_ctx); } \
+    ); \
 }
 
 LAYER_HOOK_BODY(scene, Scene, update);
@@ -85,36 +72,67 @@ LAYER_HOOK_BODY(output, Output, update);
 LAYER_HOOK_BODY(output, Output, draw);
 
 namespace {
-// Standard mod-dispatch skeleton for hooked functions: while the framework is
-// not ready it forwards straight to the original; afterwards every mod's pre
-// callback runs, then the original, then every mod's post callback. The
-// callbacks receive the Mod& so adapters can forward whichever arguments the
-// corresponding Mod virtuals take.
+// The one way a mod game callback fires: while the framework is not ready it
+// forwards straight to the original; afterwards every mod's pre callback runs,
+// then the original, then every mod's post callback. Each pre callback votes;
+// a false vote vetoes the original call but not the post loop, and
+// `fallback_result` is what the hook returns when the call was vetoed.
+// Callers pick which mods are asked, most of them from Mods::dispatch().
 template <typename Ret, typename Original, typename Pre, typename Post>
-Ret dispatch_mods(Original&& original, Pre&& pre_cb, Post&& post_cb) {
+Ret dispatch_mods(const std::vector<Mod*>& mods, Ret fallback_result, Original&& original, Pre&& pre_cb, Post&& post_cb) {
     if (!g_framework->is_ready()) {
         return original();
     }
 
-    const auto& mods = g_framework->get_mods()->get_mods();
+    bool any_false = false;
 
-    for (auto& mod : mods) {
-        pre_cb(*mod);
+    for (auto* mod : mods) {
+        if (!pre_cb(*mod)) {
+            any_false = true;
+        }
     }
 
     if constexpr (std::is_void_v<Ret>) {
-        original();
-        for (auto& mod : mods) {
+        if (!any_false) {
+            original();
+        }
+
+        for (auto* mod : mods) {
             post_cb(*mod);
         }
     } else {
-        auto ret = original();
-        for (auto& mod : mods) {
+        Ret ret = fallback_result;
+
+        if (!any_false) {
+            ret = original();
+        }
+
+        for (auto* mod : mods) {
             post_cb(*mod);
         }
+
         return ret;
     }
 }
+
+template <typename Original, typename Pre, typename Post>
+void dispatch_mods(const std::vector<Mod*>& mods, Original&& original, Pre&& pre_cb, Post&& post_cb) {
+    dispatch_mods<void>(mods, nullptr, std::forward<Original>(original), std::forward<Pre>(pre_cb), std::forward<Post>(post_cb));
+}
+
+const std::vector<Mod*>& all_mods() {
+    return g_framework->get_mods()->get_mods();
+}
+
+// Per-callback accessor over Mods::dispatch(). Every game callback has one, so
+// hooks name the callback instead of choosing between the dispatch lists and
+// the full mod list.
+#define REF_DISPATCH_ACCESSOR(name, ret, args, tag) \
+    const std::vector<Mod*>& dispatch_to_##name() { return g_framework->get_mods()->dispatch().name; }
+REF_GAME_CALLBACK_LIST(REF_DISPATCH_ACCESSOR)
+#undef REF_DISPATCH_ACCESSOR
+
+
 } // namespace
 
 std::optional<std::string> Hooks::hook_update_transform() {
@@ -560,23 +578,13 @@ std::optional<std::string> Hooks::hook_render_layer(Hooks::RenderLayerHook<sdk::
 }
 
 void* Hooks::update_transform_hook_internal(RETransform* t, uint8_t a2, uint32_t a3) {
-    if (!g_framework->is_ready()) {
-        return m_update_transform_hook->get_original<decltype(update_transform_hook)>()(t, a2, a3);
-    }
-
-    const auto& dispatch_lists = g_framework->get_mods()->dispatch();
-
-    for (auto* mod : dispatch_lists.pre_update_transform) {
-        mod->on_pre_update_transform(t);
-    }
-
-    auto ret = m_update_transform_hook->get_original<decltype(update_transform_hook)>()(t, a2, a3);
-
-    for (auto* mod : dispatch_lists.update_transform) {
-        mod->on_update_transform(t);
-    }
-
-    return ret;
+    return dispatch_mods<void*>(
+        dispatch_to_pre_update_transform(),
+        nullptr,
+        [this, t, a2, a3] { return m_update_transform_hook->get_original<decltype(update_transform_hook)>()(t, a2, a3); },
+        [t](Mod& mod) { mod.on_pre_update_transform(t); return true; },
+        [t](Mod& mod) { mod.on_update_transform(t); }
+    );
 }
 
 void* Hooks::update_transform_hook(RETransform* t, uint8_t a2, uint32_t a3) {
@@ -585,8 +593,10 @@ void* Hooks::update_transform_hook(RETransform* t, uint8_t a2, uint32_t a3) {
 
 void* Hooks::update_camera_controller_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
     return dispatch_mods<void*>(
+        dispatch_to_pre_update_camera_controller(),
+        nullptr,
         [this, a1, camera_controller] { return m_update_camera_controller_hook->get_original<decltype(update_camera_controller_hook)>()(a1, camera_controller); },
-        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller(camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller(camera_controller); return true; },
         [camera_controller](Mod& mod) { mod.on_update_camera_controller(camera_controller); }
     );
 }
@@ -597,8 +607,10 @@ void* Hooks::update_camera_controller_hook(void* a1, RopewayPlayerCameraControll
 
 void* Hooks::update_camera_controller2_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
     return dispatch_mods<void*>(
+        dispatch_to_pre_update_camera_controller2(),
+        nullptr,
         [this, a1, camera_controller] { return m_update_camera_controller2_hook->get_original<decltype(update_camera_controller2_hook)>()(a1, camera_controller); },
-        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller2(camera_controller); },
+        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller2(camera_controller); return true; },
         [camera_controller](Mod& mod) { mod.on_update_camera_controller2(camera_controller); }
     );
 }
@@ -607,34 +619,16 @@ void* Hooks::update_camera_controller2_hook(void* a1, RopewayPlayerCameraControl
     return g_hook->update_camera_controller2_hook_internal(a1, camera_controller);
 }
 
+// Unlike the layer and gui_draw hooks, the transform two use the pre and post
+// lists independently, so this one is driven by the pre list on both sides.
 void* Hooks::gui_draw_hook_internal(REComponent* gui_element, void* primitive_context) {
-    auto original_func = m_gui_draw_hook->get_original<decltype(gui_draw_hook)>();
-
-    if (!g_framework->is_ready()) {
-        return original_func(gui_element, primitive_context);
-    }
-
-    auto& mods = g_framework->get_mods()->get_mods();
-
-    bool any_false = false;
-
-    for (auto& mod : mods) {
-        if (!mod->on_pre_gui_draw_element(gui_element, primitive_context)) {
-            any_false = true;
-        }
-    }
-
-    void* ret = nullptr;
-
-    if (!any_false) {
-        ret = original_func(gui_element, primitive_context);
-    }
-
-    for (auto& mod : mods) {
-        mod->on_gui_draw_element(gui_element, primitive_context);
-    }
-
-    return ret;
+    return dispatch_mods<void*>(
+        dispatch_to_pre_gui_draw_element(),
+        nullptr,
+        [this, gui_element, primitive_context] { return m_gui_draw_hook->get_original<decltype(gui_draw_hook)>()(gui_element, primitive_context); },
+        [gui_element, primitive_context](Mod& mod) { return mod.on_pre_gui_draw_element(gui_element, primitive_context); },
+        [gui_element, primitive_context](Mod& mod) { mod.on_gui_draw_element(gui_element, primitive_context); }
+    );
 }
 
 void* Hooks::gui_draw_hook(REComponent* gui_element, void* primitive_context) {
@@ -643,8 +637,10 @@ void* Hooks::gui_draw_hook(REComponent* gui_element, void* primitive_context) {
 
 void Hooks::update_before_lock_scene_hook_internal(void* ctx) {
     dispatch_mods<void>(
+        dispatch_to_pre_update_before_lock_scene(),
+        nullptr,
         [this, ctx] { m_update_before_lock_scene_hook->get_original<decltype(update_before_lock_scene_hook)>()(ctx); },
-        [ctx](Mod& mod) { mod.on_pre_update_before_lock_scene(ctx); },
+        [ctx](Mod& mod) { mod.on_pre_update_before_lock_scene(ctx); return true; },
         [ctx](Mod& mod) { mod.on_update_before_lock_scene(ctx); }
     );
 }
@@ -655,8 +651,10 @@ void Hooks::update_before_lock_scene_hook(void* ctx) {
 
 void Hooks::lightshaft_draw_hook_internal(void* shaft, void* render_context) {
     dispatch_mods<void>(
+        dispatch_to_pre_lightshaft_draw(),
+        nullptr,
         [this, shaft, render_context] { m_lightshaft_draw_hook->get_original<decltype(lightshaft_draw_hook)>()(shaft, render_context); },
-        [shaft, render_context](Mod& mod) { mod.on_pre_lightshaft_draw(shaft, render_context); },
+        [shaft, render_context](Mod& mod) { mod.on_pre_lightshaft_draw(shaft, render_context); return true; },
         [shaft, render_context](Mod& mod) { mod.on_lightshaft_draw(shaft, render_context); }
     );
 }
@@ -665,6 +663,9 @@ void Hooks::lightshaft_draw_hook(void* shaft, void* render_context) {
     g_hook->lightshaft_draw_hook_internal(shaft, render_context);
 }
 
+// Unlike the other game callbacks, this one fires through a pointer table that
+// is live during startup, so it is driven by lists directly instead of
+// dispatch_mods: there is no "not ready, just call the original" phase here.
 void Hooks::global_application_entry_hook_internal(void* entry, const char* name, size_t hash, void* original) {
     auto original_fn = (void (*)(void*))original;
 
@@ -688,15 +689,13 @@ void Hooks::global_application_entry_hook_internal(void* entry, const char* name
         g_framework->run_imgui_frame(false);
     }
 
-    const auto& mods = g_framework->get_mods()->get_mods();
-
-    for (auto& mod : mods) {
+    for (auto* mod : dispatch_to_pre_application_entry()) {
         mod->on_pre_application_entry(entry, name, hash);
     }
     
     original_fn(entry);
 
-    for (auto& mod : mods) {
+    for (auto* mod : dispatch_to_application_entry()) {
         mod->on_application_entry(entry, name, hash);
     }
 }
@@ -707,8 +706,10 @@ void Hooks::global_application_entry_hook(void* entry, const char* name, size_t 
 
 float* Hooks::view_get_size_hook_internal(REManagedObject* scene_view, float* result) {
     return dispatch_mods<float*>(
+        dispatch_to_pre_view_get_size(),
+        nullptr,
         [this, scene_view, result] { return m_view_get_size_hook->get_original<decltype(view_get_size_hook)>()(scene_view, result); },
-        [scene_view, result](Mod& mod) { mod.on_pre_view_get_size(scene_view, result); },
+        [scene_view, result](Mod& mod) { mod.on_pre_view_get_size(scene_view, result); return true; },
         [scene_view, result](Mod& mod) { mod.on_view_get_size(scene_view, result); }
     );
 }
@@ -719,8 +720,10 @@ float* Hooks::view_get_size_hook(REManagedObject* scene_view, float* result) {
 
 Matrix4x4f* Hooks::camera_get_projection_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result) {
     return dispatch_mods<Matrix4x4f*>(
+        dispatch_to_pre_camera_get_projection_matrix(),
+        nullptr,
         [this, camera, result] { return m_camera_get_projection_matrix_hook->get_original<decltype(camera_get_projection_matrix_hook)>()(camera, result); },
-        [camera, result](Mod& mod) { mod.on_pre_camera_get_projection_matrix(camera, result); },
+        [camera, result](Mod& mod) { mod.on_pre_camera_get_projection_matrix(camera, result); return true; },
         [camera, result](Mod& mod) { mod.on_camera_get_projection_matrix(camera, result); }
     );
 }
@@ -731,8 +734,10 @@ Matrix4x4f* Hooks::camera_get_projection_matrix_hook(REManagedObject* camera, Ma
 
 Matrix4x4f* Hooks::camera_get_view_matrix_hook_internal(REManagedObject* camera, Matrix4x4f* result) {
     return dispatch_mods<Matrix4x4f*>(
+        dispatch_to_pre_camera_get_view_matrix(),
+        nullptr,
         [this, camera, result] { return m_camera_get_view_matrix_hook->get_original<decltype(camera_get_view_matrix_hook)>()(camera, result); },
-        [camera, result](Mod& mod) { mod.on_pre_camera_get_view_matrix(camera, result); },
+        [camera, result](Mod& mod) { mod.on_pre_camera_get_view_matrix(camera, result); return true; },
         [camera, result](Mod& mod) { mod.on_camera_get_view_matrix(camera, result); }
     );
 }
