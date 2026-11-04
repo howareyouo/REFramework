@@ -17,6 +17,8 @@
 
 #include "Mod.hpp"
 
+#include "ScriptRpc.hpp"
+
 #include "reframework/API.hpp"
 
 #include "HookManager.hpp"
@@ -438,7 +440,15 @@ private:
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
     std::optional<uint8_t> m_last_battle_type{};
+
+    // Lua RPC (docs/LUA_RPC.md): lets an external tool run Lua in this process.
+    // On by default because it only listens on 127.0.0.1.
+    std::unique_ptr<ScriptRpc> m_rpc{ std::make_unique<ScriptRpc>() };
+    std::chrono::steady_clock::time_point m_rpc_last_start_attempt{};
+
     const ModToggle::Ptr m_log_to_disk{ make_option<ModToggle>("LogToDisk", false) };
+    const ModToggle::Ptr m_rpc_enabled{ make_option<ModToggle>("LuaRpcEnabled", true) };
+    const ModSlider::Ptr m_rpc_port{ make_option<ModSlider>("LuaRpcPort", 1024.0f, 65535.0f, 13377.0f) };
     const ModToggle::Ptr m_script_generated_ui_open_state{ make_option<ModToggle>("ScriptGeneratedUIOpenState", false) };
 
     const ModCombo::Ptr m_gc_handler {

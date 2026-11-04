@@ -271,7 +271,8 @@ link-libraries = [
     "delayimp",
     "DirectXTK",
     "DirectXTK12",
-    "pdperfmod"
+    "pdperfmod",
+    "ws2_32"
 ]
 cmake-before="""
 """

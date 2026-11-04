@@ -481,6 +481,8 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/REFrameworkConfig.hpp"
 		"src/mods/Scene.cpp"
 		"src/mods/Scene.hpp"
+		"src/mods/ScriptRpc.cpp"
+		"src/mods/ScriptRpc.hpp"
 		"src/mods/ScriptRunner.cpp"
 		"src/mods/ScriptRunner.hpp"
 		"src/mods/TemporalUpscaler.cpp"
@@ -575,6 +577,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		DirectXTK
 		DirectXTK12
 		pdperfmod
+		ws2_32
 	)
 
 	set_target_properties(RE4 PROPERTIES

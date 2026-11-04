@@ -1,5 +1,7 @@
 #define NOMINMAX
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 
@@ -914,6 +916,31 @@ void ScriptRunner::hook_battle_rule() {
 }
 
 void ScriptRunner::on_frame() {
+    // Serve RPC requests here: this thread owns the Lua state. Running it before
+    // the scene checks below means a client gets "not ready" instead of the
+    // timeout those early returns would otherwise cause.
+    if (m_rpc) {
+        const auto wanted_port = (uint16_t)std::clamp((int)m_rpc_port->value(), 1024, 65535);
+
+        if (m_rpc_enabled->value()) {
+            if (m_rpc->is_running() && m_rpc->port() != wanted_port) {
+                m_rpc->stop();
+            }
+
+            // Retry slowly so a port clash doesn't spam the log every frame.
+            const auto now = std::chrono::steady_clock::now();
+
+            if (!m_rpc->is_running() && now - m_rpc_last_start_attempt > std::chrono::seconds(5)) {
+                m_rpc_last_start_attempt = now;
+                m_rpc->start(wanted_port);
+            }
+        } else if (m_rpc->is_running()) {
+            m_rpc->stop();
+        }
+
+        m_rpc->drain(*this);
+    }
+
     if (!m_scene_okay) try {
         if (!m_checked_scene_once) {
             m_checked_scene_once = true;
@@ -1044,6 +1071,28 @@ void ScriptRunner::on_draw_ui() {
 
                 m_console_spawned = true;
             }
+        }
+
+        if (ImGui::TreeNode("Lua RPC")) {
+            m_rpc_enabled->draw("Enabled (127.0.0.1 only)");
+            m_rpc_port->draw("Port");
+
+            if (m_rpc->is_running()) {
+                ImGui::TextWrapped("POST http://127.0.0.1:%u/rpc with {\"code\": \"...\"}", (uint32_t)m_rpc->port());
+                ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
+            } else {
+                ImGui::TextWrapped("Not listening.");
+            }
+
+            const auto error = m_rpc->last_error();
+
+            if (!error.empty()) {
+                ImGui::TextWrapped("Last error: %s", error.c_str());
+            }
+
+            ImGui::TextWrapped("Runs Lua in this process. See docs/LUA_RPC.md.");
+
+            ImGui::TreePop();
         }
         //Garbage collection currently only showing from main lua state, might rework to show total later?
         if (ImGui::TreeNode("Garbage Collection Stats")) {
