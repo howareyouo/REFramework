@@ -541,6 +541,21 @@ auto find_type_definition(const char* name) {
     return ::sdk::find_type_definition(name);
 }
 
+uint32_t get_num_types() {
+    const auto tdb = ::sdk::RETypeDB::get();
+    return tdb == nullptr ? 0 : tdb->get_num_types();
+}
+
+sol::object get_type(sol::this_state s, uint32_t index) {
+    const auto tdb = ::sdk::RETypeDB::get();
+
+    if (tdb == nullptr || index >= tdb->get_num_types()) {
+        return sol::make_object(s, sol::nil);
+    }
+
+    return sol::make_object(s, tdb->get_type(index));
+}
+
 sol::object typeof(sol::this_state s, const char* name) {
     auto type_definition = find_type_definition(name);
 
@@ -1597,6 +1612,8 @@ void bindings::open_sdk(ScriptState* s) {
     sdk["create_instance"] = api::sdk::create_instance;
     sdk["create_instance_global"] = api::sdk::create_instance_global;
     sdk["find_type_definition"] = api::sdk::find_type_definition;
+    sdk["get_num_types"] = api::sdk::get_num_types;
+    sdk["get_type"] = api::sdk::get_type;
     sdk["typeof"] = api::sdk::typeof;
     sdk["call_native_func"] = api::sdk::call_native_func;
     sdk["call_object_func"] = api::sdk::call_object_func;

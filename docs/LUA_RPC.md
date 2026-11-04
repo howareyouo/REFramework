@@ -8,7 +8,7 @@ REFramework 内置了一个只监听本机回环地址的 HTTP 端点。`POST /r
 
 - 游戏正在运行，且 `dinput8.dll`（本仓库构建产物）已被加载。
 - `LuaRpcEnabled` 默认就是 `true`，端口默认 `13377`。可以在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改端口或关闭。
-- 服务启动成功时日志里会有一行 `[ScriptRpc] Listening on http://127.0.0.1:13377/rpc`。
+- 启动日志里**没有**服务提示行（框架启动完成后会把日志级别降到 `warn`，这行 info 被过滤掉）。想确认服务在跑，直接发一个 `{"code":"return 1"}` 探一下。
 
 ## 端点与协议
 
@@ -89,15 +89,17 @@ Windows 上更稳的做法是把 JSON 写进文件再 `curl --data-binary @req.j
 - 其它表 → JSON 对象（键会转成字符串）。
 - `nil` → `null`，布尔 → `true/false`，整数 → 整数，浮点 → 浮点（`nan`/`inf` 变成字符串）。
 - 函数 → `"<function>"`，协程 → `"<thread>"`。
-- userdata / lightuserdata → `"<类型名: 0x地址>"`，例如 `"<via.SceneManager: 0x000001F4A2C3D4E0>"`。序列化不会调用 `__tostring`，所以这**不是**对象的可读内容，只用来确认拿到的是谁。
+- userdata / lightuserdata → `"<类型名: 地址>"`，实测托管对象是 `"<sol.REManagedObject*: 00000001D7078C68>"`。序列化不会调用 `__tostring`，所以这**不是**对象的可读内容，只用来确认拿到的是谁。
 - 序列化限制：嵌套深度 6 层、每张表最多 200 个条目、整次响应最多 4000 个节点；超出的部分会变成 `"<truncated>"` 或 `"<table: max depth>"`。想看完整内容请自己 `select` 字段。
 
 ## 常用片段
 
+类型名必须带游戏的命名空间前缀。RE4 是 `chainsaw.`（`app.` 是 RE2/RE3 的写法，在 RE4 里查不到）。拿不准就用 `sdk.game_namespace("CharacterManager")` 拼出 `chainsaw.CharacterManager`——这个函数**必须**传参数，不带参数会抛 `caught (...) exception`。
+
 **查类型是否存在、列出方法名**
 
 ```lua
-local t = sdk.find_type_definition("via.SceneManager")
+local t = sdk.find_type_definition("chainsaw.CharacterManager")
 if not t then return "type not found" end
 local names = {}
 for _, m in ipairs(t:get_methods()) do names[#names + 1] = m:get_name() end
@@ -107,7 +109,7 @@ return names
 **列出字段名**
 
 ```lua
-local t = sdk.find_type_definition("app.SomeType")
+local t = sdk.find_type_definition("chainsaw.CharacterManager")
 local out = {}
 for _, f in ipairs(t:get_fields()) do out[#out + 1] = f:get_name() end
 return out
@@ -116,14 +118,14 @@ return out
 **拿托管单例并确认身份**
 
 ```lua
-local s = sdk.get_managed_singleton("app.SomeManager")
+local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
 return s and s:get_type_definition():get_full_name() or "nil"
 ```
 
 **读 / 写字段**
 
 ```lua
-local s = sdk.get_managed_singleton("app.SomeManager")
+local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
 return s:get_field("SomeField")
 ```
 
@@ -134,8 +136,8 @@ return s:get_field("SomeField")
 托管对象上有 `:call("方法名", 参数...)`，最省事：
 
 ```lua
-local mgr = sdk.get_managed_singleton("app.SomeManager")
-return mgr:call("get_Size")
+local mgr = sdk.get_managed_singleton("chainsaw.CharacterManager")
+return mgr:call("get_PlayerManager")
 ```
 
 要按类型 + 名字调用（常见于原生单例），用 `sdk.call_native_func(对象, 类型, "方法名", 参数...)`；需要线程上下文的原生方法把 `sdk.get_thread_context()` 作为第一个参数传进去：
@@ -149,8 +151,8 @@ return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene", sdk.get_thread_
 **装一个 hook 观察参数**
 
 ```lua
-local t = sdk.find_type_definition("app.SomeType")
-local m = t:get_method("someMethod")
+local t = sdk.find_type_definition("chainsaw.CharacterManager")
+local m = t:get_method("get_PlayerManager")
 sdk.hook(m, function(args)
     -- args[1] = thread context, args[2] = this (静态方法是第一个参数), args[3..] = 实际参数
     local self = sdk.to_managed_object(args[2])
@@ -170,7 +172,7 @@ RPC 是「请求一次、游戏执行一次」的模型。想连续观察，就�
 -- 第一次：注册回调，攒最近 200 条样本
 trace = {}
 re.on_frame(function()
-    local s = sdk.get_managed_singleton("app.SomeManager")
+    local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
     trace[#trace + 1] = tostring(s and s:get_field("SomeField"))
     if #trace > 200 then table.remove(trace, 1) end
 end)
@@ -184,7 +186,8 @@ return trace or {}
 
 - 代码在游戏帧线程上执行，**每次调用至少要等到下一帧**。重活会掉帧，别在 RPC 里跑长循环。
 - 死循环防护：每次请求有 2000 万条指令的预算，超出后报 `instruction budget exceeded (possible infinite loop)`，并带 `"budget_exceeded": true`。
-- 超时（504）通常意味着：游戏暂停 / 正在加载 / 帧线程卡在一个更长的调用里。等几百毫秒重试。
+- 预算只数指令、不数时间。一段 `s = s .. "x"` 的 O(n²) 拼接可能只跑几十万条指令，却把帧线程占住好几秒（实测 12 万次拼接 ≈ 4.3 秒卡帧）。重活拆开、分帧做。
+- 超时（504）通常意味着：游戏暂停 / 正在加载 / 帧线程卡在一个更长的调用里。被超时放弃的请求不会再执行，但**已经开始的**那次会跑完，游戏一般能自己恢复。等几百毫秒重试。
 - 游戏还在加载、Lua 状态没建好时，返回 `{"ok": false, "error": "lua state is not ready yet (the game is still loading)"}`，重试即可。
 
 ## 错误码
