@@ -674,6 +674,14 @@ void PluginLoader::early_init() try {
 }
 
 void PluginLoader::on_frame() {
+    // Both steps are one-shot: the D3D pointers only have to be published
+    // before the plugins initialize, and initialize_plugins does nothing once
+    // it has run. Re-publishing them every frame would repeat the swapchain
+    // and command queue queries for the rest of the session.
+    if (m_plugins_loaded) {
+        return;
+    }
+
     init_d3d_pointers();
 
     if (auto error = initialize_plugins(); error.has_value()) {
@@ -682,7 +690,6 @@ void PluginLoader::on_frame() {
 }
 
 void PluginLoader::init_d3d_pointers() {
-    // Call reframework_plugin_required_version on any dlls that export it.
     reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
     
     if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
