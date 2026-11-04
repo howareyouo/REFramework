@@ -16,8 +16,7 @@
 #include <vector>
 
 #include <json.hpp>
-#include <lua.h>
-#include <lauxlib.h>
+#include <lua.hpp> // wraps the C headers in extern "C"; lua.h alone mismatches the C-built runtime
 #include <spdlog/spdlog.h>
 
 #include "ScriptRpc.hpp"
