@@ -131,12 +131,19 @@ return s:get_field("SomeField")
 
 **调用方法**
 
+托管对象上有 `:call("方法名", 参数...)`，最省事：
+
+```lua
+local mgr = sdk.get_managed_singleton("app.SomeManager")
+return mgr:call("get_Size")
+```
+
+要按类型 + 名字调用（常见于原生单例），用 `sdk.call_native_func(对象, 类型, "方法名", 参数...)`；需要线程上下文的原生方法把 `sdk.get_thread_context()` 作为第一个参数传进去：
+
 ```lua
 local t = sdk.find_type_definition("via.SceneManager")
-local get_scene = t:get_method("get_CurrentScene")
 local mgr = sdk.get_native_singleton("via.SceneManager")
-local ctx = sdk.get_thread_context()
-return tostring(get_scene:call(ctx, mgr))
+return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene", sdk.get_thread_context()))
 ```
 
 **装一个 hook 观察参数**
