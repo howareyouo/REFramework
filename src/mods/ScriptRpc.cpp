@@ -566,6 +566,9 @@ void ScriptRpc::accept_loop(std::stop_token stop_token) {
         const SOCKET client = ::accept(listener, nullptr, nullptr);
 
         if (client == INVALID_SOCKET) {
+            // A client that resets before accept still leaves the listener readable, so
+            // backing off here keeps a failed handshake from spinning the loop.
+            std::this_thread::sleep_for(std::chrono::milliseconds{10});
             continue;
         }
 

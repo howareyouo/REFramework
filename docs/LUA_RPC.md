@@ -96,6 +96,24 @@ Windows 上更稳的做法是把 JSON 写进文件再 `curl --data-binary @req.j
 
 类型名必须带游戏的命名空间前缀。RE4 是 `chainsaw.`（`app.` 是 RE2/RE3 的写法，在 RE4 里查不到）。拿不准就用 `sdk.game_namespace("CharacterManager")` 拼出 `chainsaw.CharacterManager`——这个函数**必须**传参数，不带参数会抛 `caught (...) exception`。
 
+不知道类型名时，枚举全表（RE4 实测 162644 个类型）：
+
+```lua
+-- 按索引取类型；越界返回 nil
+return sdk.get_num_types(), sdk.get_type(0):get_full_name()
+
+-- 模糊找类型（不要在一次调用里扫全表，会撞预算）
+local hits = {}
+for i = 0, sdk.get_num_types() - 1 do
+    local t = sdk.get_type(i)
+    local name = t and t:get_full_name()
+    if name and name:find("Character", 1, true) then hits[#hits + 1] = name end
+end
+return hits
+```
+
+全表扫描要分批：一次几百个索引，用多次请求拼起来。`tools/lua_rpc/re_dump.py` 就是干这个的。
+
 **查类型是否存在、列出方法名**
 
 ```lua
@@ -209,3 +227,26 @@ return trace or {}
 - 执行的是和你手写 mod 脚本同一个 Lua 状态，副作用（改字段、装 hook、写文件）都是真的。
 - 一次只处理一个请求，其余排队；别用并发去压它。
 - 返回值走 JSON，所以在 Lua 里已经能算完的东西不要返回整个对象图——既慢又会被截断。
+
+## 生成离线 API 文档
+
+`tools/lua_rpc/` 下两个脚本，配合本端点把运行中游戏的完整类型库导成 Markdown：
+
+```bash
+python tools/lua_rpc/re_dump.py re_types.json 300     # 全量 dump，约 20 秒
+python tools/lua_rpc/re_doc.py re_types.json docs/RE4_API
+```
+
+- `re_dump.py`：用 `sdk.get_num_types()` + `sdk.get_type(i)` 按索引分批扫全表，每批一次 RPC 调用（默认 300 个）。产出 JSON，含每个类型的字段（名、类型、是否静态、偏移）和方法（名、返回值、参数列表、是否静态）。
+- `re_doc.py`：把 JSON 转成按命名空间分册的 Markdown，`README.md` 是索引。默认过滤泛型实例和编译器生成的杂名，`--all` 保留全部。
+
+RE4 实测：162644 个类型、768542 个方法、236555 个字段，JSON 约 190 MB，文档约 31 MB（`chainsaw.md` 23 MB、`via.md` 6.6 MB）。
+
+生成的文档可以直接用 `rg` 查：
+
+```bash
+rg -A20 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md
+```
+
+调用约定：实例方法在 Lua 里写 `obj:call("名字", ...)`；静态方法在文档里标 `static: yes`，调用走 `sdk.call_native_func(nil, type_def, "名字", ...)`。
+
