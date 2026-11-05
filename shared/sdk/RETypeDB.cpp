@@ -497,15 +497,25 @@ void* REMethodDefinition::get_function() const {
         // and interface implementations. MethodImpl.vtable_index is the raw index
         // into that vtable (HookManager's vtable hooks index it the same way), so
         // the slot needs no adjustment for the type's native entries.
+        //
+        // Only slots 4 and up hold a method the type itself implements. The first four
+        // are the slots every type shares with the root object type, so indexing them
+        // with a vindex of 0 hands out a real but completely unrelated function
+        // (measured: 1210 of 1602 resolvable zero-offset methods in RE4 land there).
+        constexpr int32_t first_own_vtable_slot = 4;
         const auto dt = this->get_declaring_type();
 
         if (dt != nullptr && dt->managed_vt != nullptr) {
             const auto vindex = this->get_virtual_index();
+            const auto header = (void**)((uintptr_t)dt->managed_vt - 0x10);
 
-            if (vindex >= 0 && vindex < 512) {
-                auto vt = (void**)dt->managed_vt;
+            // managed_vt points at the object info, not at the vtable array itself: the
+            // vtable pointer sits in the allocation header 0x10 bytes before it, the same
+            // place REVTableHook::hook reads it from.
+            if (vindex >= first_own_vtable_slot && vindex < 512 && !IsBadReadPtr(header, sizeof(void*))) {
+                auto vt = (void**)*header;
 
-                if (!IsBadReadPtr(vt, (vindex + 1) * sizeof(void*))) {
+                if (vt != nullptr && !IsBadReadPtr(vt, (vindex + 1) * sizeof(void*))) {
                     if (auto fn = vt[vindex]; is_executable_pointer(fn)) {
                         const auto count = g_vtable_method_resolutions.fetch_add(1);
 
