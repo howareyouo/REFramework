@@ -707,9 +707,14 @@ bool RETypeDefinition::is_by_ref() const {
         return false;
     }
 
-    static auto by_ref_method = runtime_typedef->get_method("get_IsByRef") != nullptr ? 
-        runtime_typedef->get_method("get_IsByRef") : 
-        runtime_typedef->get_method("IsByRefImpl"); // MHWilds
+    // Deliberately not cached in a function-local static: the runtime type resolved for
+    // this definition is not guaranteed to be the same one every call, and a stale
+    // method pointer would then be invoked on a mismatched object.
+    auto by_ref_method = runtime_typedef->get_method("get_IsByRef");
+
+    if (by_ref_method == nullptr) {
+        by_ref_method = runtime_typedef->get_method("IsByRefImpl"); // MHWilds
+    }
 
     if (by_ref_method == nullptr) {
         // well...
@@ -751,9 +756,11 @@ bool RETypeDefinition::is_pointer() const {
         return false;
     }
 
-    static auto pointer_method = runtime_typedef->get_method("get_IsPointer") != nullptr ?
-        runtime_typedef->get_method("get_IsPointer") :
-        runtime_typedef->get_method("IsPointerImpl"); // MHWilds
+    auto pointer_method = runtime_typedef->get_method("get_IsPointer");
+
+    if (pointer_method == nullptr) {
+        pointer_method = runtime_typedef->get_method("IsPointerImpl"); // MHWilds
+    }
 
     if (pointer_method == nullptr) {
         g_pointer_map[this] = false;
@@ -793,7 +800,18 @@ bool RETypeDefinition::is_primitive() const {
         return false;
     }
 
-    static auto primitive_method = runtime_typedef->get_method("get_IsPrimitive");
+    auto primitive_method = runtime_typedef->get_method("get_IsPrimitive");
+
+    if (primitive_method == nullptr) {
+        primitive_method = runtime_typedef->get_method("IsPrimitiveImpl"); // MHWilds
+    }
+
+    // Previously this dereferenced the lookup result unconditionally, which crashed
+    // whenever the runtime type had been stripped down (see is_by_ref/is_pointer).
+    if (primitive_method == nullptr) {
+        g_primitive_map[this] = false;
+        return false;
+    }
 
     g_primitive_map[this] = primitive_method->call<bool>(sdk::get_thread_context(), runtime_type);
 
@@ -887,13 +905,16 @@ static std::shared_mutex g_runtime_type_mtx{};
 
     static auto appdomain_type = sdk::find_type_definition("System.AppDomain");
     static auto assembly_type = sdk::find_type_definition("System.Reflection.Assembly");
-    static auto get_current_domain_func = appdomain_type->get_method("get_CurrentDomain");
-    static auto get_assemblies_func = appdomain_type->get_method("GetAssemblies");
-    static auto get_assembly_type_func = assembly_type->get_method("GetType(System.String)");
+    static auto get_current_domain_func = appdomain_type != nullptr ? appdomain_type->get_method("get_CurrentDomain") : nullptr;
+    static auto get_assemblies_func = appdomain_type != nullptr ? appdomain_type->get_method("GetAssemblies") : nullptr;
+    static auto get_assembly_type_func = assembly_type != nullptr ? assembly_type->get_method("GetType(System.String)") : nullptr;
 
-    if (get_assembly_type_func == nullptr) {
+    // All three have to be present, not just GetType: an engine can ship with the
+    // AppDomain surface removed while Assembly survives, and the calls below are
+    // unconditional. Falling back to GetType on System.Object is always safe.
+    if (get_assembly_type_func == nullptr || get_current_domain_func == nullptr || get_assemblies_func == nullptr) {
         static auto system_object_type = sdk::find_type_definition("System.Object");
-        static auto get_type_method = system_object_type->get_method("GetType");
+        static auto get_type_method = system_object_type != nullptr ? system_object_type->get_method("GetType") : nullptr;
 
         // Past TDB 74, we have to do this because
         // a lot of the assembly stuff seems to be stripped?
@@ -947,7 +968,7 @@ static std::shared_mutex g_runtime_type_mtx{};
                 return type;
             }
         } else { // RE7
-            static auto get_types_method = assembly_type->get_method("GetTypes");
+            static auto get_types_method = assembly_type != nullptr ? assembly_type->get_method("GetTypes") : nullptr;
 
             if (get_types_method != nullptr) {
                 auto types = get_types_method->call<sdk::SystemArray*>(context, assembly);
@@ -968,8 +989,13 @@ static std::shared_mutex g_runtime_type_mtx{};
                             continue;
                         }
 
-                        static auto get_namespace_method = type_t->get_method("get_Namespace");
-                        static auto get_name_method = type_t->get_method("get_Name");
+                        // type_t changes every iteration, so these must not be function-local statics.
+                        auto get_namespace_method = type_t->get_method("get_Namespace");
+                        auto get_name_method = type_t->get_method("get_Name");
+
+                        if (get_namespace_method == nullptr || get_name_method == nullptr) {
+                            continue;
+                        }
 
                         auto ns = get_namespace_method->call<SystemString*>(context, type);
                         auto name = get_name_method->call<SystemString*>(context, type);
@@ -1019,8 +1045,8 @@ void* RETypeDefinition::create_instance() const {
 
 ::REManagedObject* RETypeDefinition::create_instance_full(bool simplify) {
     static auto system_activator_type = sdk::find_type_definition("System.Activator");
-    static auto create_instance_func = system_activator_type->get_method("CreateInstance(System.Type)");
-    static auto create_instance_alternative_func = system_activator_type->get_method("createInstance(System.Type)");
+    static auto create_instance_func = system_activator_type != nullptr ? system_activator_type->get_method("CreateInstance(System.Type)") : nullptr;
+    static auto create_instance_alternative_func = system_activator_type != nullptr ? system_activator_type->get_method("createInstance(System.Type)") : nullptr;
 
     const auto typeof = this->get_runtime_type();
 
@@ -1029,6 +1055,10 @@ void* RETypeDefinition::create_instance() const {
     }
 
     if (simplify) {
+        if (create_instance_alternative_func == nullptr) {
+            return nullptr;
+        }
+
         // forces the game to use a simplified path for creating the object
         // because in some cases this function could fail
         const auto old_obj_type = this->get_vm_obj_type();
@@ -1040,6 +1070,10 @@ void* RETypeDefinition::create_instance() const {
 
         return result;
     } else {
+        if (create_instance_func == nullptr) {
+            return nullptr;
+        }
+
         return create_instance_func->call<REManagedObject*>(sdk::get_thread_context(), typeof);
     }
 }
