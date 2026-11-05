@@ -1,252 +1,109 @@
 # Lua RPC — 在运行中的游戏里执行 Lua
 
-REFramework 内置了一个只监听本机回环地址的 HTTP 端点。`POST /rpc` 会在游戏进程内、由拥有 Lua 状态的帧线程执行一段 Lua 代码，并把返回值、`print` 输出和错误信息以 JSON 返回。
+REFramework 内置一个只监听 `127.0.0.1` 的 HTTP 端点：`POST /rpc` 在游戏的帧线程上执行一段 Lua，把返回值、`print` 输出和错误以 JSON 返回。默认开启，端口 `13377`，可在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改或关掉。启动日志里没有服务提示行，想确认在跑就直接探一发。
 
-这篇文章是给你（AI / 脚本作者）看的操作手册：怎么调、能返回什么、哪里会失败。
-
-## 前提
-
-- 游戏正在运行，且 `dinput8.dll`（本仓库构建产物）已被加载。
-- `LuaRpcEnabled` 默认就是 `true`，端口默认 `13377`。可以在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改端口或关闭。
-- 启动日志里**没有**服务提示行（框架启动完成后会把日志级别降到 `warn`，这行 info 被过滤掉）。想确认服务在跑，直接发一个 `{"code":"return 1"}` 探一下。
-
-## 端点与协议
+## 请求与响应
 
 ```
 POST http://127.0.0.1:13377/rpc
 Content-Type: application/json
 
-{"code": "...", "mode": "chunk", "timeout_ms": 5000}
+{"code": "return 1", "mode": "chunk", "timeout_ms": 5000}
 ```
 
-| 字段 | 类型 | 默认 | 含义 |
-| --- | --- | --- | --- |
-| `code` | string | 必填 | 要执行的 Lua 代码 |
-| `mode` | `"chunk"` \| `"expr"` | `"chunk"` | `expr` 会自动在前面拼 `return `，适合写一行表达式 |
-| `timeout_ms` | number | `5000` | 等待游戏帧线程执行的最长时间，范围 100–30000 |
-
-成功响应：
+| 字段 | 默认 | 含义 |
+| --- | --- | --- |
+| `code` | 必填 | Lua 源码，直接放进来；没有“上传文件”这回事 |
+| `mode` | `"chunk"` | `"expr"` 会自动在前面补 `return ` |
+| `timeout_ms` | `5000` | 等帧线程执行的时限，100–30000 |
 
 ```json
 {"ok": true, "returns": [42], "print": "...", "elapsed_ms": 1}
+{"ok": false, "error": "rpc:1: attempt to index a nil value", "elapsed_ms": 0}
 ```
 
-失败响应：
+`returns` 是多返回值数组，`print` 只在有输出时出现。
 
-```json
-{"ok": false, "error": "rpc:1: attempt to index a nil value (global 'x')", "elapsed_ms": 0}
-```
+## 怎么调
 
-`returns` 是 Lua 多返回值的数组；`print` 只在有输出时出现。
-
-## 推荐调用方式（Python）
-
-`urllib` 没有额外依赖，也不会撞上 Windows shell 的引号转义坑。
-
-```python
-import json, urllib.request, urllib.error
-
-def lua(code, mode="chunk", timeout_ms=5000, port=13377):
-    body = json.dumps({"code": code, "mode": mode, "timeout_ms": timeout_ms}).encode("utf-8")
-    req = urllib.request.Request(
-        f"http://127.0.0.1:{port}/rpc",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout_ms / 1000 + 5) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:          # 400 / 404 / 405 / 429 / 503 / 504
-        return json.loads(e.read().decode("utf-8"))
-```
-
-用法：
-
-```python
-print(lua("sdk.get_tdb_version()", mode="expr"))     # 一行表达式
-print(lua("return 1 + 2"))                           # 显式 return 的 chunk
-print(lua('print("hi", 1, true)'))                   # 捕获 print 输出
-```
-
-想直接把整段脚本丢进去时，用 `mode="chunk"` 并在末尾写 `return`。
-
-## 备用调用方式（curl，Git Bash）
-
-注意 Git Bash 会把单引号里的内容原样传给 `curl`，内层 Lua 字符串要用 `\"` 或换行。
+最省事是现成客户端：`G:/re4-mod-manager/tools/lua_rpc/lua.py`（协议逻辑与本文一致，显式绕过 `HTTP_PROXY`，`ok=false` 时退出码 1）：
 
 ```bash
-curl -s -X POST http://127.0.0.1:13377/rpc \
-  -H 'Content-Type: application/json' \
-  -d '{"code":"return sdk.get_tdb_version()"}'
+python tools/lua_rpc/lua.py 'sdk.get_tdb_version()' expr
+python tools/lua_rpc/lua.py --file probe.lua        # 多行脚本写文件更省事
+python tools/lua_rpc/lua.py 'return 1' --timeout 15000 --port 13377
 ```
 
-Windows 上更稳的做法是把 JSON 写进文件再 `curl --data-binary @req.json`。
+没有客户端时直接 curl（Git Bash 会原样传单引号，内层字符串用 `\"`、换行用 `\n`）：
 
-## 返回值怎么变成 JSON
+```bash
+curl -s --noproxy '*' -H 'Content-Type: application/json' \
+  --data-binary '{"code":"return sdk.get_tdb_version()"}' http://127.0.0.1:13377/rpc
+```
 
-- 全部由正整数 1..n 连续构成的表 → JSON 数组。
-- 其它表 → JSON 对象（键会转成字符串）。
-- `nil` → `null`，布尔 → `true/false`，整数 → 整数，浮点 → 浮点（`nan`/`inf` 变成字符串）。
-- 函数 → `"<function>"`，协程 → `"<thread>"`。
-- userdata / lightuserdata → `"<类型名: 地址>"`，实测托管对象是 `"<sol.REManagedObject*: 00000001D7078C68>"`。序列化不会调用 `__tostring`，所以这**不是**对象的可读内容，只用来确认拿到的是谁。
-- 序列化限制：嵌套深度 6 层、每张表最多 200 个条目、整次响应最多 4000 个节点；超出的部分会变成 `"<truncated>"` 或 `"<table: max depth>"`。想看完整内容请自己 `select` 字段。
+`--file` 只是客户端把文件读进来塞进 `code`，两条路径的请求完全一样。
+
+## 关键约定（这几条踩过坑）
+
+- 类型名必须带游戏的命名空间：RE4 是 `chainsaw.`。拿不准用 `sdk.game_namespace("CharacterManager")`（必须传参）。
+- 枚举类型用 `sdk.get_num_types()` + `sdk.get_type(i)`，越界返回 `nil`。**没有** `sdk.get_types()`。
+- 绑定返回的容器是 **1 起始**表（`get_methods` / `get_fields` / `get_param_types`）：用 `ipairs` 或 `1..#t`，`t[0]` 永远是 `nil`。从 0 开始遍历会“看起来一个都没有”。
+- `get_methods()` 会滤掉方法体是 stub 的方法，计数可能偏少甚至为 0；单个方法用 `td:get_method("名字")` 取，不过滤（可能拿到 stub）。
+- 实例方法 `obj:call("名字", ...)`；静态方法 `sdk.call_native_func(nil, type_def, "名字", ...)`。
 
 ## 常用片段
 
-类型名必须带游戏的命名空间前缀。RE4 是 `chainsaw.`（`app.` 是 RE2/RE3 的写法，在 RE4 里查不到）。拿不准就用 `sdk.game_namespace("CharacterManager")` 拼出 `chainsaw.CharacterManager`——这个函数**必须**传参数，不带参数会抛 `caught (...) exception`。
-
-不知道类型名时，枚举全表（RE4 实测 162644 个类型）：
-
 ```lua
--- 按索引取类型；越界返回 nil
-return sdk.get_num_types(), sdk.get_type(0):get_full_name()
-
--- 模糊找类型（不要在一次调用里扫全表，会撞预算）
-local hits = {}
-for i = 0, sdk.get_num_types() - 1 do
-    local t = sdk.get_type(i)
-    local name = t and t:get_full_name()
-    if name and name:find("Character", 1, true) then hits[#hits + 1] = name end
-end
-return hits
-```
-
-全表扫描要分批：一次几百个索引，用多次请求拼起来。`tools/lua_rpc/re_dump.py` 就是干这个的。
-
-**查类型是否存在、列出方法名**
-
-```lua
-local t = sdk.find_type_definition("chainsaw.CharacterManager")
-if not t then return "type not found" end
-local names = {}
-for _, m in ipairs(t:get_methods()) do names[#names + 1] = m:get_name() end
-return names
-```
-
-**列出字段名**
-
-```lua
-local t = sdk.find_type_definition("chainsaw.CharacterManager")
+-- 列方法名
+local t = sdk.find_type_definition("via.SceneManager")
 local out = {}
-for _, f in ipairs(t:get_fields()) do out[#out + 1] = f:get_name() end
+for _, m in ipairs(t:get_methods()) do out[#out + 1] = m:get_name() end
 return out
 ```
 
-**拿托管单例并确认身份**
-
 ```lua
+-- 读字段 / 调方法
 local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
-return s and s:get_type_definition():get_full_name() or "nil"
+return s and s:call("get_PlayerManager") or "nil"
 ```
 
-**读 / 写字段**
-
 ```lua
-local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
-return s:get_field("SomeField")
+-- 装 hook（args[1]=thread context，args[2]=this，args[3..]=实际参数）
+sdk.hook(sdk.find_type_definition("chainsaw.CharacterManager"):get_method("get_PlayerManager"),
+  function(args) print("called") end,
+  function(ret) return ret end)
 ```
 
-写字段用 `set_field`（值类型和引用类型规则不同，先读一次确认类型）。
-
-**调用方法**
-
-托管对象上有 `:call("方法名", 参数...)`，最省事：
-
 ```lua
-local mgr = sdk.get_managed_singleton("chainsaw.CharacterManager")
-return mgr:call("get_PlayerManager")
-```
-
-要按类型 + 名字调用（常见于原生单例），用 `sdk.call_native_func(对象, 类型, "方法名", 参数...)`；需要线程上下文的原生方法把 `sdk.get_thread_context()` 作为第一个参数传进去：
-
-```lua
-local t = sdk.find_type_definition("via.SceneManager")
-local mgr = sdk.get_native_singleton("via.SceneManager")
-return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene", sdk.get_thread_context()))
-```
-
-**装一个 hook 观察参数**
-
-```lua
-local t = sdk.find_type_definition("chainsaw.CharacterManager")
-local m = t:get_method("get_PlayerManager")
-sdk.hook(m, function(args)
-    -- args[1] = thread context, args[2] = this (静态方法是第一个参数), args[3..] = 实际参数
-    local self = sdk.to_managed_object(args[2])
-    print("called, this =", sdk.to_ptr(args[2]))
-end, function(retval)
-    return retval
-end)
-```
-
-hook 会在下一次安装周期生效；之后每次调用都会走到你的回调，输出会进入日志。回调里**不要**长时间阻塞。
-
-**持续采样再取回**
-
-RPC 是「请求一次、游戏执行一次」的模型。想连续观察，就在一次调用里注册 `re.on_frame` 自己攒数据，再用另一次调用把攒到的内容取走。`fs.write` 是整文件覆盖写，路径相对于 REFramework 的数据目录。
-
-```lua
--- 第一次：注册回调，攒最近 200 条样本
+-- 连续采样：这一次注册，下一次请求取回
 trace = {}
 re.on_frame(function()
-    local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
-    trace[#trace + 1] = tostring(s and s:get_field("SomeField"))
-    if #trace > 200 then table.remove(trace, 1) end
+  local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
+  trace[#trace + 1] = tostring(s and s:get_field("SomeField"))
+  if #trace > 200 then table.remove(trace, 1) end
 end)
 return "registered"
-
--- 第二次：取回（没有样本时返回空数组）
-return trace or {}
 ```
 
-## 超时、预算与状态
+回调里不要长时间阻塞；hook 在下一个安装周期生效。
 
-- 代码在游戏帧线程上执行，**每次调用至少要等到下一帧**。重活会掉帧，别在 RPC 里跑长循环。
-- 死循环防护：每次请求有 2000 万条指令的预算，超出后报 `instruction budget exceeded (possible infinite loop)`，并带 `"budget_exceeded": true`。
-- 预算只数指令、不数时间。一段 `s = s .. "x"` 的 O(n²) 拼接可能只跑几十万条指令，却把帧线程占住好几秒（实测 12 万次拼接 ≈ 4.3 秒卡帧）。重活拆开、分帧做。
-- 超时（504）通常意味着：游戏暂停 / 正在加载 / 帧线程卡在一个更长的调用里。被超时放弃的请求不会再执行，但**已经开始的**那次会跑完，游戏一般能自己恢复。等几百毫秒重试。
-- 游戏还在加载、Lua 状态没建好时，返回 `{"ok": false, "error": "lua state is not ready yet (the game is still loading)"}`，重试即可。
+## 返回值与限制
 
-## 错误码
+- 表 → JSON：正整数 `1..n` 连续的表是数组，其它表是对象；`nil`/布尔/整数/浮点直出，函数 → `"<function>"`，userdata → `"<类型名: 地址>"`。
+- 序列化上限：深度 6 层、每张表 200 项、整次响应 4000 节点，超出变 `"<truncated>"`。要看全就自己 `select`。
+- 指令预算 2000 万条，超出报 `instruction budget exceeded (possible infinite loop)` 并带 `"budget_exceeded": true`。预算只数指令不数时间：`s = s .. "x"` 这类 O(n²) 拼接几十万条指令就能把帧线程占住几秒。
+- 每次调用至少等一帧，重活拆成分帧做。请求体上限 256 KB。
+- 每次只处理一个请求，其余排队（同时挂起上限 64 个）。
+- 错误码：`400` JSON 错 / 缺 `code`，`404` 路径不对，`405` 不是 POST，`429` 队列满，`503` 服务已停，`504` 帧线程没在 `timeout_ms` 内跑完（游戏暂停/加载中/被更长的调用占着；被超时放弃的请求不会执行，已开始的会跑完，等几百毫秒重试）。
+- Lua 状态没建好时返回 `lua state is not ready yet`，重试即可。
+- 只绑回环，**无鉴权**：本机任何进程都能在你的游戏里执行 Lua。执行的是和手写 mod 同一个 Lua 状态，副作用都是真的。
 
-| HTTP | 含义 |
-| --- | --- |
-| 200 | 执行完毕，看 `ok` |
-| 400 | JSON 解析失败 / 缺 `code` |
-| 404 | 路径不是 `/rpc` |
-| 405 | 不是 POST |
-| 429 | 队列已满（同时挂起超过 64 个请求） |
-| 503 | 服务已停止 |
-| 504 | 帧线程没在 `timeout_ms` 内执行完 |
+## 离线 API 文档
 
-## 限制与注意事项
-
-- 只绑定 `127.0.0.1`，局域网连不上。
-- **没有任何鉴权**：本机任意进程都能在你的游戏里执行 Lua，等价于本机任意代码执行。只在你信任的机器上开。
-- 执行的是和你手写 mod 脚本同一个 Lua 状态，副作用（改字段、装 hook、写文件）都是真的。
-- 一次只处理一个请求，其余排队；别用并发去压它。
-- 返回值走 JSON，所以在 Lua 里已经能算完的东西不要返回整个对象图——既慢又会被截断。
-
-## 生成离线 API 文档
-
-`tools/lua_rpc/` 下两个脚本，配合本端点把运行中游戏的完整类型库导成 Markdown：
-
-```bash
-python tools/lua_rpc/re_dump.py re_types.json 300     # 全量 dump，约 20 秒
-python tools/lua_rpc/re_doc.py re_types.json docs/RE4_API
-```
-
-- `re_dump.py`：用 `sdk.get_num_types()` + `sdk.get_type(i)` 按索引分批扫全表，每批一次 RPC 调用（默认 300 个）。产出 JSON，含每个类型的字段（名、类型、是否静态、偏移）和方法（名、返回值、参数列表、是否静态）。
-- `re_doc.py`：把 JSON 转成按命名空间分册的 Markdown，`README.md` 是索引。默认过滤泛型实例和编译器生成的杂名，`--all` 保留全部。
-
-RE4 实测：162644 个类型、768542 个方法、236555 个字段，JSON 约 190 MB，文档约 31 MB（`chainsaw.md` 23 MB、`via.md` 6.6 MB）。
-
-生成的文档可以直接用 `rg` 查：
+`docs/RE4_API/` 是某一次 dump 的静态快照（按命名空间分册、已按 MOD 作者用不到的内容裁过），不再重新生成，生成器已删除。用法就是 grep：
 
 ```bash
 rg -A20 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md
 ```
 
-调用约定：实例方法在 Lua 里写 `obj:call("名字", ...)`；静态方法在文档里标 `static: yes`，调用走 `sdk.call_native_func(nil, type_def, "名字", ...)`。
-
+要自己扫一遍类型表，用 `tools/lua_rpc/re_dump.py [out.json] [batch_size]` 拿 JSON（类型 → 字段、方法签名），自己查；它只管 dump，不产文档。
