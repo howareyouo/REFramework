@@ -98,12 +98,6 @@ return "registered"
 - Lua 状态没建好时返回 `lua state is not ready yet`，重试即可。
 - 只绑回环，**无鉴权**：本机任何进程都能在你的游戏里执行 Lua。执行的是和手写 mod 同一个 Lua 状态，副作用都是真的。
 
-## 离线 API 文档
-
-`docs/RE4_API/` 是某一次 dump 的静态快照（按命名空间分册、已按 MOD 作者用不到的内容裁过），不再重新生成，生成器已删除。用法就是 grep：
-
-```bash
-rg -A20 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md
-```
+`docs/RE4_API/` 是类型表的静态快照（某次 dump 的产物，已按 MOD 作者用不到的内容裁过，不再重新生成），怎么查见它自己的 [README](RE4_API/README.md)。
 
 要自己扫一遍类型表，用 `tools/lua_rpc/re_dump.py [out.json] [batch_size]` 拿 JSON（类型 → 字段、方法签名），自己查；它只管 dump，不产文档。
