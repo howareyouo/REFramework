@@ -88,6 +88,16 @@ return "registered"
 
 回调里不要长时间阻塞；hook 在下一个安装周期生效。
 
+## 离线查表：`docs/RE4_API/`
+
+`docs/RE4_API/` 是用这套 RPC 全量 dump 的类型表（13 页约 15 MB，`chainsaw` 18769 类型），不启动游戏也能查成员名和签名：
+
+```bash
+rg -A30 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md   # 方法行写作 `:返回类型 名字(参数)`
+```
+
+格式与省略项（backing field、`.ctor`、字段偏移、泛型实例、全部 `T[]`）见 [README](RE4_API/README.md)。文件里**没有 tdb 版本戳**，打补丁即静默过期；有游戏在跑时以 RPC 为准。
+
 ## 返回值与限制
 
 - 表 → JSON：正整数 `1..n` 连续的表是数组，其它表是对象；`nil`/布尔/整数/浮点直出，函数 → `"<function>"`，userdata → `"<类型名: 地址>"`。
@@ -99,4 +109,4 @@ return "registered"
 - Lua 状态没建好时返回 `lua state is not ready yet`，重试即可。
 - 只绑回环，**无鉴权**：本机任何进程都能在你的游戏里执行 Lua。执行的是和手写 mod 同一个 Lua 状态，副作用都是真的。
 
-`docs/RE4_API/` 是类型表的静态快照，怎么查见它自己的 [README](RE4_API/README.md)。
+原生偏移、跨游戏类型差异和 TDB 版本分水岭见 [RE_ENGINE_LUA_NOTES.md](RE_ENGINE_LUA_NOTES.md)。
