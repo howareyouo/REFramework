@@ -1,3 +1,6 @@
+#include <atomic>
+#include <windows.h>
+
 #include <spdlog/spdlog.h>
 #include <utility/Scan.hpp>
 #include <utility/Module.hpp>
@@ -13,7 +16,27 @@ RETypeDB* RETypeDB::get() {
         return nullptr;
     }
 
-    return vm->get_type_db();
+    auto tdb = vm->get_type_db();
+
+    if (tdb == nullptr) {
+        return nullptr;
+    }
+
+    // Every struct the SDK reads this database through is laid out for TDB_VER.
+    // Handing out a database of another version means every offset below is
+    // interpreted against the wrong layout, which is how you get a crash instead
+    // of a wrong answer.
+    if (tdb->version != TDB_VER) {
+        static std::atomic<bool> logged{false};
+
+        if (!logged.exchange(true)) {
+            spdlog::error("[RETypeDB] Database version {} does not match the version this build understands ({}); the type database is unavailable", tdb->version, TDB_VER);
+        }
+
+        return nullptr;
+    }
+
+    return tdb;
 }
 
 static std::shared_mutex g_tdb_type_mtx{};
@@ -29,6 +52,11 @@ struct TransparentStringHash {
 };
 
 static std::unordered_map<std::string, sdk::RETypeDefinition*, TransparentStringHash, std::equal_to<>> g_tdb_type_map{};
+
+// Which database g_tdb_type_map was built from. Keyed on the instance rather than
+// a bool so a second database (or a re-created VM) rebuilds instead of silently
+// answering from the previous one's map.
+static const RETypeDB* g_tdb_type_map_owner{nullptr};
 
 reframework::InvokeRet invoke_object_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, std::vector<void*>& args) {
     const auto method = t->get_method(name);
@@ -66,17 +94,13 @@ sdk::REModule* RETypeDB::get_module(uint32_t index) const {
 }
 
 sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
-    static bool map_populated = false;
-
     {
         std::shared_lock _{ g_tdb_type_mtx };
 
-        if (auto it = g_tdb_type_map.find(name); it != g_tdb_type_map.end()) {
-            return it->second;
-        }
-
-        if (map_populated) {
-            return nullptr;
+        if (g_tdb_type_map_owner == this) {
+            if (auto it = g_tdb_type_map.find(name); it != g_tdb_type_map.end()) {
+                return it->second;
+            }
         }
     }
 
@@ -84,27 +108,22 @@ sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
         std::unique_lock _{ g_tdb_type_mtx };
 
         // Double-checked: another thread may have populated while we waited
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
-            return it->second;
+        if (g_tdb_type_map_owner != this) {
+            g_tdb_type_map.clear();
+            g_tdb_type_map_owner = this;
+
+            for (uint32_t i = 0; i < this->numTypes; ++i) {
+                auto t = get_type(i);
+
+                if (t == nullptr) {
+                    continue;
+                }
+
+                g_tdb_type_map[t->get_full_name()] = t;
+            }
         }
 
-        if (map_populated) {
-            return nullptr;
-        }
-
-        map_populated = true;
-
-        for (uint32_t i = 0; i < this->numTypes; ++i) {
-            auto t = get_type(i);
-
-            g_tdb_type_map[t->get_full_name()] = t;
-        }
-    }
-
-    // Re-check the map after population
-    {
-        std::shared_lock _{ g_tdb_type_mtx };
-        if (auto it = g_tdb_type_map.find(name.data()); it != g_tdb_type_map.end()) {
+        if (auto it = g_tdb_type_map.find(name); it != g_tdb_type_map.end()) {
             return it->second;
         }
     }
@@ -115,18 +134,16 @@ sdk::RETypeDefinition* RETypeDB::find_type(std::string_view name) const {
 // Cache for find_type_by_fqn
 static std::shared_mutex g_tdb_fqn_mtx{};
 static std::unordered_map<uint32_t, sdk::RETypeDefinition*> g_tdb_fqn_map{};
-static bool g_tdb_fqn_populated = false;
+static const RETypeDB* g_tdb_fqn_owner{nullptr};
 
 sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
     {
         std::shared_lock _{ g_tdb_fqn_mtx };
 
-        if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
-            return it->second;
-        }
-
-        if (g_tdb_fqn_populated) {
-            return nullptr;
+        if (g_tdb_fqn_owner == this) {
+            if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
+                return it->second;
+            }
         }
     }
 
@@ -134,29 +151,21 @@ sdk::RETypeDefinition* RETypeDB::find_type_by_fqn(uint32_t fqn) const {
         std::unique_lock _{ g_tdb_fqn_mtx };
 
         // Double-checked
-        if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
-            return it->second;
-        }
+        if (g_tdb_fqn_owner != this) {
+            g_tdb_fqn_map.clear();
+            g_tdb_fqn_owner = this;
 
-        if (g_tdb_fqn_populated) {
-            return nullptr;
-        }
+            for (uint32_t i = 0; i < this->numTypes; ++i) {
+                auto t = get_type(i);
 
-        g_tdb_fqn_populated = true;
+                if (t == nullptr) {
+                    continue;
+                }
 
-        for (uint32_t i = 0; i < this->numTypes; ++i) {
-            auto t = get_type(i);
-
-            if (t == nullptr) {
-                continue;
+                g_tdb_fqn_map[t->get_fqn_hash()] = t;
             }
-
-            g_tdb_fqn_map[t->get_fqn_hash()] = t;
         }
-    }
 
-    {
-        std::shared_lock _{ g_tdb_fqn_mtx };
         if (auto it = g_tdb_fqn_map.find(fqn); it != g_tdb_fqn_map.end()) {
             return it->second;
         }
@@ -456,28 +465,62 @@ const char* REMethodDefinition::get_name() const {
 std::unordered_set<REMethodDefinition*> logged_encoded_0_methods{};
 std::shared_mutex logged_encoded_0_methods_mtx{};
 
+static std::atomic<uint32_t> g_vtable_method_resolutions{0};
+
+// A vtable slot we resolve ourselves is either a real function inside a module or
+// garbage from a layout we misread; only hand out the former.
+static bool is_executable_pointer(const void* p) {
+    if (p == nullptr) {
+        return false;
+    }
+
+    MEMORY_BASIC_INFORMATION mbi{};
+
+    if (VirtualQuery(p, &mbi, sizeof(mbi)) == 0 || mbi.State != MEM_COMMIT) {
+        return false;
+    }
+
+    switch (mbi.Protect & 0xFF) {
+    case PAGE_EXECUTE:
+    case PAGE_EXECUTE_READ:
+    case PAGE_EXECUTE_READWRITE:
+    case PAGE_EXECUTE_WRITECOPY:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void* REMethodDefinition::get_function() const {
     if (this->encoded_offset == 0) {
-        /*const auto dt = this->get_declaring_type();
-        
-        if (dt != nullptr) {
-            if ((dt->type_flags & (uint32_t)via::clr::TypeFlag::Interface) != 0) {
-                spdlog::error("[REMethodDefinition::get_function] Interface methods are not implemented yet (method: {})", this->get_name());
-                return nullptr;
+        // No encoded offset means the method lives in a vtable: virtual overrides
+        // and interface implementations. MethodImpl.vtable_index is the raw index
+        // into that vtable (HookManager's vtable hooks index it the same way), so
+        // the slot needs no adjustment for the type's native entries.
+        const auto dt = this->get_declaring_type();
+
+        if (dt != nullptr && dt->managed_vt != nullptr) {
+            const auto vindex = this->get_virtual_index();
+
+            if (vindex >= 0 && vindex < 512) {
+                auto vt = (void**)dt->managed_vt;
+
+                if (!IsBadReadPtr(vt, (vindex + 1) * sizeof(void*))) {
+                    if (auto fn = vt[vindex]; is_executable_pointer(fn)) {
+                        const auto count = g_vtable_method_resolutions.fetch_add(1);
+
+                        if (count < 32) {
+                            auto type_name = dt->get_full_name();
+                            spdlog::info("[REMethodDefinition::get_function] {}.{} resolved through the managed vtable (vindex {}, impl {}, fn {:x})", type_name, this->get_name(), vindex, dt->impl_index, (uintptr_t)fn);
+                        } else {
+                            SPDLOG_DEBUG("[REMethodDefinition::get_function] {}.{} resolved through the managed vtable (vindex {}, fn {:x})", dt->get_full_name(), this->get_name(), vindex, (uintptr_t)fn);
+                        }
+
+                        return fn;
+                    }
+                }
             }
-
-            if (dt->managed_vt != nullptr && this->get_virtual_index() != -1) {
-                auto tdb = RETypeDB::get();
-                const auto& impl = (*tdb->typesImpl)[this->impl_id];
-
-                const auto vt = (void**)(dt->managed_vt + impl.num_native_vtable);
-                const auto r = vt[this->get_virtual_index()];
-
-                spdlog::info("[REMethodDefinition] {} Found function {:s} at {:x}", this->get_index(), this->get_name(), (uintptr_t)r);
-
-                return r;
-            }
-        }*/
+        }
 
         {
             std::shared_lock _{ logged_encoded_0_methods_mtx };
