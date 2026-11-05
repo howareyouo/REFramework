@@ -1,6 +1,6 @@
 # `rds_external.*`
 
-11 types.
+10 types.
 
 ## `rds_external.LavenderInterface`
 
@@ -10,10 +10,6 @@
 sdk.call_native_func(nil, type_def, "checkLavender", ...)  -- System.Boolean checkLavender()
 sdk.call_native_func(nil, type_def, "makeLavender", ...)  -- System.Boolean makeLavender()
 ```
-
-## `rds_external.Mint`
-
-_No fields or methods._
 
 ## `rds_external.Mint.MintParam`
 

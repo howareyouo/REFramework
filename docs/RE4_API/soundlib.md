@@ -1,10 +1,6 @@
 # `soundlib.*`
 
-215 types.
-
-## `soundlib.CollectionsExtension`
-
-_No fields or methods._
+203 types.
 
 ## `soundlib.EnumBool`
 
@@ -208,10 +204,6 @@ _No fields or methods._
 :System.Void .ctor()
 :via.simplewwise.BankResourceHolder[] get_BankList()
 ```
-
-## `soundlib.SoundBehaviorBase`
-
-_No fields or methods._
 
 ## `soundlib.SoundBehaviorTreeActionBase`
 
@@ -483,10 +475,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, soundlib.SoundConstants.PadIndex)
 ```
 
-## `soundlib.SoundContainableUserData`
-
-_No fields or methods._
-
 ## `soundlib.SoundContainableUserData[]`
 
 **Methods**
@@ -632,10 +620,6 @@ sdk.call_native_func(nil, type_def, "<trigger>g__withinTriggerRange|56_0", ...) 
 :soundlib.SoundContainerExtensionBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, soundlib.SoundContainerExtensionBase)
 ```
-
-## `soundlib.SoundContainerExtensionDataBase`
-
-_No fields or methods._
 
 ## `soundlib.SoundContainerListData`
 
@@ -2746,10 +2730,6 @@ sdk.call_native_func(nil, type_def, "updateVirtualDistance", ...)  -- System.Voi
 :System.Void set_SystemBank(via.simplewwise.BankResourceHolder)
 ```
 
-## `soundlib.SoundManagerSettingsBase`
-
-_No fields or methods._
-
 ## `soundlib.SoundOBB`
 
 **Fields**
@@ -2772,10 +2752,6 @@ _No fields or methods._
 :System.Void set_TransformedOBB(via.OBB)
 :System.Void update()
 ```
-
-## `soundlib.SoundObjectBase`
-
-_No fields or methods._
 
 ## `soundlib.SoundOverrideState`
 
@@ -3503,14 +3479,6 @@ _No fields or methods._
 :System.Void update()
 ```
 
-## `soundlib.SoundStateAppBase`
-
-_No fields or methods._
-
-## `soundlib.SoundStateAppBase.SoundStateEnumPairBase`
-
-_No fields or methods._
-
 ## `soundlib.SoundStateAppBase.SoundStateEnumPairBase[]`
 
 **Methods**
@@ -3644,10 +3612,6 @@ _No fields or methods._
 :System.Void .ctor()
 :System.UInt32[] get_JointHash()
 ```
-
-## `soundlib.SoundSwitchAppBase.SoundSwitchEnumPairBase`
-
-_No fields or methods._
 
 ## `soundlib.SoundSwitchAppBase.SoundSwitchEnumPairBase[]`
 
@@ -4021,10 +3985,6 @@ _No fields or methods._
 :System.Void clear()
 ```
 
-## `soundlib.SoundUserDataBase`
-
-_No fields or methods._
-
 ## `soundlib.SoundUtility`
 
 **Fields**
@@ -4238,10 +4198,6 @@ sdk.call_native_func(nil, type_def, "isBit", ...)  -- System.Boolean isBit(Syste
 :System.Void requestUnRegister()
 ```
 
-## `soundlib.SoundVibInfoByWavListData.LockObj`
-
-_No fields or methods._
-
 ## `soundlib.SoundVibInfoByWav[]`
 
 **Methods**
@@ -4283,10 +4239,6 @@ _No fields or methods._
 :soundlib.SoundVibInfoByWav[] get_Item(System.Int32)
 :System.Void set_Item(System.Int32, soundlib.SoundVibInfoByWav[])
 ```
-
-## `soundlib.SoundVibInfoListDataBase`
-
-_No fields or methods._
 
 ## `soundlib.SoundVibInfoListDataBase[]`
 

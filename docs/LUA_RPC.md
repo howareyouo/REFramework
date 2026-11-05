@@ -254,7 +254,7 @@ python tools/lua_rpc/re_doc.py re_types.json docs/RE4_API
 ```
 
 - `re_dump.py`：用 `sdk.get_num_types()` + `sdk.get_type(i)` 按索引分批扫全表，每批一次 RPC 调用（默认 300 个）。产出 JSON，含每个类型的字段（名、类型、是否静态、偏移）和方法（名、返回值、参数列表、是否静态）。
-- `re_doc.py`：把 JSON 转成按命名空间分册的 Markdown，`README.md` 是索引。默认过滤泛型实例和编译器生成的杂名，`--all` 保留全部。
+- `re_doc.py`：把 JSON 转成按命名空间分册的 Markdown，`README.md` 是索引。默认过滤泛型实例和编译器生成的杂名，`--all` 保留全部；没有任何字段和方法的空类型同时也被跳过（它们不含可查信息，只会占篇幅）。
 
 RE4 实测：162644 个类型、768542 个方法、236555 个字段，JSON 约 190 MB，文档约 31 MB（`chainsaw.md` 23 MB、`via.md` 6.6 MB）。
 

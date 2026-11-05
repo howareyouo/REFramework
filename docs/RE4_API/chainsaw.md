@@ -1,6 +1,6 @@
 # `chainsaw.*`
 
-26814 types.
+26018 types.
 
 ## `chainsaw.AC3300Controller_cp11`
 
@@ -1339,10 +1339,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.AIMapPathThroughTestUserData.CheckPath)
 ```
 
-## `chainsaw.AIMapSourceMesh`
-
-_No fields or methods._
-
 ## `chainsaw.AIMapSystemCol`
 
 **Methods**
@@ -1350,10 +1346,6 @@ _No fields or methods._
 ```lua
 :System.Void awake()
 ```
-
-## `chainsaw.AIMapTagSetter`
-
-_No fields or methods._
 
 ## `chainsaw.AOEnemyDeadBodyEraseSettings`
 
@@ -1981,10 +1973,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateSellGauge(chainsaw.ItemCommandType, System.Single)
 ```
 
-## `chainsaw.AcCommandMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.AcCommandMenuGuiBehavior.DrawMenuParam`
 
 **Fields**
@@ -2003,10 +1991,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.AcCommandMenuGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.AcCommandMenuGuiBehavior.Step`
 
@@ -2547,10 +2531,6 @@ _No fields or methods._
 :System.Void updateCaptionCaseSkin(chainsaw.Item)
 :System.Void updateCaptionCharm(chainsaw.Item, System.String)
 ```
-
-## `chainsaw.AcHudGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.AcHudGuiBehavior.ModeState`
 
@@ -4581,10 +4561,6 @@ _No fields or methods._
 :System.Void set_WheelSpeed(System.Single)
 ```
 
-## `chainsaw.Accessor_Ch0CommonNpcBTreeUserVariables`
-
-_No fields or methods._
-
 ## `chainsaw.Accessor_Ch1b5z1BtUserVariables`
 
 **Fields**
@@ -5819,10 +5795,6 @@ _No fields or methods._
 :System.Void set_Variation(System.Int32)
 ```
 
-## `chainsaw.Accessor_Ch1d6z0BtUserVariables`
-
-_No fields or methods._
-
 ## `chainsaw.Accessor_Ch1d6z0MFsmUserVariables`
 
 **Fields**
@@ -6414,10 +6386,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_WaitTimeEnd(System.Boolean)
 :System.Void set_WeakPointHit(System.Boolean)
 ```
-
-## `chainsaw.Accessor_Ch1f2z0BtUserVariables`
-
-_No fields or methods._
 
 ## `chainsaw.Accessor_Ch1f2z0MFsmUserVariables`
 
@@ -7435,10 +7403,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_WalkBlend(System.Single)
 ```
 
-## `chainsaw.Accessor_Ch4faz1BtUserVariables`
-
-_No fields or methods._
-
 ## `chainsaw.Accessor_Ch4faz1MFsmUserVariables`
 
 **Fields**
@@ -7483,10 +7447,6 @@ _No fields or methods._
 :System.Void set_RunningTurn(System.Int32)
 :System.Void set_TriggerAttack(System.Boolean)
 ```
-
-## `chainsaw.Accessor_Ch4fbz0BtUserVariables`
-
-_No fields or methods._
 
 ## `chainsaw.Accessor_Ch4fbz0MFsmUserVariables`
 
@@ -8714,14 +8674,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.AccountPickerGuiBehavior.Step)
 :System.Void show()
 ```
-
-## `chainsaw.AccountPickerGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.AccountPickerGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.AccountPickerGuiBehavior.Step`
 
@@ -10142,14 +10094,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 :System.Void .ctor(chainsaw.InventoryActiveShortcutInfo, chainsaw.ShortcutOperationCause)
 ```
-
-## `chainsaw.ActivityItem`
-
-_No fields or methods._
-
-## `chainsaw.ActivityItemBase`
-
-_No fields or methods._
 
 ## `chainsaw.ActivityLogDummyRequestSetting`
 
@@ -11910,14 +11854,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_OptionFlag(System.Boolean)
 ```
 
-## `chainsaw.AlwaysCenterDotGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.AlwaysCenterDotGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.AlwaysCenterDotGuiBehavior.Step`
 
 **Fields**
@@ -12577,10 +12513,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateBlendRate(System.Single)
 :System.Void updateProcces(System.Single)
 ```
-
-## `chainsaw.AnimationControlUnitUserData`
-
-_No fields or methods._
 
 ## `chainsaw.AnimationControlUnit[]`
 
@@ -13242,10 +13174,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.AntiAircraftGunShell.IAntiAircraftShellSlot`
-
-_No fields or methods._
-
 ## `chainsaw.AntiAircraftGunShellAttackInfo`
 
 **Fields**
@@ -13376,10 +13304,6 @@ sdk.call_native_func(nil, type_def, "get_AdditionalParam_Group", ...)  -- System
 :System.Void set_DayHash(System.UInt32)
 :System.Void set_GroupHash(System.UInt32)
 ```
-
-## `chainsaw.AppBehaviorBase`
-
-_No fields or methods._
 
 ## `chainsaw.AppBehaviorBase[]`
 
@@ -13681,10 +13605,6 @@ _No fields or methods._
 :chainsaw.AppBehaviorTreeUserData.Node get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AppBehaviorTreeUserData.Node)
 ```
-
-## `chainsaw.AppEventBehaviorBase`
-
-_No fields or methods._
 
 ## `chainsaw.AppEventCamera`
 
@@ -14339,10 +14259,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.AppEventDefine.RequestType)
 ```
 
-## `chainsaw.AppEventDynamicResource`
-
-_No fields or methods._
-
 ## `chainsaw.AppEventFade`
 
 **Methods**
@@ -14614,10 +14530,6 @@ sdk.call_native_func(nil, type_def, "isValid", ...)  -- System.Boolean isValid(c
 sdk.call_native_func(nil, type_def, "isValid", ...)  -- System.Boolean isValid(chainsaw.IAppEventValidatable)
 ```
 
-## `chainsaw.AppEventLocation`
-
-_No fields or methods._
-
 ## `chainsaw.AppEventManager`
 
 **Fields**
@@ -14770,14 +14682,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.AppEventManagerBehaviorEx`
-
-_No fields or methods._
-
-## `chainsaw.AppEventObjectBase`
-
-_No fields or methods._
 
 ## `chainsaw.AppEventPlayerBase`
 
@@ -14972,10 +14876,6 @@ sdk.call_native_func(nil, type_def, "setUpdateOrder", ...)  -- System.Void setUp
 :System.Void set_Item(System.Int32, chainsaw.AppEventUpdateOrder.UpdateOrder)
 ```
 
-## `chainsaw.AppEventUserDataBase`
-
-_No fields or methods._
-
 ## `chainsaw.AppEventWwise`
 
 **Methods**
@@ -15149,10 +15049,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.AppLocalSaveIO.AppSaveDescription)
 ```
 
-## `chainsaw.AppObjectBase`
-
-_No fields or methods._
-
 ## `chainsaw.AppObjectBase[]`
 
 **Methods**
@@ -15173,14 +15069,6 @@ _No fields or methods._
 :chainsaw.AppObjectBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AppObjectBase)
 ```
-
-## `chainsaw.AppPayloadBase`
-
-_No fields or methods._
-
-## `chainsaw.AppSendPacketInfo`
-
-_No fields or methods._
 
 ## `chainsaw.AppTaskExecutor`
 
@@ -15555,14 +15443,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void registerSoundContainer()
 ```
 
-## `chainsaw.AppTracksBase`
-
-_No fields or methods._
-
-## `chainsaw.AppUserdataBase`
-
-_No fields or methods._
-
 ## `chainsaw.AppUserdataBase[]`
 
 **Methods**
@@ -15583,10 +15463,6 @@ _No fields or methods._
 :chainsaw.AppUserdataBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AppUserdataBase)
 ```
-
-## `chainsaw.AppZoneBase`
-
-_No fields or methods._
 
 ## `chainsaw.ArabicGuiManager`
 
@@ -15695,10 +15571,6 @@ _No fields or methods._
 :chainsaw.AreaID get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AreaID)
 ```
-
-## `chainsaw.AreaMontageRandomUserdataBase`
-
-_No fields or methods._
 
 ## `chainsaw.AreaSetting`
 
@@ -15951,10 +15823,6 @@ _No fields or methods._
 :System.Void setup()
 ```
 
-## `chainsaw.ArmorGaugeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.ArmorGaugeGuiBehavior.OpenParam`
 
 **Fields**
@@ -16186,10 +16054,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.ArmouryDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.ArmouryFlowController`
 
 **Fields**
@@ -16373,10 +16237,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.ArmouryGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ArmouryGuiBehavior.OpenParam`
 
@@ -16773,14 +16633,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.ArmourySelectGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.ArmourySelectGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.ArmourySelectGuiBehavior.SelectableKind`
 
@@ -18147,10 +17999,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.ArtWorkTextureSetting[] get_Settings()
 ```
 
-## `chainsaw.ArtWorkTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.ArtWorkTextureSetting`
 
 **Fields**
@@ -18756,10 +18604,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.AttacheCaseControlBehaviorBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AttacheCaseControlBehaviorBase)
 ```
-
-## `chainsaw.AttacheCaseControlBehaviorSetupParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.AttacheCaseController`
 
@@ -19415,10 +19259,6 @@ sdk.call_native_func(nil, type_def, "getItemId", ...)  -- chainsaw.ItemID getIte
 :chainsaw.AttacheCaseGuiController.QueryType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.AttacheCaseGuiController.QueryType)
 ```
-
-## `chainsaw.AttacheCaseGuiController.SetupParam`
-
-_No fields or methods._
 
 ## `chainsaw.AttacheCaseGuiDataHolder`
 
@@ -22123,14 +21963,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.AttackStanceAdjusterUnitUserData.JointSetting[] get_YawLookAtJointSettings()
 ```
 
-## `chainsaw.AttackToEnemyUserData`
-
-_No fields or methods._
-
-## `chainsaw.AttackToGimmickUserData`
-
-_No fields or methods._
-
 ## `chainsaw.AttackToPlayerUserData`
 
 **Fields**
@@ -22377,10 +22209,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.AutoSaveIconGuiBehavior.Step)
 :System.Void set_RemainingDisplayTime(System.Single)
 ```
-
-## `chainsaw.AutoSaveIconGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.AutoSaveIconGuiBehavior.Step`
 
@@ -24918,10 +24746,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.BehaviorTreeAction_MFSM_InertiaMoveAction.ExpDampSmoothing)
 ```
 
-## `chainsaw.BehaviorTreeAction_MFSM_InertiaMoveAction.HumanJoint`
-
-_No fields or methods._
-
 ## `chainsaw.BehaviorTreeAction_MFSM_InertiaMoveAction.HumanJoint.Hash`
 
 **Fields**
@@ -27032,10 +26856,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.BehaviorTreeCategory)
 ```
 
-## `chainsaw.BehaviorTreeConditionBase`
-
-_No fields or methods._
-
 ## `chainsaw.BehaviorTreeCondition_CheckActionTargetDistance`
 
 **Fields**
@@ -27894,10 +27714,6 @@ sdk.call_native_func(nil, type_def, "getTargetMotionLayerNo", ...)  -- System.In
 :System.Void set_CheckGrappledFatal(System.Boolean)
 ```
 
-## `chainsaw.BehaviorTreeTransitionEventBase`
-
-_No fields or methods._
-
 ## `chainsaw.BezierLine`
 
 **Fields**
@@ -28064,10 +27880,6 @@ sdk.call_native_func(nil, type_def, "<getCurvature>g__calc_d|28_0", ...)  -- Sys
 ```lua
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
-
-## `chainsaw.BinocularsGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.BinocularsGuiBehavior.ItemIcon`
 
@@ -32210,10 +32022,6 @@ sdk.call_native_func(nil, type_def, "get_BombParam_Group", ...)  -- System.Boole
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.BonusMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.BonusMenuGuiBehavior.Menu`
 
 **Fields**
@@ -32856,10 +32664,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.BrowseType)
 ```
 
-## `chainsaw.BrowserServiceController`
-
-_No fields or methods._
-
 ## `chainsaw.BrowsingCameraSetting`
 
 **Methods**
@@ -33419,10 +33223,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.BulletRushGaugeGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.BulletRushGaugeGuiBehavior.CommandPlayState`
 
@@ -34579,10 +34379,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.CameraCurveParam.Type get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.CameraCurveParam.Type)
 ```
-
-## `chainsaw.CameraCurveUserDataParam`
-
-_No fields or methods._
 
 ## `chainsaw.CameraCustomCurveUserData`
 
@@ -36008,10 +35804,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.CameraUtil`
-
-_No fields or methods._
-
 ## `chainsaw.CameraViewParam`
 
 **Fields**
@@ -36932,10 +36724,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.CampaignJumperEndPayload`
-
-_No fields or methods._
 
 ## `chainsaw.CampaignJumperOrderData`
 
@@ -37972,10 +37760,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
 
-## `chainsaw.CannonHudGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.CannonHudGuiBehavior.DrawTargetPoint`
 
 **Fields**
@@ -38311,10 +38095,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void onDestroy()
 :System.Void start()
 ```
-
-## `chainsaw.CarPayload`
-
-_No fields or methods._
 
 ## `chainsaw.CarPayload.SyncStatus`
 
@@ -40319,10 +40099,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Move", ...)  -- System.Boolean ge
 :System.Void update(via.behaviortree.ActionArg)
 :System.Void updateSubTrack(chainsaw.Ch1b7z0EscapeGrappleSubTrack)
 ```
-
-## `chainsaw.Ch1b7z0BehaviorTreeAction_CheckGrappleParry`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1b7z0BehaviorTreeAction_DelWince`
 
@@ -43308,14 +43084,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void initialize()
 ```
 
-## `chainsaw.Ch1b7z0CheckHitAttackCancelAttackTrack`
-
-_No fields or methods._
-
-## `chainsaw.Ch1b7z0CheckParryCancelAttackTrack`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1b7z0ClimbShotPoint`
 
 **Fields**
@@ -43842,10 +43610,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.Ch1b7z0ExitPoint.ExitPointClass`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1b7z0ExitPoint.ExitPointClass[]`
 
 **Methods**
@@ -44001,10 +43765,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.Ch1b7z0GrabPoint.GrabPointClass`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1b7z0GrabPoint.GrabPointClass[]`
 
@@ -45758,10 +45518,6 @@ sdk.call_native_func(nil, type_def, "<onParry>g__noWinceCheck|717_0", ...)  -- S
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.Ch1b7z0ManagerBehavior`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1b7z0Melee`
 
 **Fields**
@@ -46054,10 +45810,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Type(chainsaw.character.ch1b7z0.OnePointType)
 :System.Void start()
 ```
-
-## `chainsaw.Ch1b7z0OnePoint.OnePointClass`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1b7z0OnePoint[]`
 
@@ -46601,10 +46353,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.Ch1b7z0TrapPoint.OnePointClass`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1b7z0TrapPoint.State`
 
@@ -50489,10 +50237,6 @@ sdk.call_native_func(nil, type_def, "<updateCombatRange>g__getCombatRangeAtExtra
 :System.Void setupSubStateTable()
 ```
 
-## `chainsaw.Ch1c0MainState_Attention`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0MainState_Find`
 
 **Fields**
@@ -50646,10 +50390,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.Ch1c0MainState_ForceMove.SubState)
 ```
 
-## `chainsaw.Ch1c0MainState_Lost`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0MainState_RoleMode`
 
 **Fields**
@@ -50665,10 +50405,6 @@ _No fields or methods._
 :System.Void exit()
 :System.Void update()
 ```
-
-## `chainsaw.Ch1c0MainState_Search`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1c0MontageDamageRateData`
 
@@ -53533,10 +53269,6 @@ sdk.call_native_func(nil, type_def, "CheckShieldFatalAttack", ...)  -- System.Bo
 :System.Void set_Item(System.Int32, chainsaw.Ch1c0StateDriverCommon.MainState)
 ```
 
-## `chainsaw.Ch1c0SubStateBase`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0SubState_Ch2a1z0Escape`
 
 **Fields**
@@ -53736,10 +53468,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_plContext(chainsaw.CharacterContext)
 :System.Void update()
 ```
-
-## `chainsaw.Ch1c0SubState_Guest`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1c0SubState_MemberA`
 
@@ -55295,10 +55023,6 @@ sdk.call_native_func(nil, type_def, "<applyWoodShieldDamage>g__oneShotBreak|0_0"
 :System.Void onStartStagger(chainsaw.character.ch1c0z0.CliffFallDirectionType)
 :System.Void setStaggerEnable(System.Boolean)
 ```
-
-## `chainsaw.Ch1c0z0BehaviorTreeAction_EnableGrappleHelp`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1c0z0BehaviorTreeAction_EnableTerrainHitAction`
 
@@ -60836,10 +60560,6 @@ sdk.call_native_func(nil, type_def, "get_GroupTargetJoint", ...)  -- System.Bool
 :System.Void startBlowLarge()
 ```
 
-## `chainsaw.Ch1c0z0ContinuousAttackCanselTrack`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0z0DamageRateUserData`
 
 **Fields**
@@ -62325,10 +62045,6 @@ sdk.call_native_func(nil, type_def, "<getDeadReactionActionHash>g__isPlayingBull
 :System.Void .ctor()
 ```
 
-## `chainsaw.Ch1c0z0Parameter`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0z0PartsEnableTrack`
 
 **Fields**
@@ -63433,10 +63149,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Unique", ...)  -- System.Boolean 
 :System.Void set_Item(System.Int32, chainsaw.Ch1c0z1DamageRateUserData.Ch1c0z1MontageDamageRateData)
 ```
 
-## `chainsaw.Ch1c0z1EmptyPlagaOrder`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1c0z1EscapeDetourNavigationSupporter`
 
 **Methods**
@@ -63889,10 +63601,6 @@ sdk.call_native_func(nil, type_def, "<getDeadReactionActionHash>g__isPlayingBull
 ```lua
 :System.Void exit()
 ```
-
-## `chainsaw.Ch1c0z1Parameter`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1c0z1ParasitePainTrack`
 
@@ -65646,10 +65354,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "<getDeadReactionActionHash>g__isKneelBurstAttack|67_2", ...)  -- System.Boolean <getDeadReactionActionHash>g__isKneelBurstAttack|67_2(chainsaw.character.AttackType, System.UInt32)
 sdk.call_native_func(nil, type_def, "<getDeadReactionActionHash>g__isPlayingBulletRush|67_1", ...)  -- System.Boolean <getDeadReactionActionHash>g__isPlayingBulletRush|67_1(via.GameObject)
 ```
-
-## `chainsaw.Ch1c0z2Parameter`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1c0z2RushAttackOrderTrack`
 
@@ -69024,10 +68728,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_BodyUnit(chainsaw.Ch1d0z0BodyCostumeDriver.BodyCostumeUnit)
 ```
 
-## `chainsaw.Ch1d0z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1d0z0BodyHitDriver`
 
 **Fields**
@@ -71878,10 +71578,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.Ch1d1z1Context get_Context()
 :chainsaw.Ch1d1z1HeadUpdater get_HeadUpdater()
 ```
-
-## `chainsaw.Ch1d1z1BehaviorTreeCondition_CanRun`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1d1z1BehaviorTreeCondition_CheckOnStair`
 
@@ -79179,10 +78875,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void update(via.behaviortree.ActionArg)
 ```
 
-## `chainsaw.Ch1d4z0BehaviorTreeCondition_CheckFrontWall`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1d4z0BehaviorTreeCondition_CheckKeepCrawlingReason`
 
 **Fields**
@@ -85107,10 +84799,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start(via.behaviortree.ActionArg)
 ```
 
-## `chainsaw.Ch1e0z0BehaviorTreeAction_MFSM_SubStateBodyOut`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1e0z0BehaviorTreeAction_MFSM_SyncInvincible`
 
 **Fields**
@@ -86017,10 +85705,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.ContextID searchTargetEnemy(chainsaw.Ch1e0z0HeadUpdater, System.Single, System.Collections.Generic.List`1<chainsaw.character.ch1e0z0.IgnoreParentInfo>, System.Int32)
 :System.Void set_TargetPairList(System.Collections.Generic.Dictionary`2<chainsaw.Ch1e0z0HeadUpdater,chainsaw.Ch1c0HeadUpdaterCommon>)
 ```
-
-## `chainsaw.Ch1e0z0ManagerBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1e0z0MercenariesParamUserData`
 
@@ -88230,10 +87914,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Body(chainsaw.Ch1f0z0BodyUpdater)
 :System.Void set_BodyUnit(chainsaw.Ch1f0z0BodyCostumeDriver.BodyCostumeUnit)
 ```
-
-## `chainsaw.Ch1f0z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1f0z0BodyHitDriver`
 
@@ -94307,10 +93987,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void switchDeadBody()
 ```
 
-## `chainsaw.Ch1f2z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f2z0BodyCostumeDriver.Unit`
 
 **Fields**
@@ -94786,10 +94462,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void update(System.Single)
 ```
 
-## `chainsaw.Ch1f2z0BodyUpdater.MaterialController.UnitBase`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f2z0BodyUpdater.MaterialController.UnitBase[]`
 
 **Methods**
@@ -95215,10 +94887,6 @@ _No fields or methods._
 :System.Void initialize()
 :System.Void set_ConstRange(System.Boolean)
 ```
-
-## `chainsaw.Ch1f2z0DifferentAttackPointRequest`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1f2z0DoorTracks`
 
@@ -104910,10 +104578,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateState()
 ```
 
-## `chainsaw.Ch1f7z0BrokeWallPoint.OnePointClass`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f7z0BrokeWallPoint.State`
 
 **Fields**
@@ -107775,10 +107439,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.Ch1f8z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f8z0BodyCostumeDriver.RopeState`
 
 **Fields**
@@ -107995,10 +107655,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.Ch1f8z0Ch1d3z0DownPoint.DownPointClass`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f8z0Ch1d3z0DownPoint.DownPointClass[]`
 
 **Methods**
@@ -108061,10 +107717,6 @@ _No fields or methods._
 :System.Void set_UpPoint(chainsaw.Ch1f8z0Ch1d3z0UpPoint.UpPointClass)
 :System.Void start()
 ```
-
-## `chainsaw.Ch1f8z0Ch1d3z0UpPoint.UpPointClass`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1f8z0Ch1d3z0UpPoint[]`
 
@@ -108711,10 +108363,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.Ch1f8z0DashAttackLine.DashAttackLineClass`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f8z0DashAttackLine.DashAttackLineClass[]`
 
 **Methods**
@@ -109165,10 +108813,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.Ch1f8z0GroundTentacleAttackPoint.GroundTentacleAttackPointClass`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1f8z0GroundTentacleAttackPoint.GroundTentacleAttackPointClass[]`
 
@@ -109742,10 +109386,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.Ch1f8z0JumpAttackPoint.JumpAttackPointClass`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1f8z0JumpAttackPoint.JumpAttackPointClass[]`
 
 **Methods**
@@ -109877,10 +109517,6 @@ _No fields or methods._
 :System.Void unregisterJumpAttackPoint(chainsaw.Ch1f8z0JumpAttackPoint)
 :System.Void updateForceActionAreaWork(System.Collections.Generic.List`1<chainsaw.Ch1f8z0ForceActionAreaWork>, via.Transform, via.vec3, System.Single)
 ```
-
-## `chainsaw.Ch1f8z0ManagerBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1f8z0NeedleShellGenerator`
 
@@ -110621,10 +110257,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.Ch1fcz0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch1fcz0BodyHitDriver`
 
 **Fields**
@@ -111284,10 +110916,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.Ch1fdz0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
 
 ## `chainsaw.Ch1fdz0BodyCostumeDriver.RopeState`
 
@@ -113250,10 +112878,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_BodyUnit(chainsaw.Ch4d7z0BodyCostumeDriver.BodyCostumeUnit)
 ```
 
-## `chainsaw.Ch4d7z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4d7z0BodyHitDriver`
 
 **Fields**
@@ -113604,10 +113228,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_RockPointList(System.Collections.Generic.List`1<chainsaw.Ch4d7z0RockPoint>)
 :System.Void unregisterRockPoint(chainsaw.Ch4d7z0RockPoint)
 ```
-
-## `chainsaw.Ch4d7z0ManagerBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4d7z0ParamUserData`
 
@@ -114828,10 +114448,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Body(chainsaw.Ch4f9z0BodyUpdater)
 :System.Void set_BodyUnit(chainsaw.Ch4f9z0BodyCostumeDriver.BodyCostumeUnit)
 ```
-
-## `chainsaw.Ch4f9z0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4f9z0BodyCostumeDriver.WeakPointAppearMaterial`
 
@@ -117172,10 +116788,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_SpearUnit(chainsaw.Ch4faBodyCostumeDriver.BodyCostumeUnit)
 ```
 
-## `chainsaw.Ch4faBodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faBodyCostumeDriver.Unit`
 
 **Fields**
@@ -117400,10 +117012,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Boolean get_IsDisable()
 :System.Void initialize()
 ```
-
-## `chainsaw.Ch4faGeneralTriggerTracks`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4faGroundAttachTracks`
 
@@ -117866,10 +117474,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void initialize()
 ```
 
-## `chainsaw.Ch4faStatusTracks`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz0Backup`
 
 **Fields**
@@ -118222,10 +117826,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.Ch4faz0Configuration`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz0Context`
 
 **Fields**
@@ -118575,10 +118175,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_JumpUp(System.Boolean)
 ```
 
-## `chainsaw.Ch4faz0Manager`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz0ManagerBehavior`
 
 **Methods**
@@ -118809,10 +118405,6 @@ sdk.call_native_func(nil, type_def, "get_Group_WeaponThrow", ...)  -- System.Boo
 :System.Void set_Item(System.Int32, chainsaw.Ch4faz0ParamUserData.TimerInfo)
 ```
 
-## `chainsaw.Ch4faz0PhantomUpdater`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz0SpawnParam`
 
 **Fields**
@@ -118848,10 +118440,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.Ch4faz1AttackJumpHoldTracks`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4faz1Backup`
 
@@ -120085,10 +119673,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup(via.Transform, chainsaw.Ch4faz1ParamUserData.TargetedPosition)
 ```
 
-## `chainsaw.Ch4faz1Configuration`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz1Context`
 
 **Fields**
@@ -120122,10 +119706,6 @@ _No fields or methods._
 :System.Void set_FlagsInitialized(System.Boolean)
 :System.Void set_HomeComingPosition(System.Nullable`1<via.vec3>)
 ```
-
-## `chainsaw.Ch4faz1DoorTracks`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4faz1GlowEyesTracks`
 
@@ -120595,10 +120175,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void initialize()
 ```
 
-## `chainsaw.Ch4faz1JumpTracks`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4faz1Manager`
 
 **Fields**
@@ -120757,10 +120333,6 @@ sdk.call_native_func(nil, type_def, "<isNearEnemy>g__check|54_0", ...)  -- Syste
 :System.Boolean get_Enable()
 :System.Void initialize()
 ```
-
-## `chainsaw.Ch4faz1OutFieldActionTracks`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4faz1ParamUserData`
 
@@ -121637,10 +121209,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Warp", ...)  -- System.Boolean ge
 :System.Boolean checkFlag(System.Guid)
 :System.Boolean setFlag(System.Guid, System.Boolean)
 ```
-
-## `chainsaw.Ch4faz1SpecificDamageReactionTracks`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4faz1StealthKillTracks`
 
@@ -123786,10 +123354,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void switchSecondBody()
 ```
 
-## `chainsaw.Ch4fbz0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4fbz0BodyCostumeDriver.Unit`
 
 **Fields**
@@ -124428,10 +123992,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void initialize()
 :System.Void set_ConstRange(System.Boolean)
 ```
-
-## `chainsaw.Ch4fbz0DifferentAttackPointRequest`
-
-_No fields or methods._
 
 ## `chainsaw.Ch4fbz0DoorTracks`
 
@@ -129399,10 +128959,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup(chainsaw.CharacterContext)
 ```
 
-## `chainsaw.Ch4fez0BodyCostumeDriver.BodyCostumeUnit`
-
-_No fields or methods._
-
 ## `chainsaw.Ch4fez0BodyCostumeDriver.LegCostumeUnit`
 
 **Fields**
@@ -133773,10 +133329,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.Ch6CommonDefine`
-
-_No fields or methods._
-
 ## `chainsaw.Ch6CommonDefine.SoundTrigger`
 
 **Fields**
@@ -137133,10 +136685,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.Ch7k0z0Context get_Context()
 :chainsaw.Ch7k0z0HeadUpdater get_HeadUpdater()
 ```
-
-## `chainsaw.Ch7k0z0BehaviorTreeCondition_CanRun`
-
-_No fields or methods._
 
 ## `chainsaw.Ch7k0z0BehaviorTreeCondition_CheckOnStair`
 
@@ -142161,10 +141709,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.UInt64 getSaveDataSize()
 ```
 
-## `chainsaw.ChainsawGuiApplyParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.ChainsawGuiApplyParamBase[]`
 
 **Methods**
@@ -142380,10 +141924,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.ChainsawGuiBehaviorBase)
 ```
 
-## `chainsaw.ChainsawGuiCloseParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.ChainsawGuiCloseParamBase[]`
 
 **Methods**
@@ -142439,14 +141979,6 @@ _No fields or methods._
 :System.Void set_GuiBehaviorPath(System.String)
 :System.Void setup()
 ```
-
-## `chainsaw.ChainsawGuiNoticeParamBase`
-
-_No fields or methods._
-
-## `chainsaw.ChainsawGuiOpenParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.ChainsawGuiOpenParamBase[]`
 
@@ -143057,10 +142589,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void feedPage()
 ```
 
-## `chainsaw.ChapterDetailResultGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.ChapterDetailResultGuiBehavior.ColumnType`
 
 **Fields**
@@ -143427,10 +142955,6 @@ _No fields or methods._
 :chainsaw.ChapterDetailResultGuideGuiBehavior.CellView get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.ChapterDetailResultGuideGuiBehavior.CellView)
 ```
-
-## `chainsaw.ChapterDetailResultGuideGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ChapterDetailResultGuideGuiBehavior.ColumnType`
 
@@ -143830,10 +143354,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.ChapterEndGuiDefine`
-
-_No fields or methods._
 
 ## `chainsaw.ChapterEndGuiDefine.MenuType`
 
@@ -144335,14 +143855,6 @@ sdk.call_native_func(nil, type_def, "get_CurrCampaignStartChapter", ...)  -- cha
 :System.Void unregistReceiver(chainsaw.ChapterSceneEventReceivable)
 ```
 
-## `chainsaw.ChapterSceneEventBrokerBehavior`
-
-_No fields or methods._
-
-## `chainsaw.ChapterSceneEventReceivable`
-
-_No fields or methods._
-
 ## `chainsaw.ChapterSceneEventReceivable[]`
 
 **Methods**
@@ -144653,10 +144165,6 @@ _No fields or methods._
 :System.Void setup()
 :System.Void updatePause()
 ```
-
-## `chainsaw.ChapterStartGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ChapterStartGuiBehavior.OpenParam`
 
@@ -144988,10 +144496,6 @@ _No fields or methods._
 :System.Void setTexture(via.render.TextureResourceHolder)
 :System.Void setVisible(System.Boolean)
 ```
-
-## `chainsaw.ChapterStatsGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ChapterStatsGuiBehavior.HeaderElement`
 
@@ -149573,10 +149077,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.CharacterKindIDExt`
-
-_No fields or methods._
-
 ## `chainsaw.CharacterKindID[]`
 
 **Methods**
@@ -150885,10 +150385,6 @@ sdk.call_native_func(nil, type_def, "calcRenderOutputType", ...)  -- chainsaw.Re
 :chainsaw.CharacterRoleType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.CharacterRoleType)
 ```
-
-## `chainsaw.CharacterSpawnConditionMercenaries`
-
-_No fields or methods._
 
 ## `chainsaw.CharacterSpawnConditionMercenaries.ConditionArea`
 
@@ -152870,14 +152366,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Wave_Debug", ...)  -- System.Bool
 :chainsaw.CharacterTalkConditionUserData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.CharacterTalkConditionUserData)
 ```
-
-## `chainsaw.CharacterTalkController`
-
-_No fields or methods._
-
-## `chainsaw.CharacterTalkDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.CharacterTalkDefinition.Type`
 
@@ -154865,10 +154353,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 | `Invalid` | `chainsaw.CharmID` | yes | 16 |
 | `value__` | `System.Int32` |  | 16 |
 
-## `chainsaw.CharmIDDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.CharmID[]`
 
 **Methods**
@@ -155239,14 +154723,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.CharmManager.LotteryTableData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.CharmManager.LotteryTableData)
 ```
-
-## `chainsaw.CharmManager.SystemSaveData`
-
-_No fields or methods._
-
-## `chainsaw.CharmManager.SystemSaveData.Record`
-
-_No fields or methods._
 
 ## `chainsaw.CharmManagerBehavior`
 
@@ -155724,10 +155200,6 @@ _No fields or methods._
 :System.Boolean update(System.Single)
 ```
 
-## `chainsaw.CheckCanCall`
-
-_No fields or methods._
-
 ## `chainsaw.CheckDitstance`
 
 **Fields**
@@ -156004,10 +155476,6 @@ _No fields or methods._
 :System.Boolean check()
 :System.Void init(chainsaw.GimmickCore)
 ```
-
-## `chainsaw.ClapperboardEventLoadAndNetworkBase`
-
-_No fields or methods._
 
 ## `chainsaw.ClapperboardEventOfflineLoad`
 
@@ -156639,10 +156107,6 @@ sdk.call_native_func(nil, type_def, "cameraToKey", ...)  -- System.Nullable`1<vi
 :System.Void remove_OnPlay(System.Action)
 :System.Void set_DataOwner(via.GameObject)
 ```
-
-## `chainsaw.ClapperboardMediator.PayloadBase`
-
-_No fields or methods._
 
 ## `chainsaw.ClapperboardMediator.PayloadLoaded`
 
@@ -158407,10 +157871,6 @@ sdk.call_native_func(nil, type_def, "minValue", ...)  -- System.Single minValue(
 :System.Void clear()
 ```
 
-## `chainsaw.CollectionsExtension`
-
-_No fields or methods._
-
 ## `chainsaw.ColliderEnableSettings`
 
 **Fields**
@@ -158470,10 +157930,6 @@ _No fields or methods._
 :chainsaw.ColliderEnableSettings.Param get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.ColliderEnableSettings.Param)
 ```
-
-## `chainsaw.ColliderShape`
-
-_No fields or methods._
 
 ## `chainsaw.ColliderShapeType`
 
@@ -159508,10 +158964,6 @@ sdk.call_native_func(nil, type_def, "getValue", ...)  -- System.Single getValue(
 :System.Void update()
 :System.Void updateCore()
 ```
-
-## `chainsaw.CommandScriptLibrary.ActionLabel`
-
-_No fields or methods._
 
 ## `chainsaw.CommandScriptLibrary.BindTable`
 
@@ -160578,10 +160030,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void onChanged(System.Single)
 ```
 
-## `chainsaw.CommandScriptLibrary.ConditionCommandBase.ICache`
-
-_No fields or methods._
-
 ## `chainsaw.CommandScriptLibrary.ConditionCommandBase.IntVariableCache`
 
 **Fields**
@@ -160614,10 +160062,6 @@ _No fields or methods._
 :System.Boolean query(System.Boolean, System.Boolean)
 :System.Void save(System.Boolean, System.Boolean, System.Single)
 ```
-
-## `chainsaw.CommandScriptLibrary.ConditionLabel`
-
-_No fields or methods._
 
 ## `chainsaw.CommandScriptLibrary.Context`
 
@@ -160857,10 +160301,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.CommandScriptLibrary.Context, chainsaw.ThinkScriptUserData)
 ```
 
-## `chainsaw.CommandScriptLibrary.IScopedCommand`
-
-_No fields or methods._
-
 ## `chainsaw.CommandScriptLibrary.IScopedCommand[]`
 
 **Methods**
@@ -160991,22 +160431,6 @@ _No fields or methods._
 :chainsaw.CommandScriptLibrary.Logger.Unit get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.CommandScriptLibrary.Logger.Unit)
 ```
-
-## `chainsaw.CommandScriptLibrary.Misc.BoolVar`
-
-_No fields or methods._
-
-## `chainsaw.CommandScriptLibrary.Misc.DoubleVar`
-
-_No fields or methods._
-
-## `chainsaw.CommandScriptLibrary.Misc.FloatVar`
-
-_No fields or methods._
-
-## `chainsaw.CommandScriptLibrary.Misc.IntVar`
-
-_No fields or methods._
 
 ## `chainsaw.CommandScriptLibrary.Misc.Var`
 
@@ -161209,10 +160633,6 @@ _No fields or methods._
 :System.Void .ctor(System.String)
 ```
 
-## `chainsaw.CommandScriptLibrary.PublicCommandIgnoreParameterAttribute`
-
-_No fields or methods._
-
 ## `chainsaw.CommandScriptLibrary.PublicCommandOrderAttribute`
 
 **Fields**
@@ -161275,10 +160695,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.CommonColliderController`
-
-_No fields or methods._
 
 ## `chainsaw.CommonCurve`
 
@@ -161712,10 +161128,6 @@ _No fields or methods._
 :System.Void update()
 ```
 
-## `chainsaw.CommonSaveData`
-
-_No fields or methods._
-
 ## `chainsaw.CommonSaveDataManager`
 
 **Fields**
@@ -161968,10 +161380,6 @@ sdk.call_native_func(nil, type_def, "requestEnable", ...)  -- System.Void reques
 :System.Void set_Item(System.Int32, chainsaw.ConditionalMotionEndTracks.ConditionType)
 ```
 
-## `chainsaw.Configuration`
-
-_No fields or methods._
-
 ## `chainsaw.ConfigurationUnit`
 
 **Fields**
@@ -162044,10 +161452,6 @@ _No fields or methods._
 :System.Void initialize()
 :System.Void set_IsReleaseTrigger(System.Boolean)
 ```
-
-## `chainsaw.ConstraintAutoStepRequest`
-
-_No fields or methods._
 
 ## `chainsaw.ConstraintNullOffsetPosRequest`
 
@@ -162186,10 +161590,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 ```lua
 :System.Void .ctor(System.String)
 ```
-
-## `chainsaw.ContextDataAttribute`
-
-_No fields or methods._
 
 ## `chainsaw.ContextDataFlags`
 
@@ -162795,10 +162195,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void onSetup(chainsaw.GuiControllerBehavior)
 ```
 
-## `chainsaw.CoopActionDialogGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.CoopActionDialogGuiBehavior.OpenParam`
 
 **Fields**
@@ -162878,10 +162274,6 @@ _No fields or methods._
 :System.Void setup()
 :System.Void updateIconPattern()
 ```
-
-## `chainsaw.CoopActionIconBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.CoopActionIconBehavior.IconPanelState`
 
@@ -163109,18 +162501,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.CoopActionIconType)
 ```
 
-## `chainsaw.CoopMediator`
-
-_No fields or methods._
-
-## `chainsaw.CoopMediatorBehavior`
-
-_No fields or methods._
-
-## `chainsaw.CoopTarget`
-
-_No fields or methods._
-
 ## `chainsaw.CoordData`
 
 **Fields**
@@ -163275,10 +162655,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, "toItemID", ...)  -- chainsaw.ItemID toItemID(chainsaw.CostumeAccessory)
 ```
 
-## `chainsaw.CostumeAccessoryGuiSettingUserData`
-
-_No fields or methods._
-
 ## `chainsaw.CostumeAccessory[]`
 
 **Methods**
@@ -163358,10 +162734,6 @@ _No fields or methods._
 | `MC_Costume_01` | `chainsaw.CostumeCharacter` | yes | 16 |
 | `value__` | `System.Int32` |  | 16 |
 
-## `chainsaw.CostumeCharacterGuiSettingUserData`
-
-_No fields or methods._
-
 ## `chainsaw.CostumeCharacter[]`
 
 **Methods**
@@ -163397,10 +162769,6 @@ _No fields or methods._
 :via.Prefab get_HolderPrefab()
 ```
 
-## `chainsaw.CostumeGuiSelectSettingUserDataBase`
-
-_No fields or methods._
-
 ## `chainsaw.CostumeGuiSelectSettingUserDataBase[]`
 
 **Methods**
@@ -163431,10 +162799,6 @@ _No fields or methods._
 | `CostumeSelectMenuList` | `System.Collections.Generic.List`1<chainsaw.CostumeSelectMenu>` |  | 32 |
 | `CostumeGuiSelectSettingList` | `System.Collections.Generic.List`1<chainsaw.CostumeGuiSelectSettingUserDataBase>` |  | 40 |
 | `IdConvertSetting` | `chainsaw.CostumeIDConvertUserData` |  | 48 |
-
-## `chainsaw.CostumeHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.CostumeIDConvertUserData`
 
@@ -163661,10 +163025,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.CostumeListGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.CostumeListGuiBehavior.MenuType`
 
@@ -164748,10 +164108,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "toFilterID", ...)  -- chainsaw.SpecialFilterID toFilterID(chainsaw.CostumeSwitch)
 ```
 
-## `chainsaw.CostumeSwitchGuiSettingUserData`
-
-_No fields or methods._
-
 ## `chainsaw.CostumeSwitch[]`
 
 **Methods**
@@ -164938,14 +164294,6 @@ _No fields or methods._
 :System.Void onSetup(chainsaw.GuiControllerBehavior)
 :System.Void set_CurrStep(chainsaw.CounterGuiBehavior.Step)
 ```
-
-## `chainsaw.CounterGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.CounterGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.CounterGuiBehavior.Step`
 
@@ -165204,10 +164552,6 @@ _No fields or methods._
 :System.Void unregisterCatalog()
 ```
 
-## `chainsaw.Cp1011CollectData`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1011EndingFlowSettingUserdata`
 
 **Fields**
@@ -165290,10 +164634,6 @@ _No fields or methods._
 :chainsaw.Cp1011MainMenuBGGuiBehavior.BGType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.Cp1011MainMenuBGGuiBehavior.BGType)
 ```
-
-## `chainsaw.Cp1011MainMenuBGGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1011MainMenuBGGuiBehavior.OpenParam`
 
@@ -166096,10 +165436,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.Cp1021BulletRushGaugeSettingsUserData)
 ```
 
-## `chainsaw.Cp1021CharacterSelectCharacterTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021CharacterSelectCharacterTextureID`
 
 **Fields**
@@ -166210,10 +165546,6 @@ _No fields or methods._
 :System.Void unloadTexture(chainsaw.Cp1021CharacterSelectMenuActionType)
 :System.Void updateSelectCharacterList(via.gui.ScrollList)
 ```
-
-## `chainsaw.Cp1021CharacterSelectGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021CharacterSelectGuiBehavior.OpenParam`
 
@@ -166584,10 +165916,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.Cp1021CharacterSelectSettingsUserData.Setting)
 ```
 
-## `chainsaw.Cp1021CommonUVSequenceHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021CommonUVSequenceID`
 
 **Fields**
@@ -166745,10 +166073,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.Cp1021GameClearGuiBehavior.AnnounceTypePlayState)
 ```
 
-## `chainsaw.Cp1021GameClearGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021GameClearGuiBehavior.OpenParam`
 
 **Fields**
@@ -166868,10 +166192,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.Cp1021GameClearResultGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021GameClearResultGuiBehavior.GuiPanelBase`
 
@@ -167411,10 +166731,6 @@ _No fields or methods._
 :System.Void .ctor()
 ```
 
-## `chainsaw.Cp1021GameClearResultTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021GameClearResultTextureID`
 
 **Fields**
@@ -167480,10 +166796,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.Cp1021GameOverSimpleGuiBehavior.Step)
 :System.Void setup(chainsaw.Cp1021GameOverSimpleGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.Cp1021GameOverSimpleGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021GameOverSimpleGuiBehavior.MainPlayState`
 
@@ -167637,10 +166949,6 @@ _No fields or methods._
 :chainsaw.Cp1021GameStartGuiBehavior.AnnouncePlayState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.Cp1021GameStartGuiBehavior.AnnouncePlayState)
 ```
-
-## `chainsaw.Cp1021GameStartGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021GameStartGuiBehavior.OpenParam`
 
@@ -167932,10 +167240,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_IsUsedTimeGimmick(System.Boolean)
 ```
 
-## `chainsaw.Cp1021GuiOpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021HudAnnounceNoticeGuiBehavior`
 
 **Fields**
@@ -167973,10 +167277,6 @@ _No fields or methods._
 :System.Void set_State(chainsaw.Cp1021HudAnnounceNoticeGuiBehavior.StateType)
 :System.Void setup(chainsaw.Cp1021HudAnnounceNoticeGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.Cp1021HudAnnounceNoticeGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021HudAnnounceNoticeGuiBehavior.NoticePlayState`
 
@@ -168178,10 +167478,6 @@ _No fields or methods._
 :System.Void setRootPanelState(System.String)
 :System.Void updateBlink(chainsaw.Cp1021HudComboSettingsUserData.BlinkParam[], System.Single)
 ```
-
-## `chainsaw.Cp1021HudComboGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021HudComboGuiBehavior.ComboColorPlayState`
 
@@ -168834,10 +168130,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.Cp1021HudScoreDispGuiBehavior.BonusScorePlayState)
 ```
 
-## `chainsaw.Cp1021HudScoreDispGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021HudScoreDispGuiBehavior.DispType`
 
 **Fields**
@@ -169025,10 +168317,6 @@ _No fields or methods._
 :System.Void set_IsUpdateHighScore(System.Boolean)
 :System.Void setup(chainsaw.Cp1021HudTotalScoreGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.Cp1021HudTotalScoreGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021HudTotalScoreGuiBehavior.DrumRollGui_1021`
 
@@ -169274,10 +168562,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.Cp1021HudUniqueEmIconAnnounceGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021HudUniqueEmIconAnnounceGuiBehavior.MBossIconControlPlayState`
 
@@ -169731,10 +169015,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.Cp1021MainMenuBGGuiBehavior.BGType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.Cp1021MainMenuBGGuiBehavior.BGType)
 ```
-
-## `chainsaw.Cp1021MainMenuBGGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021MainMenuBGGuiBehavior.OpenParam`
 
@@ -170606,10 +169886,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void toTransitRight()
 ```
 
-## `chainsaw.Cp1021OptionGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021OptionGuiBehavior.ControllerSettingPanelPair_Cp1021`
 
 **Methods**
@@ -170743,10 +170019,6 @@ _No fields or methods._
 :chainsaw.Cp1021OptionGuiBehavior.ControllerSettingPanel_Cp1021.TextElem get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.Cp1021OptionGuiBehavior.ControllerSettingPanel_Cp1021.TextElem)
 ```
-
-## `chainsaw.Cp1021OptionGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021OptionGuiBehavior.Step`
 
@@ -171296,10 +170568,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.Cp1021StageSelectCharacterTextureHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021StageSelectCharacterTextureID`
 
@@ -172003,10 +171271,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.Cp1021StageSelectSettingsUserData)
 ```
 
-## `chainsaw.Cp1021StageSelectStageTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.Cp1021StageSelectStageTextureID`
 
 **Fields**
@@ -172101,10 +171365,6 @@ _No fields or methods._
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `addTime` | `System.Single` |  | 16 |
-
-## `chainsaw.Cp1021TimerGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021TimerGuiBehavior.EffPlayState`
 
@@ -172239,10 +171499,6 @@ _No fields or methods._
 :chainsaw.Cp1021TimerGuiBehavior.Step get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.Cp1021TimerGuiBehavior.Step)
 ```
-
-## `chainsaw.Cp1021TimerGuiBehavior.StopParam`
-
-_No fields or methods._
 
 ## `chainsaw.Cp1021TimerGuiBehavior.TextPanel`
 
@@ -172870,10 +172126,6 @@ sdk.call_native_func(nil, type_def, "OnBrokenBuilding", ...)  -- System.Void OnB
 :System.Void set_Item(System.Int32, chainsaw.Cp11BrokenBuildingDeadCanceller.Step)
 ```
 
-## `chainsaw.CpuQualityPerformanceDefine`
-
-_No fields or methods._
-
 ## `chainsaw.CraftManager`
 
 **Fields**
@@ -173082,14 +172334,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.CraftWindowControlBehaviorHub.Phase)
 ```
 
-## `chainsaw.CraftWindowControlBehaviorHub.SetupParam`
-
-_No fields or methods._
-
-## `chainsaw.CraftWindowControlBehaviorSetupParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.CraftWindowGuiBehavior`
 
 **Fields**
@@ -173138,10 +172382,6 @@ _No fields or methods._
 :System.Void setupCraftItemModel(chainsaw.ItemID, chainsaw.gui.attachecase.AcItemModelMode, chainsaw.CraftWindowPositionType)
 ```
 
-## `chainsaw.CraftWindowGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.CraftWindowGuiBehavior.OpenParam`
 
 **Fields**
@@ -173158,10 +172398,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.CraftWindowGuiBehavior.OpenParam02`
-
-_No fields or methods._
 
 ## `chainsaw.CraftWindowGuiBehavior.Step`
 
@@ -174484,10 +173720,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.CustomContext.LevelGroup)
 ```
 
-## `chainsaw.CustomContext.StaticData`
-
-_No fields or methods._
-
 ## `chainsaw.CustomContextCatalogRegister`
 
 **Fields**
@@ -174647,10 +173879,6 @@ _No fields or methods._
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.CustomCorrelatedShutterInteract`
-
-_No fields or methods._
 
 ## `chainsaw.CustomCorrelatedShutterlever`
 
@@ -175313,10 +174541,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.CustomGmBarvator`
-
-_No fields or methods._
 
 ## `chainsaw.CustomGmBigDoorCrank`
 
@@ -176063,10 +175287,6 @@ sdk.call_native_func(nil, type_def, "calcRotationAxis", ...)  -- System.Single c
 :System.Boolean onReady(chainsaw.GmCoopMoveUp, chainsaw.ContextID)
 :System.Void onUpdateHelper(chainsaw.MotionJackSupplierHelper)
 ```
-
-## `chainsaw.CustomGmCrankHexCrest`
-
-_No fields or methods._
 
 ## `chainsaw.CustomGmCrankHexCrest2`
 
@@ -183862,10 +183082,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.CustomManualMoveControllerBase.RoutineType)
 ```
 
-## `chainsaw.CustomNailBoard`
-
-_No fields or methods._
-
 ## `chainsaw.CustomOperateJointPulleysFromMotion`
 
 **Fields**
@@ -184916,10 +184132,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.DamageHudGuiBehavior.Step)
 ```
 
-## `chainsaw.DamageHudGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.DamageHudGuiBehavior.Step`
 
 **Fields**
@@ -185232,10 +184444,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void recieveGuiParam(chainsaw.DangerContinuousGuiBehavior.OpenParam)
 :System.Void set_CurrStep(chainsaw.DangerContinuousGuiBehavior.Step)
 ```
-
-## `chainsaw.DangerContinuousGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.DangerContinuousGuiBehavior.OpenParam`
 
@@ -185824,10 +185032,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.DeadEnemyCounterGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.DeadEnemyCounterGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.DeadEnemyCounterGuiBehavior.DefeatEffPlayState`
 
 **Fields**
@@ -186255,10 +185459,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.DefeatAddInfoGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.DefeatAddInfoGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.DefeatAddInfoGuiBehavior.Direction`
 
 **Fields**
@@ -186544,10 +185744,6 @@ _No fields or methods._
 :System.Void setup()
 ```
 
-## `chainsaw.DefficultySelectGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.DefficultySelectGuiBehavior.MenuContentsSet`
 
 **Fields**
@@ -186800,10 +185996,6 @@ sdk.call_native_func(nil, type_def, "getName", ...)  -- System.String getName(Sy
 :System.Void set_Segment(System.Int32)
 ```
 
-## `chainsaw.DelLagoCourse.DebugInfo`
-
-_No fields or methods._
-
 ## `chainsaw.DelLagoCourse.DelLagoCourseInfo`
 
 **Fields**
@@ -186920,14 +186112,6 @@ _No fields or methods._
 :via.vec3 update()
 ```
 
-## `chainsaw.DemoCameraSettings`
-
-_No fields or methods._
-
-## `chainsaw.DemoResultManager`
-
-_No fields or methods._
-
 ## `chainsaw.DemoThankyouGuiBehavior`
 
 **Fields**
@@ -186956,10 +186140,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.DemoThankyouGuiBehavior.Step)
 :System.Void setup()
 ```
-
-## `chainsaw.DemoThankyouGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.DemoThankyouGuiBehavior.OpenParam`
 
@@ -187199,10 +186379,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateCurrRot()
 :System.Void updateMessage()
 ```
-
-## `chainsaw.DetailSearchGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.DetailSearchGuiBehavior.InteractButton`
 
@@ -187969,18 +187145,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.DevelopEventTextureSettings.Param)
 ```
 
-## `chainsaw.DevelopExceptionAssert`
-
-_No fields or methods._
-
-## `chainsaw.DevelopJump`
-
-_No fields or methods._
-
-## `chainsaw.DevelopJumpPro`
-
-_No fields or methods._
-
 ## `chainsaw.DevelopJumpPro_AO`
 
 **Fields**
@@ -188259,10 +187423,6 @@ _No fields or methods._
 ```lua
 :System.Void update()
 ```
-
-## `chainsaw.DevelopPerformanceTelemetry`
-
-_No fields or methods._
 
 ## `chainsaw.DevelopProcessSettings`
 
@@ -191296,10 +190456,6 @@ sdk.call_native_func(nil, type_def, "execCommand", ...)  -- System.Void execComm
 :System.Void .ctor()
 ```
 
-## `chainsaw.DollNpcDefine`
-
-_No fields or methods._
-
 ## `chainsaw.DollNpcDefine.Ch05600EquipWeapon`
 
 **Fields**
@@ -191367,10 +190523,6 @@ _No fields or methods._
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.DollNpcParameterHolder`
-
-_No fields or methods._
 
 ## `chainsaw.DollNpcSpawnParam`
 
@@ -191440,14 +190592,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "getOpposite", ...)  -- chainsaw.GmGateBase.DoorSide getOpposite(chainsaw.GmGateBase.DoorSide)
 ```
 
-## `chainsaw.DropFile`
-
-_No fields or methods._
-
-## `chainsaw.DropFileBase`
-
-_No fields or methods._
-
 ## `chainsaw.DropFileCatalogUserData`
 
 **Fields**
@@ -191486,10 +190630,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.DropFileCatalogUserData.CatalogFile)
 ```
 
-## `chainsaw.DropFileDisplay`
-
-_No fields or methods._
-
 ## `chainsaw.DropFileDisplayType`
 
 **Fields**
@@ -191520,10 +190660,6 @@ _No fields or methods._
 :chainsaw.DropFileDisplayType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.DropFileDisplayType)
 ```
-
-## `chainsaw.DropFileMotion`
-
-_No fields or methods._
 
 ## `chainsaw.DropItem`
 
@@ -191914,10 +191050,6 @@ sdk.call_native_func(nil, type_def, "onAcceptPickup", ...)  -- System.Void onAcc
 :chainsaw.DropItem.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.DropItem.RoutineType)
 ```
-
-## `chainsaw.DropItemAdjust`
-
-_No fields or methods._
 
 ## `chainsaw.DropItemBasementBase`
 
@@ -192837,10 +191969,6 @@ sdk.call_native_func(nil, type_def, "createSaveData", ...)  -- chainsaw.DropItem
 :System.Void set_Offset(via.vec3)
 ```
 
-## `chainsaw.DropItemRandomTable`
-
-_No fields or methods._
-
 ## `chainsaw.DropItemSaveDataTable`
 
 **Fields**
@@ -193011,10 +192139,6 @@ _No fields or methods._
 :System.Void show()
 ```
 
-## `chainsaw.Dummy2dLightGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.Dummy2dLightGuiBehavior.OpenParam`
 
 **Fields**
@@ -193103,22 +192227,6 @@ _No fields or methods._
 :System.Void .ctor()
 ```
 
-## `chainsaw.DummyEventCamera`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventComponent`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventFade`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventFolderObject`
-
-_No fields or methods._
-
 ## `chainsaw.DummyEventGUI`
 
 **Methods**
@@ -193126,10 +192234,6 @@ _No fields or methods._
 ```lua
 :System.Object requestMessage(System.Guid)
 ```
-
-## `chainsaw.DummyEventGameObject`
-
-_No fields or methods._
 
 ## `chainsaw.DummyEventIDResolver`
 
@@ -193143,22 +192247,6 @@ _No fields or methods._
 :System.Int32 getTimelineEventIDNumber(System.Object)
 :System.Int32 getTimelineEventIDNumber(System.String)
 ```
-
-## `chainsaw.DummyEventInput`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventLocation`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventManagerBehaviorEx`
-
-_No fields or methods._
-
-## `chainsaw.DummyEventWwise`
-
-_No fields or methods._
 
 ## `chainsaw.DummyResourceHolder`
 
@@ -193209,14 +192297,6 @@ _No fields or methods._
 :System.Void setupPullDrop(System.Boolean, via.GameObject)
 :System.Void update()
 ```
-
-## `chainsaw.DummyTimelineEventBind`
-
-_No fields or methods._
-
-## `chainsaw.DummyTimelineEventFlowID`
-
-_No fields or methods._
 
 ## `chainsaw.DynamicsCastRayOptionFlag`
 
@@ -193544,10 +192624,6 @@ sdk.call_native_func(nil, type_def, "getTotalMass", ...)  -- System.Single getTo
 sdk.call_native_func(nil, type_def, "setGravityFactorAll", ...)  -- System.Void setGravityFactorAll(via.dynamics.RigidBodySet, System.Single)
 sdk.call_native_func(nil, type_def, "setupDynamicsDefinitions", ...)  -- System.Void setupDynamicsDefinitions()
 ```
-
-## `chainsaw.DynamicsUtil.Channel`
-
-_No fields or methods._
 
 ## `chainsaw.DynamicsUtil.Filter`
 
@@ -195167,10 +194243,6 @@ sdk.call_native_func(nil, type_def, "outSine", ...)  -- System.Single outSine(Sy
 :chainsaw.EffectCategoryPriority.CategoryEmitPriorityInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.EffectCategoryPriority.CategoryEmitPriorityInfo)
 ```
-
-## `chainsaw.EffectControlZone`
-
-_No fields or methods._
 
 ## `chainsaw.EffectControlZoneGroup`
 
@@ -204616,10 +203688,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start(via.behaviortree.ActionArg)
 ```
 
-## `chainsaw.EnemyBehaviorTreeAction_MFSM_IkArmFitSequenceSwitch`
-
-_No fields or methods._
-
 ## `chainsaw.EnemyBehaviorTreeAction_MFSM_InterpolateRotateReactionTarget`
 
 **Fields**
@@ -212100,10 +211168,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void update(System.Boolean, via.vec3, via.vec3)
 ```
 
-## `chainsaw.EnemyGrappleAssistLightZone`
-
-_No fields or methods._
-
 ## `chainsaw.EnemyGrappleAssistLightZoneController`
 
 **Fields**
@@ -213520,10 +212584,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.AnimationControlUnit createUnit()
 ```
 
-## `chainsaw.EnemyKillZone`
-
-_No fields or methods._
-
 ## `chainsaw.EnemyKillZoneParam`
 
 **Fields**
@@ -214155,10 +213215,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.EnemyMercenariesParamUserData`
-
-_No fields or methods._
 
 ## `chainsaw.EnemyMotControlTracks`
 
@@ -215599,10 +214655,6 @@ sdk.call_native_func(nil, type_def, "CheckRecord220", ...)  -- System.Boolean Ch
 :System.Void set_ForceFindCondition(chainsaw.FlagCondition)
 ```
 
-## `chainsaw.EnemyStateBase`
-
-_No fields or methods._
-
 ## `chainsaw.EnemyStateDriver`
 
 **Fields**
@@ -216635,10 +215687,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void unregistReceiver(chainsaw.EnvSceneEventReceivable)
 ```
 
-## `chainsaw.EnvSceneEventReceivable`
-
-_No fields or methods._
-
 ## `chainsaw.EnvSceneEventReceivable[]`
 
 **Methods**
@@ -217153,10 +216201,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "requestBySceneLoadData", ...)  -- System.Void requestBySceneLoadData(chainsaw.StageID, System.Nullable`1<chainsaw.EnvSceneStatus>, chainsaw.EnvSceneStatusRequestPriority)
 ```
-
-## `chainsaw.EnvSceneRequester`
-
-_No fields or methods._
 
 ## `chainsaw.EnvSceneRequesterByLoadInfo`
 
@@ -218648,10 +217692,6 @@ sdk.call_native_func(nil, type_def, "ConvertUserDataToEventIDItem", ...)  -- Sys
 :System.Void set_Item(System.Int32, chainsaw.EventComponentStateSetLayer)
 ```
 
-## `chainsaw.EventCullingForClipPreview`
-
-_No fields or methods._
-
 ## `chainsaw.EventFadeColor`
 
 **Fields**
@@ -218920,10 +217960,6 @@ sdk.call_native_func(nil, type_def, "applyFlagCp11", ...)  -- System.Void applyF
 :System.Void updatePreCloseMode()
 :System.Void updateStandbyMode()
 ```
-
-## `chainsaw.EventPauseSkipGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.EventPauseSkipGuiBehavior.ConvEndPhase`
 
@@ -221946,10 +220982,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.Facial)
 ```
 
-## `chainsaw.FadeDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.FadeDefinition.ChapterEnd`
 
 **Fields**
@@ -222429,10 +221461,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 :System.Void applyParam(via.vec3, via.vec3)
 ```
-
-## `chainsaw.FeatureParameter.FeatureBase`
-
-_No fields or methods._
 
 ## `chainsaw.FeatureParameter.FeatureData`
 
@@ -226679,10 +225707,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.FileSettingUserdata.EachPage)
 ```
 
-## `chainsaw.FileTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.FileTextureID`
 
 **Fields**
@@ -227561,10 +226585,6 @@ sdk.call_native_func(nil, type_def, "square", ...)  -- System.Single square(Syst
 :System.Void updateIconPattern()
 ```
 
-## `chainsaw.FloatIconGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.FloatIconGuiBehavior.OpenParam`
 
 **Fields**
@@ -227797,10 +226817,6 @@ _No fields or methods._
 :System.Void onSeparate(via.physics.CollisionInfo)
 :System.Void start()
 ```
-
-## `chainsaw.FoliageOptimizeZone`
-
-_No fields or methods._
 
 ## `chainsaw.FollowIdentifier`
 
@@ -228248,10 +227264,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.ForceGetItemUserData.Data)
 ```
 
-## `chainsaw.ForceKidnapCategory`
-
-_No fields or methods._
-
 ## `chainsaw.ForceKidnapCategory.ForceKidnapCategoryCondition`
 
 **Fields**
@@ -228489,10 +227501,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.FujiCreditGuiBehavior.Step)
 :System.Void setup(chainsaw.FujiCreditGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.FujiCreditGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.FujiCreditGuiBehavior.OpenParam`
 
@@ -228986,10 +227994,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.GameClearRankDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.GameClearRankDefinition.GameClearRank`
 
 **Fields**
@@ -229036,14 +228040,6 @@ _No fields or methods._
 :System.Boolean chainsaw.IValidatable.get_Valid()
 :System.Void recieveGuiParam(chainsaw.GameClearResult3DGuiBehavior.Open3DParam)
 ```
-
-## `chainsaw.GameClearResult3DGuiBehavior.Close3DParam`
-
-_No fields or methods._
-
-## `chainsaw.GameClearResult3DGuiBehavior.Open3DParam`
-
-_No fields or methods._
 
 ## `chainsaw.GameClearResult3DGuiCameraController`
 
@@ -229206,14 +228202,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.GameClearResultBackGuiBehavior.Step)
 ```
 
-## `chainsaw.GameClearResultBackGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.GameClearResultBackGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.GameClearResultBackGuiBehavior.Step`
 
 **Fields**
@@ -229297,10 +228285,6 @@ _No fields or methods._
 :System.Void set_SettingUserdata(chainsaw.GameClearResultGuiSettingUserdata)
 :System.Void setup(chainsaw.GameClearResultGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.GameClearResultGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.GameClearResultGuiBehavior.Element`
 
@@ -230119,10 +229103,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.String get_DisplayName()
 ```
 
-## `chainsaw.GameConditionCollector.StatementContainerBase`
-
-_No fields or methods._
-
 ## `chainsaw.GameConditionCollector.StatementContainerCommon`
 
 **Fields**
@@ -230794,10 +229774,6 @@ sdk.call_native_func(nil, type_def, "getMyCharacterBody", ...)  -- chainsaw.Char
 sdk.call_native_func(nil, type_def, "getMyCharacterHead", ...)  -- chainsaw.CharacterHeadUpdater getMyCharacterHead(via.GameObject)
 ```
 
-## `chainsaw.GameObjectExtensionHighway`
-
-_No fields or methods._
-
 ## `chainsaw.GameObjectPool`
 
 **Fields**
@@ -231064,10 +230040,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Int32 get_Min()
 ```
 
-## `chainsaw.GameOccurrenceEventTestBase`
-
-_No fields or methods._
-
 ## `chainsaw.GameOccurrenceEventTestCountGreaterEqual`
 
 **Methods**
@@ -231154,10 +230126,6 @@ _No fields or methods._
 :chainsaw.GameOccurrenceEventTestHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GameOccurrenceEventTestHolder)
 ```
-
-## `chainsaw.GameOccurrenceEventTestNop`
-
-_No fields or methods._
 
 ## `chainsaw.GameOccurrenceEventTestType`
 
@@ -231611,10 +230579,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 ```
 
-## `chainsaw.GameOccurrenceObserverLevelParam`
-
-_No fields or methods._
-
 ## `chainsaw.GameOccurrenceObserverQuestConvParam`
 
 **Fields**
@@ -231684,10 +230648,6 @@ _No fields or methods._
 :chainsaw.GameOccurrenceObserverType get_Observer()
 :chainsaw.GameOccurrenceObserverSpecifier.UserParamBase get_UserParam()
 ```
-
-## `chainsaw.GameOccurrenceObserverSpecifier.UserParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.GameOccurrenceObserverSpecifier[]`
 
@@ -232412,10 +231372,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GameOverPrefectureTextureMap[] get_PrefTexIDMap()
 :System.Void set_PrefTexIDMap(chainsaw.GameOverPrefectureTextureMap[])
 ```
-
-## `chainsaw.GameOverHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.GameOverManager`
 
@@ -235725,10 +234681,6 @@ sdk.call_native_func(nil, type_def, "createLatestContents", ...)  -- chainsaw.Ga
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.GameStateBrightnessSetting`
-
-_No fields or methods._
-
 ## `chainsaw.GameStateDlcCheck`
 
 **Fields**
@@ -235831,10 +234783,6 @@ _No fields or methods._
 :System.Boolean update()
 ```
 
-## `chainsaw.GameStateEnding.Argument`
-
-_No fields or methods._
-
 ## `chainsaw.GameStateEnding.Phase`
 
 **Fields**
@@ -235918,10 +234866,6 @@ _No fields or methods._
 :System.Boolean update()
 ```
 
-## `chainsaw.GameStateEndingCleanup.Argument`
-
-_No fields or methods._
-
 ## `chainsaw.GameStateEndingCleanup.Phase`
 
 **Fields**
@@ -235985,10 +234929,6 @@ _No fields or methods._
 :System.Void setup(share.GameStateArgument)
 :System.Boolean update()
 ```
-
-## `chainsaw.GameStateEndingCleanup_CP11.Argument`
-
-_No fields or methods._
 
 ## `chainsaw.GameStateEndingCleanup_CP11.Phase`
 
@@ -236054,10 +234994,6 @@ _No fields or methods._
 :System.Void setup(share.GameStateArgument)
 :System.Boolean update()
 ```
-
-## `chainsaw.GameStateEndingPost_CP11.Argument`
-
-_No fields or methods._
 
 ## `chainsaw.GameStateEndingPost_CP11.Phase`
 
@@ -236128,10 +235064,6 @@ _No fields or methods._
 :System.Boolean update()
 ```
 
-## `chainsaw.GameStateEndingSetup.Argument`
-
-_No fields or methods._
-
 ## `chainsaw.GameStateEndingSetup.Phase`
 
 **Fields**
@@ -236195,10 +235127,6 @@ _No fields or methods._
 :System.Boolean update()
 ```
 
-## `chainsaw.GameStateEndingSetup_CP11.Argument`
-
-_No fields or methods._
-
 ## `chainsaw.GameStateEndingSetup_CP11.Phase`
 
 **Fields**
@@ -236259,10 +235187,6 @@ _No fields or methods._
 :System.Void setup(share.GameStateArgument)
 :System.Boolean update()
 ```
-
-## `chainsaw.GameStateEnding_CP11.Argument`
-
-_No fields or methods._
 
 ## `chainsaw.GameStateEnding_CP11.Phase`
 
@@ -236364,10 +235288,6 @@ _No fields or methods._
 :System.Void setup(share.GameStateArgument)
 :System.Boolean update()
 ```
-
-## `chainsaw.GameStateFirstPlay.GameStateFirstPlayArgument`
-
-_No fields or methods._
 
 ## `chainsaw.GameStateFirstPlay.Phase`
 
@@ -237008,10 +235928,6 @@ _No fields or methods._
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `Interluder` | `chainsaw.GameStateInGameInterlude.Interludable` |  | 16 |
-
-## `chainsaw.GameStateInGameInterlude.Interludable`
-
-_No fields or methods._
 
 ## `chainsaw.GameStateInGameInterlude.Phase`
 
@@ -239495,10 +238411,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GearWheeler_cp11.Wheeler)
 ```
 
-## `chainsaw.GeneralConditions`
-
-_No fields or methods._
-
 ## `chainsaw.GeneralConditions.Condition`
 
 **Fields**
@@ -239952,10 +238864,6 @@ _No fields or methods._
 :System.Void updateWindowType1_6(chainsaw.ExShopBonusID)
 ```
 
-## `chainsaw.GeneralDialogBonusGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.GeneralDialogBonusGuiBehavior.DispType`
 
 **Fields**
@@ -240102,10 +239010,6 @@ _No fields or methods._
 :System.Void setupScrollList()
 ```
 
-## `chainsaw.GeneralDialogGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.GeneralDialogGuiBehavior.OpenParam`
 
 **Fields**
@@ -240236,10 +239140,6 @@ _No fields or methods._
 :System.Void setupScrollList()
 ```
 
-## `chainsaw.GeneralDialogNoticeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.GeneralDialogNoticeGuiBehavior.OpenParam`
 
 **Fields**
@@ -240365,10 +239265,6 @@ _No fields or methods._
 :System.Void setupScrollList()
 :System.Void updateMessages(System.String[])
 ```
-
-## `chainsaw.GeneralErrorDialogGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.GeneralErrorDialogGuiBehavior.OpenParam`
 
@@ -240546,10 +239442,6 @@ _No fields or methods._
 :chainsaw.GeneralErrorDialogGuiMediator.WorkBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GeneralErrorDialogGuiMediator.WorkBase)
 ```
-
-## `chainsaw.GeneralErrorDialogGuiMediatorDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.GeneralErrorDialogOpenParam`
 
@@ -240746,10 +239638,6 @@ _No fields or methods._
 :System.Void set_CurrOwner(System.String)
 :System.Void setup(chainsaw.GeneralGuideGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.GeneralGuideGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.GeneralGuideGuiBehavior.OpenParam`
 
@@ -241238,10 +240126,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Single get_SwitchTime()
 :System.String get_displayName()
 ```
-
-## `chainsaw.GimmickActorActionDataBase`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorArms`
 
@@ -242363,10 +241247,6 @@ sdk.call_native_func(nil, type_def, "createActionDamagedBlow", ...)  -- chainsaw
 :System.Void set_Item(System.Int32, chainsaw.GimmickActorCha0ActionKind)
 ```
 
-## `chainsaw.GimmickActorCha0BehaviorTreeAction_FSM_Action`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickActorCha0BehaviorTreeAction_MFSM_Base`
 
 **Fields**
@@ -242398,14 +241278,6 @@ _No fields or methods._
 :chainsaw.GimmickActorCha0ActionController get_ActionCtrl()
 :System.Void set_ActionCtrl(chainsaw.GimmickActorCha0ActionController)
 ```
-
-## `chainsaw.GimmickActorCha0BehaviorTreeCondition_MFSM_ChangeRequestedAction`
-
-_No fields or methods._
-
-## `chainsaw.GimmickActorCha0BehaviorTreeCondition_MFSM_RequestedAction`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorCha0Updater`
 
@@ -242475,10 +241347,6 @@ _No fields or methods._
 :chainsaw.GimmickActorCha3ActionKind get_Kind()
 ```
 
-## `chainsaw.GimmickActorCha3ActionController`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickActorCha3ActionKind`
 
 **Fields**
@@ -242511,10 +241379,6 @@ _No fields or methods._
 :chainsaw.GimmickActorCha3ActionKind get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GimmickActorCha3ActionKind)
 ```
-
-## `chainsaw.GimmickActorCha3BehaviorTreeAction_FSM_Action`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorCha3BehaviorTreeAction_MFSM_Base`
 
@@ -242587,10 +241451,6 @@ _No fields or methods._
 :System.Void resetActionController()
 :System.Void set_ActionCtrl(chainsaw.GimmickActorCha3ActionController)
 ```
-
-## `chainsaw.GimmickActorCharacterDefine`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorCharacterDefine.OccupiedEventIndex`
 
@@ -242918,10 +241778,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GimmickActorChf8ActionKind)
 ```
 
-## `chainsaw.GimmickActorChf8BehaviorTreeAction_FSM_Action`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickActorChf8BehaviorTreeAction_MFSM_Base`
 
 **Fields**
@@ -243248,10 +242104,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GimmickActorChfcActionKind)
 ```
 
-## `chainsaw.GimmickActorChfcBehaviorTreeAction_FSM_Action`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickActorChfcBehaviorTreeAction_MFSM_Base`
 
 **Fields**
@@ -243432,10 +242284,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.GimmickActorChfdAttackHType)
 ```
 
-## `chainsaw.GimmickActorChfdBehaviorTreeAction_FSM_Action`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickActorChfdBehaviorTreeAction_MFSM_Base`
 
 **Fields**
@@ -243604,10 +242452,6 @@ _No fields or methods._
 :System.Void onSetSeqenceAction(chainsaw.GimmickActorCharacterUpdater)
 :System.Void onUpdate(System.Single)
 ```
-
-## `chainsaw.GimmickActorCondition.Condition`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorCondition.ConditionArea`
 
@@ -244583,10 +243427,6 @@ sdk.call_native_func(nil, type_def, "checkIntersectLineAndCircle", ...)  -- Syst
 ```lua
 :System.Boolean evaluate(via.behaviortree.ConditionArg)
 ```
-
-## `chainsaw.GimmickActorPlayerDefine`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickActorPlayerDefine.Status`
 
@@ -245695,10 +244535,6 @@ sdk.call_native_func(nil, type_def, "findParamObj", ...)  -- via.GameObject find
 :System.Void set_YawBlurCurve(via.AnimationCurve)
 ```
 
-## `chainsaw.GimmickGenerator`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickHookShot_BehaviorTreeAction_MFSM_AttachDynamicsMotionBank`
 
 **Fields**
@@ -246433,10 +245269,6 @@ sdk.call_native_func(nil, type_def, "requestAccessGimmick", ...)  -- System.Void
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.GimmickManager.PayloadDetect`
-
-_No fields or methods._
 
 ## `chainsaw.GimmickManager.PayloadGimmickBase`
 
@@ -247823,10 +246655,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.GimmickSubForceRun`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickSubKeyInput`
 
 **Fields**
@@ -248440,10 +247268,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GimmickSubWindowSoundSupport.Request)
 ```
 
-## `chainsaw.GimmickTestDoor`
-
-_No fields or methods._
-
 ## `chainsaw.GimmickUtilManager`
 
 **Fields**
@@ -248898,10 +247722,6 @@ sdk.call_native_func(nil, type_def, "stackErrorNoStatic", ...)  -- System.Void s
 :System.Void setColor(via.Color)
 :System.Void setFloat(System.Single)
 ```
-
-## `chainsaw.GlBase`
-
-_No fields or methods._
 
 ## `chainsaw.GlBatGroupSub`
 
@@ -249760,10 +248580,6 @@ sdk.call_native_func(nil, type_def, "isReverse", ...)  -- System.Boolean isRever
 :System.Void set_Item(System.Int32, chainsaw.GlHeptaButton)
 ```
 
-## `chainsaw.GlIceAxeTrap`
-
-_No fields or methods._
-
 ## `chainsaw.GlIronBall`
 
 **Fields**
@@ -250198,10 +249014,6 @@ _No fields or methods._
 :chainsaw.GlMercenariesGeneralFlagController.ControllData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GlMercenariesGeneralFlagController.ControllData)
 ```
-
-## `chainsaw.GlMercenariesGeneralFlagControllerCondition`
-
-_No fields or methods._
 
 ## `chainsaw.GlMercenariesGeneralFlagControllerCondition.ConditionArea`
 
@@ -251002,10 +249814,6 @@ sdk.call_native_func(nil, type_def, "trySetUInt", ...)  -- System.Boolean trySet
 sdk.call_native_func(nil, type_def, "trySetUInt", ...)  -- System.Boolean trySetUInt(System.UInt32, System.UInt32)
 ```
 
-## `chainsaw.GlobalUserDataManager.BoolVariable`
-
-_No fields or methods._
-
 ## `chainsaw.GlobalUserDataManager.BoolVariable[]`
 
 **Methods**
@@ -251027,10 +249835,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.GlobalUserDataManager.BoolVariable)
 ```
 
-## `chainsaw.GlobalUserDataManager.FloatVariable`
-
-_No fields or methods._
-
 ## `chainsaw.GlobalUserDataManager.FloatVariable[]`
 
 **Methods**
@@ -251051,10 +249855,6 @@ _No fields or methods._
 :chainsaw.GlobalUserDataManager.FloatVariable get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GlobalUserDataManager.FloatVariable)
 ```
-
-## `chainsaw.GlobalUserDataManager.IntVariable`
-
-_No fields or methods._
 
 ## `chainsaw.GlobalUserDataManager.IntVariable[]`
 
@@ -251093,10 +249893,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.GlobalUserDataManager.UIntVariable`
-
-_No fields or methods._
 
 ## `chainsaw.GlobalUserDataManager.UIntVariable[]`
 
@@ -252458,10 +251254,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start(via.behaviortree.ActionArg)
 :System.Void update(via.behaviortree.ActionArg)
 ```
-
-## `chainsaw.GmAntiAircraftGunBehaviorTreeAction_MFSM_ApplyParams.IUserVariablesAccessor`
-
-_No fields or methods._
 
 ## `chainsaw.GmAntiAircraftGunParamUserData`
 
@@ -254092,10 +252884,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateGimmick()
 ```
 
-## `chainsaw.GmBarvatorPanel`
-
-_No fields or methods._
-
 ## `chainsaw.GmBase`
 
 **Fields**
@@ -254175,10 +252963,6 @@ _No fields or methods._
 :chainsaw.GmBase.DefaultAttrIndex get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmBase.DefaultAttrIndex)
 ```
-
-## `chainsaw.GmBase.GmParamCommon`
-
-_No fields or methods._
 
 ## `chainsaw.GmBase.GmParamUser`
 
@@ -258521,10 +257305,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateGimmick()
 ```
 
-## `chainsaw.GmBuzzer`
-
-_No fields or methods._
-
 ## `chainsaw.GmCamera1Shot`
 
 **Fields**
@@ -259167,18 +257947,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmCannonV2.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmCannonV2.RoutineType)
 ```
-
-## `chainsaw.GmCar`
-
-_No fields or methods._
-
-## `chainsaw.GmCarPrototype`
-
-_No fields or methods._
-
-## `chainsaw.GmCarPrototype2`
-
-_No fields or methods._
 
 ## `chainsaw.GmCarUserdata`
 
@@ -261551,10 +260319,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GmCh1f8BreakFloor)
 ```
 
-## `chainsaw.GmCh1fcBreakFloorLR`
-
-_No fields or methods._
-
 ## `chainsaw.GmCh4faz1HedgeJump`
 
 **Fields**
@@ -263869,10 +262633,6 @@ sdk.call_native_func(nil, type_def, "createBaseShape", ...)  -- chainsaw.GmConte
 :System.Void startJackPl(chainsaw.CharacterContext, chainsaw.OccupiedAffix)
 ```
 
-## `chainsaw.GmCoopJump`
-
-_No fields or methods._
-
 ## `chainsaw.GmCoopJump2`
 
 **Fields**
@@ -264055,18 +262815,6 @@ _No fields or methods._
 :chainsaw.GmCoopMoveUp.HelperParam get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmCoopMoveUp.HelperParam)
 ```
-
-## `chainsaw.GmCoopReadyBase`
-
-_No fields or methods._
-
-## `chainsaw.GmCoopReadyFsm`
-
-_No fields or methods._
-
-## `chainsaw.GmCoopTest`
-
-_No fields or methods._
 
 ## `chainsaw.GmCorrelated`
 
@@ -267153,10 +265901,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GmDialLock.DigitBlock)
 ```
 
-## `chainsaw.GmDialLockPrototype`
-
-_No fields or methods._
-
 ## `chainsaw.GmDialLock[]`
 
 **Methods**
@@ -269269,10 +268013,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmDuctEnemySpawn.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmDuctEnemySpawn.RoutineType)
 ```
-
-## `chainsaw.GmDummyDoor`
-
-_No fields or methods._
 
 ## `chainsaw.GmDummyUprightLadder`
 
@@ -271774,10 +270514,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GmFallShutter.RoutineType)
 ```
 
-## `chainsaw.GmFallThenRunning`
-
-_No fields or methods._
-
 ## `chainsaw.GmFallTopBoard`
 
 **Fields**
@@ -272716,10 +271452,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmFireGanadoAppearanceLocker.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmFireGanadoAppearanceLocker.RoutineType)
 ```
-
-## `chainsaw.GmFireWall`
-
-_No fields or methods._
 
 ## `chainsaw.GmFish`
 
@@ -274056,10 +272788,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmFreezingShowerPipe get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmFreezingShowerPipe)
 ```
-
-## `chainsaw.GmFreightElevator`
-
-_No fields or methods._
 
 ## `chainsaw.GmGachaMachine`
 
@@ -275952,10 +274680,6 @@ sdk.call_native_func(nil, type_def, "get_Group_RocketLauncher", ...)  -- System.
 :System.Void onGimmickOccupiedExcludeDenyCh(chainsaw.ContextID, chainsaw.OccupiedMediator.DenyCause, chainsaw.OccupiedAffix, chainsaw.OccupiedDenyParam)
 ```
 
-## `chainsaw.GmGunTurret`
-
-_No fields or methods._
-
 ## `chainsaw.GmHandDrill`
 
 **Fields**
@@ -276070,10 +274794,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.GmHeliShell.IShellSetup`
-
-_No fields or methods._
 
 ## `chainsaw.GmHeliShellGenerator`
 
@@ -279063,14 +277783,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Single get_LookAtTargetUpdateTime()
 ```
 
-## `chainsaw.GmIceAxeTrapControll`
-
-_No fields or methods._
-
-## `chainsaw.GmIceAxeTrapControllInfo`
-
-_No fields or methods._
-
 ## `chainsaw.GmImmediatelyShutter`
 
 **Fields**
@@ -280733,10 +279445,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Owner(via.GameObject)
 ```
 
-## `chainsaw.GmInterlockOption`
-
-_No fields or methods._
-
 ## `chainsaw.GmInterstice`
 
 **Fields**
@@ -281596,14 +280304,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 ```
 
-## `chainsaw.GmIronBallCrane.IRideonPointBatchGimmick`
-
-_No fields or methods._
-
-## `chainsaw.GmIronBallCrane.IRideonPointGimmick`
-
-_No fields or methods._
-
 ## `chainsaw.GmIronBallCrane.MessageCallType`
 
 **Fields**
@@ -282234,10 +280934,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setupConnectedDropItem(chainsaw.DropItem)
 :System.Void updateGimmick()
 ```
-
-## `chainsaw.GmIterateMover`
-
-_No fields or methods._
 
 ## `chainsaw.GmJetSki`
 
@@ -284310,10 +283006,6 @@ sdk.call_native_func(nil, type_def, "isComponent", ...)  -- System.Boolean isCom
 :chainsaw.GmKennelFsmCondition_HasDamage.TargetType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmKennelFsmCondition_HasDamage.TargetType)
 ```
-
-## `chainsaw.GmKeyBundle`
-
-_No fields or methods._
 
 ## `chainsaw.GmKeyBundleAttachment`
 
@@ -289592,10 +288284,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.MotionJackSupplier.Handle startJack(chainsaw.GmMiniDemoBase, via.GameObject, chainsaw.ContextID, via.motion.MotionFsm2ResourceHolder, via.motion.MotionBankResourceHolder, System.Type)
 ```
 
-## `chainsaw.GmMiniDemoUserdata.IMiniDemoEventHasUserdata`
-
-_No fields or methods._
-
 ## `chainsaw.GmMiniDemoUserdataSupplierHelper`
 
 **Fields**
@@ -291643,10 +290331,6 @@ sdk.call_native_func(nil, type_def, "readInt32", ...)  -- System.Int32 readInt32
 sdk.call_native_func(nil, type_def, "writeInt32", ...)  -- System.Void writeInt32(System.Int32, System.Byte[], System.Int32)
 ```
 
-## `chainsaw.GmNetTest`
-
-_No fields or methods._
-
 ## `chainsaw.GmNetTest2`
 
 **Fields**
@@ -292408,10 +291092,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GmOpenCloseShutter.RoutineType)
 ```
 
-## `chainsaw.GmOption`
-
-_No fields or methods._
-
 ## `chainsaw.GmOptionAIMapEffector`
 
 **Fields**
@@ -293131,10 +291811,6 @@ _No fields or methods._
 :System.Int32 get_MaxHitPoint()
 ```
 
-## `chainsaw.GmOptionCh4faz1HedgeJump`
-
-_No fields or methods._
-
 ## `chainsaw.GmOptionChalkOutline`
 
 **Fields**
@@ -293208,10 +291884,6 @@ _No fields or methods._
 | --- | --- | --- | --- |
 | `EnemyContextID` | `chainsaw.ContextID` |  | 80 |
 
-## `chainsaw.GmOptionConfineFence`
-
-_No fields or methods._
-
 ## `chainsaw.GmOptionContextID`
 
 **Fields**
@@ -293271,10 +291943,6 @@ _No fields or methods._
 :chainsaw.GmOptionCrestButton.DifficultyAttr get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmOptionCrestButton.DifficultyAttr)
 ```
-
-## `chainsaw.GmOptionCrestButton_AO`
-
-_No fields or methods._
 
 ## `chainsaw.GmOptionCrestButton_AO.DifficultyAttr`
 
@@ -293642,10 +292310,6 @@ _No fields or methods._
 :System.Boolean checkValid()
 ```
 
-## `chainsaw.GmOptionDuctEnemySpawn`
-
-_No fields or methods._
-
 ## `chainsaw.GmOptionElectricChair`
 
 **Fields**
@@ -293773,10 +292437,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.GmOptionGarbagePileEnemySpawn`
-
-_No fields or methods._
 
 ## `chainsaw.GmOptionGenerateDropItem`
 
@@ -294326,10 +292986,6 @@ _No fields or methods._
 ```lua
 :chainsaw.ContextID getEnemyContextID(chainsaw.CampaignManager.Difficulty)
 ```
-
-## `chainsaw.GmOptionNoNaviCut`
-
-_No fields or methods._
 
 ## `chainsaw.GmOptionNumberLock`
 
@@ -294932,10 +293588,6 @@ _No fields or methods._
 :System.Void updateGimmick()
 ```
 
-## `chainsaw.GmPartnerNotice`
-
-_No fields or methods._
-
 ## `chainsaw.GmPartnerNoticeParamHolder`
 
 **Fields**
@@ -295258,10 +293910,6 @@ _No fields or methods._
 :chainsaw.GmPartnerNoticeParamHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmPartnerNoticeParamHolder)
 ```
-
-## `chainsaw.GmPearlPendant`
-
-_No fields or methods._
 
 ## `chainsaw.GmPedestalLinkedDoor`
 
@@ -296955,10 +295603,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GmPutItemsPedestal.SettingsParam)
 ```
 
-## `chainsaw.GmPuzzleAmida`
-
-_No fields or methods._
-
 ## `chainsaw.GmPuzzleBooks`
 
 **Fields**
@@ -297876,10 +296520,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateGimmick()
 ```
 
-## `chainsaw.GmPuzzleShotgunKey`
-
-_No fields or methods._
-
 ## `chainsaw.GmPuzzleStainedGlass`
 
 **Fields**
@@ -298674,10 +297314,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmQuarryScaffold.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmQuarryScaffold.RoutineType)
 ```
-
-## `chainsaw.GmRCBuzzer`
-
-_No fields or methods._
 
 ## `chainsaw.GmRail`
 
@@ -301584,18 +300220,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Single get_LowTime()
 ```
 
-## `chainsaw.GmRoomMaker`
-
-_No fields or methods._
-
-## `chainsaw.GmRotateCrane`
-
-_No fields or methods._
-
-## `chainsaw.GmRunSequence`
-
-_No fields or methods._
-
 ## `chainsaw.GmRunSequence2`
 
 **Fields**
@@ -301902,10 +300526,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmSafeBox.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmSafeBox.RoutineType)
 ```
-
-## `chainsaw.GmSaveLoadWoodBox`
-
-_No fields or methods._
 
 ## `chainsaw.GmSavePoint`
 
@@ -303155,10 +301775,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GmSimpleBreak.RoutineType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GmSimpleBreak.RoutineType)
 ```
-
-## `chainsaw.GmSimpleGate`
-
-_No fields or methods._
 
 ## `chainsaw.GmSimpleMotion`
 
@@ -314856,14 +313472,6 @@ sdk.call_native_func(nil, type_def, "get_ThrowingParam_Group", ...)  -- System.B
 :System.Void set_CurrStep(chainsaw.GreyChartGui.Step)
 ```
 
-## `chainsaw.GreyChartGui.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.GreyChartGui.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.GreyChartGui.Step`
 
 **Fields**
@@ -316144,14 +314752,6 @@ _No fields or methods._
 :System.Void update()
 ```
 
-## `chainsaw.GuiCatalogManager`
-
-_No fields or methods._
-
-## `chainsaw.GuiCatalogManagerBehavior`
-
-_No fields or methods._
-
 ## `chainsaw.GuiCatalogRegister`
 
 **Fields**
@@ -316269,10 +314869,6 @@ _No fields or methods._
 :System.Boolean registerCatalog()
 :System.Void unregisterCatalog()
 ```
-
-## `chainsaw.GuiCloseParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.GuiColorPresetManager`
 
@@ -317676,10 +316272,6 @@ sdk.call_native_func(nil, type_def, "isNumSelectable", ...)  -- System.Boolean i
 sdk.call_native_func(nil, type_def, "toActionGuideType", ...)  -- chainsaw.ActionGuideGuiType toActionGuideType(chainsaw.PlayerDefine.StepButtonActionType)
 ```
 
-## `chainsaw.GuiEnumExtension`
-
-_No fields or methods._
-
 ## `chainsaw.GuiExtension`
 
 **Static methods**
@@ -318747,10 +317339,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.GuiLifeTimer.Phase)
 ```
 
-## `chainsaw.GuiLog`
-
-_No fields or methods._
-
 ## `chainsaw.GuiLog.Type`
 
 **Fields**
@@ -319233,10 +317821,6 @@ sdk.call_native_func(nil, type_def, "isDownStatic", ...)  -- System.Boolean isDo
 :System.Void set_Item(System.Int32, chainsaw.GuiMovieHolderUserData.Param)
 ```
 
-## `chainsaw.GuiMovieHolderUserDataBase`
-
-_No fields or methods._
-
 ## `chainsaw.GuiMovieLoaderBase`
 
 **Fields**
@@ -319401,10 +317985,6 @@ _No fields or methods._
 :chainsaw.GuiMovieResourceMediator.WorkBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GuiMovieResourceMediator.WorkBase)
 ```
-
-## `chainsaw.GuiNPCDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.GuiNPCDefinition.Cha3HudType`
 
@@ -319588,10 +318168,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.GuiNPCDefinition.OrderGimmickType)
 ```
 
-## `chainsaw.GuiOccupiedMediator`
-
-_No fields or methods._
-
 ## `chainsaw.GuiOccupiedMediatorBehavior`
 
 **Methods**
@@ -319602,10 +318178,6 @@ _No fields or methods._
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.GuiOpenCloseHandler`
-
-_No fields or methods._
 
 ## `chainsaw.GuiOpenMediatorChapterEachSetting`
 
@@ -320160,18 +318732,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.GuiOpenMode get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.GuiOpenMode)
 ```
-
-## `chainsaw.GuiOpenParamBase`
-
-_No fields or methods._
-
-## `chainsaw.GuiParamBase`
-
-_No fields or methods._
-
-## `chainsaw.GuiParamHolderBase`
-
-_No fields or methods._
 
 ## `chainsaw.GuiParamHolderBase[]`
 
@@ -322721,14 +321281,6 @@ sdk.call_native_func(nil, type_def, "transformWorldToScreen", ...)  -- via.vec3 
 :System.Void set_Item(System.Int32, chainsaw.GuiWwisePropertyBehavior.WwiseSwitchKind)
 ```
 
-## `chainsaw.GuiWwisePropertyBehaviorBase`
-
-_No fields or methods._
-
-## `chainsaw.GuiWwisePropertyParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.Guid2ContextIDMappingTableUserdata`
 
 **Fields**
@@ -323165,10 +321717,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_DispOff(System.Boolean)
 ```
 
-## `chainsaw.HandLightZone`
-
-_No fields or methods._
-
 ## `chainsaw.HandLightZoneParam`
 
 **Fields**
@@ -323349,18 +321897,6 @@ _No fields or methods._
 :System.Void set_LeftHandOff(System.Boolean)
 ```
 
-## `chainsaw.HansoftManager`
-
-_No fields or methods._
-
-## `chainsaw.HansoftManagerBehavior`
-
-_No fields or methods._
-
-## `chainsaw.HansoftSettings`
-
-_No fields or methods._
-
 ## `chainsaw.HarpoonShellDummy`
 
 **Fields**
@@ -323441,10 +321977,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "get_ThrowingParam_Group", ...)  -- System.Boolean get_ThrowingParam_Group()
 ```
-
-## `chainsaw.HashSetExtension`
-
-_No fields or methods._
 
 ## `chainsaw.HateController`
 
@@ -324976,10 +323508,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.HelicopterFireControlSystem.ManualSearchTarget)
 ```
 
-## `chainsaw.HelicopterFireControlSystem.TargetPointBase`
-
-_No fields or methods._
-
 ## `chainsaw.HelicopterFireTarget`
 
 **Fields**
@@ -325678,10 +324206,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "calcPosition", ...)  -- via.vec3 calcPosition(via.GameObject)
 ```
-
-## `chainsaw.HelicopterFlightPlanCondition.Condition`
-
-_No fields or methods._
 
 ## `chainsaw.HelicopterFlightPlanCondition.ConditionArea`
 
@@ -327296,10 +325820,6 @@ sdk.call_native_func(nil, type_def, "makeRotationAxis", ...)  -- via.vec3 makeRo
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.HelicopterRocketLauncherShell.ILauncherSlot`
-
-_No fields or methods._
 
 ## `chainsaw.HelicopterRocketLauncherShell.RocketLauncherBombEffectID`
 
@@ -329640,10 +328160,6 @@ sdk.call_native_func(nil, type_def, "getDamagedDirectionLR", ...)  -- chainsaw.H
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.HookShotIconGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.HookShotIconGuiBehavior.ControlType`
 
 **Fields**
@@ -330123,14 +328639,6 @@ sdk.call_native_func(nil, type_def, "callSEExecute", ...)  -- System.Void callSE
 :System.Void updateHDRParam(System.Boolean)
 ```
 
-## `chainsaw.HudShaderGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.HudShaderGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.HudShaderGuiBehavior.Step`
 
 **Fields**
@@ -330209,10 +328717,6 @@ _No fields or methods._
 :System.Void set_IsSoundCall(System.Boolean)
 :System.Void setup(chainsaw.HudUniqueEnemyAppearanceGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.HudUniqueEnemyAppearanceGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.HudUniqueEnemyAppearanceGuiBehavior.OpenParam`
 
@@ -330717,18 +329221,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Single evaluate(System.Single)
 ```
 
-## `chainsaw.IActionSignNotifier`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventCameraBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventCatalog`
-
-_No fields or methods._
-
 ## `chainsaw.IAppEventCatalog[]`
 
 **Methods**
@@ -330749,14 +329241,6 @@ _No fields or methods._
 :chainsaw.IAppEventCatalog get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IAppEventCatalog)
 ```
-
-## `chainsaw.IAppEventComponentBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventContext`
-
-_No fields or methods._
 
 ## `chainsaw.IAppEventContext[]`
 
@@ -330779,46 +329263,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IAppEventContext)
 ```
 
-## `chainsaw.IAppEventFadeBrigde`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventFolderObjectBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventGUIBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventGameObjectBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventIDResolverBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventInputBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventInterfaceBase`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventLocationBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventManagerBehaviorExBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventPlayer`
-
-_No fields or methods._
-
 ## `chainsaw.IAppEventPlayer[]`
 
 **Methods**
@@ -330839,26 +329283,6 @@ _No fields or methods._
 :chainsaw.IAppEventPlayer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IAppEventPlayer)
 ```
-
-## `chainsaw.IAppEventSceneFolderBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventValidatable`
-
-_No fields or methods._
-
-## `chainsaw.IAppEventWwiseBridge`
-
-_No fields or methods._
-
-## `chainsaw.IAppInterfaceBase`
-
-_No fields or methods._
-
-## `chainsaw.IAppTaskExecutor`
-
-_No fields or methods._
 
 ## `chainsaw.IAppTaskExecutor[]`
 
@@ -330971,38 +329395,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IBLLightningController)
 ```
 
-## `chainsaw.IC0Context_CP11`
-
-_No fields or methods._
-
-## `chainsaw.ICP11EnemySafetyItemDrop`
-
-_No fields or methods._
-
-## `chainsaw.ICh1c0ShieldCp11`
-
-_No fields or methods._
-
-## `chainsaw.ICh1f5z1ThrowingShell`
-
-_No fields or methods._
-
-## `chainsaw.ICharacterTalkDiscriminator`
-
-_No fields or methods._
-
-## `chainsaw.ICheckActiveTracksExtensions`
-
-_No fields or methods._
-
-## `chainsaw.ICollidableShape`
-
-_No fields or methods._
-
-## `chainsaw.ICommonParamActivator`
-
-_No fields or methods._
-
 ## `chainsaw.ICommonParamActivator[]`
 
 **Methods**
@@ -331023,18 +329415,6 @@ _No fields or methods._
 :chainsaw.ICommonParamActivator get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.ICommonParamActivator)
 ```
-
-## `chainsaw.IContextAccessor`
-
-_No fields or methods._
-
-## `chainsaw.ICustomContextPickup`
-
-_No fields or methods._
-
-## `chainsaw.IDevStartupGuiObject`
-
-_No fields or methods._
 
 ## `chainsaw.IESLightController`
 
@@ -331120,18 +329500,6 @@ _No fields or methods._
 :System.Void set_Rotation(via.vec3)
 ```
 
-## `chainsaw.IEmberShellOwner`
-
-_No fields or methods._
-
-## `chainsaw.IEmotion`
-
-_No fields or methods._
-
-## `chainsaw.IEnemyManagerEnemyDeadListener`
-
-_No fields or methods._
-
 ## `chainsaw.IEnemyManagerEnemyDeadListener[]`
 
 **Methods**
@@ -331152,10 +329520,6 @@ _No fields or methods._
 :chainsaw.IEnemyManagerEnemyDeadListener get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IEnemyManagerEnemyDeadListener)
 ```
-
-## `chainsaw.IEnemyManagerEnemyHitDamageListener`
-
-_No fields or methods._
 
 ## `chainsaw.IEnemyManagerEnemyHitDamageListener[]`
 
@@ -331178,26 +329542,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IEnemyManagerEnemyHitDamageListener)
 ```
 
-## `chainsaw.IEnemyShieldHolder`
-
-_No fields or methods._
-
-## `chainsaw.IEyelid`
-
-_No fields or methods._
-
-## `chainsaw.IFeatureParameterOwnerInterface`
-
-_No fields or methods._
-
-## `chainsaw.IGameOccurrenceIdentifier`
-
-_No fields or methods._
-
-## `chainsaw.IGameOccurrenceListener`
-
-_No fields or methods._
-
 ## `chainsaw.IGameOccurrenceListener[]`
 
 **Methods**
@@ -331218,10 +329562,6 @@ _No fields or methods._
 :chainsaw.IGameOccurrenceListener get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGameOccurrenceListener)
 ```
-
-## `chainsaw.IGameOccurrenceObserver`
-
-_No fields or methods._
 
 ## `chainsaw.IGameOccurrenceObserver[]`
 
@@ -331244,26 +329584,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGameOccurrenceObserver)
 ```
 
-## `chainsaw.IGimmickAccessPoint`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickActorAction`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickActorActionController`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickActorSelectActionData`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickArrowRebound`
-
-_No fields or methods._
-
 ## `chainsaw.IGimmickArrowRebound[]`
 
 **Methods**
@@ -331284,58 +329604,6 @@ _No fields or methods._
 :chainsaw.IGimmickArrowRebound get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGimmickArrowRebound)
 ```
-
-## `chainsaw.IGimmickCheckGmFlag`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDoorAttach`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDropItemBasement`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDropItemCalcEvent`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDropItemFalldown`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDropItemPickable`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDropItemPosition`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickDurability`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickEnableClapperboard`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickEnableOpenPhotoMode`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickEnemyCancel`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickExtendContext`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickFSMAction`
-
-_No fields or methods._
 
 ## `chainsaw.IGimmickFSMAction[]`
 
@@ -331358,46 +329626,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGimmickFSMAction)
 ```
 
-## `chainsaw.IGimmickHitPlayer`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickLiveCheck`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickMapData`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickMapDataPosition`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickNPCAccessTerrain`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickNPCCancel`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickNPCInteract`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickOccupiedCallbackExclude`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickOccupiedCallbackReserve`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickOnHitDamage`
-
-_No fields or methods._
-
 ## `chainsaw.IGimmickOnHitDamage[]`
 
 **Methods**
@@ -331418,10 +329646,6 @@ _No fields or methods._
 :chainsaw.IGimmickOnHitDamage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGimmickOnHitDamage)
 ```
-
-## `chainsaw.IGimmickOnInitialized`
-
-_No fields or methods._
 
 ## `chainsaw.IGimmickOnInitialized[]`
 
@@ -331444,10 +329668,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGimmickOnInitialized)
 ```
 
-## `chainsaw.IGimmickOnMove`
-
-_No fields or methods._
-
 ## `chainsaw.IGimmickOnMove[]`
 
 **Methods**
@@ -331468,10 +329688,6 @@ _No fields or methods._
 :chainsaw.IGimmickOnMove get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGimmickOnMove)
 ```
-
-## `chainsaw.IGimmickParamHolder`
-
-_No fields or methods._
 
 ## `chainsaw.IGimmickParamHolder[]`
 
@@ -331494,54 +329710,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGimmickParamHolder)
 ```
 
-## `chainsaw.IGimmickParentable`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickPreLoading`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickRestrictionSavePos`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickRideonPoint`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickStaticData`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickStaticShapeData`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickThrowing`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickVehicle`
-
-_No fields or methods._
-
-## `chainsaw.IGimmickWindowAttach`
-
-_No fields or methods._
-
-## `chainsaw.IGimmikcRideonPointMediator`
-
-_No fields or methods._
-
-## `chainsaw.IGmJetSkiObstacle`
-
-_No fields or methods._
-
-## `chainsaw.IGmJetSkiObstacleOption`
-
-_No fields or methods._
-
 ## `chainsaw.IGmJetSkiObstacle[]`
 
 **Methods**
@@ -331562,26 +329730,6 @@ _No fields or methods._
 :chainsaw.IGmJetSkiObstacle get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGmJetSkiObstacle)
 ```
-
-## `chainsaw.IGmLiftPanelPowerSource`
-
-_No fields or methods._
-
-## `chainsaw.IGmPowerSupplySource`
-
-_No fields or methods._
-
-## `chainsaw.IGmTurretShooterHandle`
-
-_No fields or methods._
-
-## `chainsaw.IGraphicsSettingAggregatable`
-
-_No fields or methods._
-
-## `chainsaw.IGraphicsSettingElementAppliable`
-
-_No fields or methods._
 
 ## `chainsaw.IGraphicsSettingElementAppliable[]`
 
@@ -331604,10 +329752,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGraphicsSettingElementAppliable)
 ```
 
-## `chainsaw.IGuiFinalizer`
-
-_No fields or methods._
-
 ## `chainsaw.IGuiFinalizer[]`
 
 **Methods**
@@ -331628,14 +329772,6 @@ _No fields or methods._
 :chainsaw.IGuiFinalizer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IGuiFinalizer)
 ```
-
-## `chainsaw.IGuiIconDisplayer`
-
-_No fields or methods._
-
-## `chainsaw.IGuiKey`
-
-_No fields or methods._
 
 ## `chainsaw.IGuiKey[]`
 
@@ -331658,38 +329794,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IGuiKey)
 ```
 
-## `chainsaw.IGuiMouseController`
-
-_No fields or methods._
-
-## `chainsaw.IGuiOpenMediatorTask`
-
-_No fields or methods._
-
-## `chainsaw.IGuiParameterApplierBase`
-
-_No fields or methods._
-
-## `chainsaw.IHelicopterAimTarget`
-
-_No fields or methods._
-
-## `chainsaw.IHelicopterFireTarget`
-
-_No fields or methods._
-
-## `chainsaw.IHelicopterFireTargetCheckArea`
-
-_No fields or methods._
-
-## `chainsaw.IIntelligentActionCognition`
-
-_No fields or methods._
-
-## `chainsaw.IIntelligentActionCognitionIntegrator`
-
-_No fields or methods._
-
 ## `chainsaw.IIntelligentActionCognition[]`
 
 **Methods**
@@ -331710,14 +329814,6 @@ _No fields or methods._
 :chainsaw.IIntelligentActionCognition get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IIntelligentActionCognition)
 ```
-
-## `chainsaw.IInteractNeedLock`
-
-_No fields or methods._
-
-## `chainsaw.IInteractTriggerInitializeComplete`
-
-_No fields or methods._
 
 ## `chainsaw.IInteractTriggerInitializeComplete[]`
 
@@ -331740,10 +329836,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.IInteractTriggerInitializeComplete)
 ```
 
-## `chainsaw.IInteractTriggerInitializer`
-
-_No fields or methods._
-
 ## `chainsaw.IInteractTriggerInitializer[]`
 
 **Methods**
@@ -331764,22 +329856,6 @@ _No fields or methods._
 :chainsaw.IInteractTriggerInitializer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IInteractTriggerInitializer)
 ```
-
-## `chainsaw.IInteractTriggerSave`
-
-_No fields or methods._
-
-## `chainsaw.IInventoryController`
-
-_No fields or methods._
-
-## `chainsaw.IInventoryItemAccessor`
-
-_No fields or methods._
-
-## `chainsaw.IJetSkiRigidBody`
-
-_No fields or methods._
 
 ## `chainsaw.IKAttitudeControlTrack`
 
@@ -331819,26 +329895,6 @@ _No fields or methods._
 :System.Void set_Enable(System.Boolean)
 ```
 
-## `chainsaw.IKidnappedEndAccessor`
-
-_No fields or methods._
-
-## `chainsaw.ILaserSightOwner`
-
-_No fields or methods._
-
-## `chainsaw.ILipSync`
-
-_No fields or methods._
-
-## `chainsaw.INpcOwner`
-
-_No fields or methods._
-
-## `chainsaw.IObjectStick`
-
-_No fields or methods._
-
 ## `chainsaw.IObjectStick[]`
 
 **Methods**
@@ -331859,38 +329915,6 @@ _No fields or methods._
 :chainsaw.IObjectStick get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IObjectStick)
 ```
-
-## `chainsaw.IPoolableComponent`
-
-_No fields or methods._
-
-## `chainsaw.IPoolableData`
-
-_No fields or methods._
-
-## `chainsaw.IReceiveConfiguration`
-
-_No fields or methods._
-
-## `chainsaw.IReleaseGrapple`
-
-_No fields or methods._
-
-## `chainsaw.IShellGeneratorOwner`
-
-_No fields or methods._
-
-## `chainsaw.ISkeletonObserverUserdata`
-
-_No fields or methods._
-
-## `chainsaw.ITimelineEventActor`
-
-_No fields or methods._
-
-## `chainsaw.ITimelineEventActorItem`
-
-_No fields or methods._
 
 ## `chainsaw.ITimelineEventActorItem[]`
 
@@ -331913,10 +329937,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.ITimelineEventActorItem)
 ```
 
-## `chainsaw.ITimelineEventActorSpecialProcessing`
-
-_No fields or methods._
-
 ## `chainsaw.ITimelineEventActor[]`
 
 **Methods**
@@ -331938,18 +329958,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.ITimelineEventActor)
 ```
 
-## `chainsaw.ITimelineEventBindBridge`
-
-_No fields or methods._
-
-## `chainsaw.ITimelineEventFlowIDBridge`
-
-_No fields or methods._
-
-## `chainsaw.IValidatable`
-
-_No fields or methods._
-
 ## `chainsaw.IconDefine`
 
 **Fields**
@@ -331964,10 +329972,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "getUVPatternNo_uvs2000", ...)  -- System.UInt32 getUVPatternNo_uvs2000(System.String)
 ```
-
-## `chainsaw.IconTagDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.IconTagDefinition.IconTagHash`
 
@@ -333682,10 +331686,6 @@ sdk.call_native_func(nil, type_def, "updateInitiativeInfo", ...)  -- System.Void
 :System.Void sync()
 :System.Void update(via.mat4, System.Single)
 ```
-
-## `chainsaw.IkDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.IkDefinition.FootIndex`
 
@@ -335970,10 +333970,6 @@ sdk.call_native_func(nil, type_def, "setWorldMatrix", ...)  -- System.Void setWo
 :System.Void set_Item(System.Int32, chainsaw.IllusionPostEffectZoneController_AO.FlagPair)
 ```
 
-## `chainsaw.Implement`
-
-_No fields or methods._
-
 ## `chainsaw.InGameKeyTreasureOrderPriorityUserdata`
 
 **Fields**
@@ -336061,10 +334057,6 @@ _No fields or methods._
 :System.Void toPM()
 :System.Void toSub()
 ```
-
-## `chainsaw.InGameMenuBackgroundGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.InGameMenuBackgroundGuiBehavior.OpenParam`
 
@@ -336539,14 +334531,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.InGameShopBgGuiBehavior.Step)
 ```
 
-## `chainsaw.InGameShopBgGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.InGameShopBgGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.InGameShopBgGuiBehavior.Step`
 
 **Fields**
@@ -336918,10 +334902,6 @@ _No fields or methods._
 :System.Void setup()
 ```
 
-## `chainsaw.InGameShopGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.InGameShopGuiBehavior.OpenParam`
 
 **Fields**
@@ -337068,10 +335048,6 @@ _No fields or methods._
 :System.Void recieveGuiParam(chainsaw.InGameShopItemInfoGuiBehavior.OpenParam)
 :System.Void set_CurrStep(chainsaw.InGameShopItemInfoGuiBehavior.Step)
 ```
-
-## `chainsaw.InGameShopItemInfoGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.InGameShopItemInfoGuiBehavior.OpenParam`
 
@@ -338389,10 +336365,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void show()
 ```
 
-## `chainsaw.InGameShopSaleInfoGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.InGameShopSaleInfoGuiBehavior.DrawParam`
 
 **Fields**
@@ -338409,10 +336381,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.InGameShopSaleInfoGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.InGameShopSaleInfoGuiBehavior.PlayStateType`
 
@@ -338834,10 +336802,6 @@ sdk.call_native_func(nil, type_def, "tryOpenExtraContentsDialog", ...)  -- Syste
 :chainsaw.InGameShopStateController.Phase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.InGameShopStateController.Phase)
 ```
-
-## `chainsaw.InGameShopStateControllerBase`
-
-_No fields or methods._
 
 ## `chainsaw.InGameShopStateControllerBase.OpenParam`
 
@@ -339459,10 +337423,6 @@ _No fields or methods._
 :System.Void start()
 ```
 
-## `chainsaw.InertiaMoveController.HumanJoint`
-
-_No fields or methods._
-
 ## `chainsaw.InertiaMoveController.HumanJoint.Hash`
 
 **Fields**
@@ -339788,10 +337748,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.IngameCustomManager.CallbackIndex get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.IngameCustomManager.CallbackIndex)
 ```
-
-## `chainsaw.IngameCustomManager.SaveData`
-
-_No fields or methods._
 
 ## `chainsaw.IngameCustomManagerBehavior`
 
@@ -340181,10 +338137,6 @@ sdk.call_native_func(nil, type_def, "get_Group_ShootInhibit", ...)  -- System.Bo
 :System.Void onUpdateCanSelectEvent()
 :System.Void updateList()
 ```
-
-## `chainsaw.InitLanguageSettingGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.InitLanguageSettingGuiBehavior.ItemBase`
 
@@ -342554,10 +340506,6 @@ sdk.call_native_func(nil, type_def, "getWorkIndex", ...)  -- chainsaw.InteractMa
 :System.Void clear()
 :System.Boolean hasInitialzed()
 ```
-
-## `chainsaw.InteractManager.PayloadBase`
-
-_No fields or methods._
 
 ## `chainsaw.InteractManager.PayloadTriggerDone`
 
@@ -345070,10 +343018,6 @@ sdk.call_native_func(nil, type_def, "createLookAt", ...)  -- chainsaw.Interpolat
 :System.Boolean setup(chainsaw.CharacterKindID)
 ```
 
-## `chainsaw.InventoryDeliveryBehavior`
-
-_No fields or methods._
-
 ## `chainsaw.InventoryElementOpenCloseType`
 
 **Fields**
@@ -345105,10 +343049,6 @@ _No fields or methods._
 :chainsaw.InventoryElementOpenCloseType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.InventoryElementOpenCloseType)
 ```
-
-## `chainsaw.InventoryEnumExtension`
-
-_No fields or methods._
 
 ## `chainsaw.InventoryEquipInfo`
 
@@ -345615,10 +343555,6 @@ _No fields or methods._
 :System.Void updateItemNameText(chainsaw.ItemID)
 :System.Void updateMode(chainsaw.gui.commandmenu.CommandMenuMode)
 ```
-
-## `chainsaw.InventoryPopupGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.InventoryPopupGuiBehavior.DrawCaseCustomMenuParam`
 
@@ -346463,10 +344399,6 @@ _No fields or methods._
 :System.Void set_TipJointName(System.String)
 :System.Void set_WarpSpeedThreshold(System.Single)
 ```
-
-## `chainsaw.ItBase`
-
-_No fields or methods._
 
 ## `chainsaw.ItMine`
 
@@ -347910,10 +345842,6 @@ sdk.call_native_func(nil, type_def, "get_FigureWindowCameraControllerRoot_Group"
 :System.Void set_Item(System.Int32, chainsaw.ItemGetPopupGuiBehavior.NoticeType)
 ```
 
-## `chainsaw.ItemGetPopupGuiBehavior.OpenParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.ItemGetPopupGuiBehavior.Step`
 
 **Fields**
@@ -349238,10 +347166,6 @@ sdk.call_native_func(nil, type_def, "toCostumeAccessory", ...)  -- chainsaw.Cost
 :System.Void setup()
 ```
 
-## `chainsaw.ItemNoticeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.ItemNoticeGuiBehavior.NoticeType`
 
 **Fields**
@@ -349554,10 +347478,6 @@ sdk.call_native_func(nil, type_def, "get_ItemSearchCameraControllerRoot_Group", 
 :System.Void start()
 ```
 
-## `chainsaw.ItemSearchController.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.ItemSearchController.Phase`
 
 **Fields**
@@ -349626,10 +347546,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.ItemSearchGuiBehavior.Step)
 :System.Void set_TargetItemId(chainsaw.ItemID)
 ```
-
-## `chainsaw.ItemSearchGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ItemSearchGuiBehavior.OpenParam`
 
@@ -349719,10 +347635,6 @@ _No fields or methods._
 :System.Void .ctor()
 ```
 
-## `chainsaw.ItemSearchManager`
-
-_No fields or methods._
-
 ## `chainsaw.ItemSearchModelController`
 
 **Methods**
@@ -349746,10 +347658,6 @@ _No fields or methods._
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.ItemShortcutGuideGuiBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.ItemShortcutGuideGuiControlBehavior`
 
@@ -350312,10 +348220,6 @@ sdk.call_native_func(nil, type_def, "isUniqueInventoryItem", ...)  -- System.Boo
 :System.Void set_CurrMode(chainsaw.ItemWindowBgGuiBehavior.Mode)
 :System.Void set_CurrStep(chainsaw.ItemWindowBgGuiBehavior.Step)
 ```
-
-## `chainsaw.ItemWindowBgGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ItemWindowBgGuiBehavior.Mode`
 
@@ -351023,10 +348927,6 @@ _No fields or methods._
 :chainsaw.ItemWindowGuiOpenResultSuccessInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.ItemWindowGuiOpenResultSuccessInfo)
 ```
-
-## `chainsaw.ItemWindowGuiParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.ItemWindowGuiParamHolder`
 
@@ -353965,10 +351865,6 @@ sdk.call_native_func(nil, type_def, "isMapState", ...)  -- System.Boolean isMapS
 :chainsaw.ItemWindowGuiState get_StateType()
 ```
 
-## `chainsaw.ItemWindowGui_OpenParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.ItemWindowTabGuiBehavior`
 
 **Fields**
@@ -354011,10 +351907,6 @@ _No fields or methods._
 :System.Void setupTab(chainsaw.ItemWindowTabGuiBehavior.OpenParam)
 :System.Void show()
 ```
-
-## `chainsaw.ItemWindowTabGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ItemWindowTabGuiBehavior.OpenParam`
 
@@ -354313,10 +352205,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateBlur(via.vec3, via.Quaternion, System.Single)
 :System.Void updateCamera(via.vec3, System.Single, System.Single)
 ```
-
-## `chainsaw.JetSkiCamera.ILookAtHandle`
-
-_No fields or methods._
 
 ## `chainsaw.JetSkiCamera.ILookAtHandle[]`
 
@@ -356981,10 +354869,6 @@ sdk.call_native_func(nil, type_def, "getIconTag", ...)  -- System.String getIcon
 :System.Void set_Item(System.Int32, chainsaw.KeyBindSingleSetting)
 ```
 
-## `chainsaw.KeyBundleAttachmentDifinition`
-
-_No fields or methods._
-
 ## `chainsaw.KeyBundleAttachmentDifinition.Key`
 
 **Fields**
@@ -357287,14 +355171,6 @@ sdk.call_native_func(nil, type_def, "get_KeyTreasureControllerRoot_Group", ...) 
 ```lua
 sdk.call_native_func(nil, type_def, "<forceChangeSelectItem>g__calcIndex|31_0", ...)  -- System.Int32 <forceChangeSelectItem>g__calcIndex|31_0(System.String)
 ```
-
-## `chainsaw.KeyTreasureCombineGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.KeyTreasureCombineGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.KeyTreasureCombineGuiBehavior.Step`
 
@@ -357846,10 +355722,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.KeyTreasureItemMeshController.Setting)
 ```
 
-## `chainsaw.KeyTreasureItemModelDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.KeyTreasureItemModelDefinition.PositionType`
 
 **Fields**
@@ -357884,10 +355756,6 @@ _No fields or methods._
 :chainsaw.KeyTreasureItemModelDefinition.PositionType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.KeyTreasureItemModelDefinition.PositionType)
 ```
-
-## `chainsaw.KeyTreasureItemModelEnumDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.KeyTreasureItemModelInitialPostureController`
 
@@ -358574,14 +356442,6 @@ _No fields or methods._
 :chainsaw.KeyTreasureWindowControlBehaviorHub.Phase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.KeyTreasureWindowControlBehaviorHub.Phase)
 ```
-
-## `chainsaw.KeyTreasureWindowControlBehaviorHub.SetupParam`
-
-_No fields or methods._
-
-## `chainsaw.KeyTreasureWindowControlBehaviorSetupParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.KeyTreasureWindowLightType`
 
@@ -359557,10 +357417,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.KeyTreasureWindowPositionType)
 ```
 
-## `chainsaw.KeyValuePairExtension`
-
-_No fields or methods._
-
 ## `chainsaw.KidnappedEndAction`
 
 **Fields**
@@ -359784,10 +357640,6 @@ sdk.call_native_func(nil, type_def, "isKnifeHudItem", ...)  -- System.Boolean is
 :System.Void setup()
 :System.Void setupInventoryController(chainsaw.InventoryManager.GetInventoryKey)
 ```
-
-## `chainsaw.KnifeHudGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.KnifeHudGuiBehavior.Diagnosis`
 
@@ -360533,10 +358385,6 @@ _No fields or methods._
 :System.Void set_NowLevel(System.Int32)
 ```
 
-## `chainsaw.LevelMapData`
-
-_No fields or methods._
-
 ## `chainsaw.LevelMapData.GateInfo`
 
 **Fields**
@@ -360869,10 +358717,6 @@ _No fields or methods._
 :chainsaw.LevelMapData.PointLadder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.LevelMapData.PointLadder)
 ```
-
-## `chainsaw.LevelMapData.PointMessage`
-
-_No fields or methods._
 
 ## `chainsaw.LevelMapData.PointText`
 
@@ -361309,10 +359153,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 :System.Boolean checkCleared()
 ```
-
-## `chainsaw.LevelMapDataManager.ClearingDataAddEventArgs`
-
-_No fields or methods._
 
 ## `chainsaw.LevelMapDataManager.ClearingStatus`
 
@@ -362358,10 +360198,6 @@ sdk.call_native_func(nil, type_def, "createWork", ...)  -- chainsaw.LightInterlo
 :chainsaw.gui.ItemCustomCategory[] get_AutoCustomCategories()
 ```
 
-## `chainsaw.LimitBreakAutoCustomSettingUserdata`
-
-_No fields or methods._
-
 ## `chainsaw.LimitBreakCustomCategory`
 
 **Fields**
@@ -362823,10 +360659,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 ```
 
-## `chainsaw.LoadingGuiDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.LoadingGuiDefinition.LoadingGuiType`
 
 **Fields**
@@ -363020,10 +360852,6 @@ _No fields or methods._
 :System.Void updateLoadingGauge()
 :System.Void updateLoadingGuageDirect(System.Single)
 ```
-
-## `chainsaw.LoadingSynopsisGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.LoadingSynopsisGuiBehavior.OpenParam`
 
@@ -364132,10 +361960,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void unregistReceiver(chainsaw.LocationSceneEventReceivable)
 ```
 
-## `chainsaw.LocationSceneEventReceivable`
-
-_No fields or methods._
-
 ## `chainsaw.LocationSceneEventReceivable[]`
 
 **Methods**
@@ -364379,10 +362203,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void unregistLocationChapterScene(chainsaw.LocID, chainsaw.ChapterID)
 ```
 
-## `chainsaw.LocationSceneRequester`
-
-_No fields or methods._
-
 ## `chainsaw.LocationalChapternalCollection`
 
 **Fields**
@@ -364491,10 +362311,6 @@ _No fields or methods._
 :chainsaw.LogGuiGameOccurrenceObserver.Phase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.LogGuiGameOccurrenceObserver.Phase)
 ```
-
-## `chainsaw.LookAtDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.LookAtDefinition.JointControlType`
 
@@ -365490,10 +363306,6 @@ sdk.call_native_func(nil, type_def, "get_MainMenuCameraControllerRoot_Group", ..
 :System.Void set_ViewParam(chainsaw.CameraViewParam)
 ```
 
-## `chainsaw.MainMenuCameraSettingBase`
-
-_No fields or methods._
-
 ## `chainsaw.MainMenuCameraSettingUserdata`
 
 **Fields**
@@ -365628,10 +363440,6 @@ _No fields or methods._
 ```lua
 :System.Void clear()
 ```
-
-## `chainsaw.MainMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.MainMenuGuiBehavior.MenuItem`
 
@@ -365973,10 +363781,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 | --- | --- | --- | --- |
 | `AngleType` | `chainsaw.MapDefine.MapAngleFix` |  | 16 |
 | `AngleDeg` | `System.Single` |  | 20 |
-
-## `chainsaw.MapAreaUserdata`
-
-_No fields or methods._
 
 ## `chainsaw.MapBlueCoinGimmickIcon`
 
@@ -366531,10 +364335,6 @@ _No fields or methods._
 :System.Void clear()
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
-
-## `chainsaw.MapCursorGuiBehavior.ApplyOpenUsageParam`
-
-_No fields or methods._
 
 ## `chainsaw.MapCursorGuiBehavior.ApplyParam`
 
@@ -367272,10 +365072,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.MapDefine.MapFloorID get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.MapDefine.MapFloorID)
 ```
-
-## `chainsaw.MapDefine.MapGlobalTargetAreaChangeEventResult`
-
-_No fields or methods._
 
 ## `chainsaw.MapDefine.MapGuiDrawParts`
 
@@ -370615,14 +368411,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup()
 ```
 
-## `chainsaw.MapRTTHolderGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.MapRTTHolderGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.MapRTTHolderGuiBehavior.Step`
 
 **Fields**
@@ -370923,14 +368711,6 @@ _No fields or methods._
 :System.Void setMaterialParam(chainsaw.MapSceneBaseGuiBehavior.MapFloorPanel, chainsaw.MapFloorUserdata.RoomDefinition, chainsaw.MapDefine.ClearingStatus)
 ```
 
-## `chainsaw.MapSceneOutlineGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.MapSceneOutlineGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.MapSceneOutlineGuiControlBehavior`
 
 **Methods**
@@ -370969,10 +368749,6 @@ _No fields or methods._
 :System.Void set_DecorationMaskController(chainsaw.MapDecorationMaskController)
 :System.Void updateDecorationMask(chainsaw.LevelMapData.Section, chainsaw.MapDefine.ClearingStatus)
 ```
-
-## `chainsaw.MapScenePlaneGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.MapScenePlaneGuiBehavior.OpenParam`
 
@@ -371672,10 +369448,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.MaterialParamAnimationSettings.DetailParam`
-
-_No fields or methods._
-
 ## `chainsaw.MaterialParamAnimationSettings.DetailParamBlinkLamp`
 
 **Fields**
@@ -372134,10 +369906,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.MaterialParamAnimationUtility.DetailContainer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.MaterialParamAnimationUtility.DetailContainer)
 ```
-
-## `chainsaw.MaterialParamAnimationUtility.DetailParam`
-
-_No fields or methods._
 
 ## `chainsaw.MaterialParamAnimationUtility.DetailParamColor1Lamp`
 
@@ -372842,10 +370610,6 @@ sdk.call_native_func(nil, type_def, "tryParseHexNumber", ...)  -- System.Boolean
 ```lua
 sdk.call_native_func(nil, type_def, "getAxis", ...)  -- via.vec3 getAxis(via.mat4, via.motion.AxisDirection)
 ```
-
-## `chainsaw.MayaFocalCheck`
-
-_No fields or methods._
 
 ## `chainsaw.Melee`
 
@@ -377344,10 +375108,6 @@ sdk.call_native_func(nil, type_def, "getTagNames", ...)  -- System.String[] getT
 :chainsaw.MessageTagSettingSKU[] get_SKUSettings()
 ```
 
-## `chainsaw.MessageTagSingleSettingBase`
-
-_No fields or methods._
-
 ## `chainsaw.MessageTagSingleSettingBase[]`
 
 **Methods**
@@ -378396,10 +376156,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.MoneyInfoGuiBehavior.Step)
 :System.Void setup(chainsaw.MoneyInfoGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.MoneyInfoGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.MoneyInfoGuiBehavior.ModeState`
 
@@ -381003,14 +378759,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void visibleMousePointer()
 ```
 
-## `chainsaw.MouseCursorGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.MouseCursorGuiBehavior.OpenParam`
-
-_No fields or methods._
-
 ## `chainsaw.MouseCursorGuiBehavior.Step`
 
 **Fields**
@@ -381191,10 +378939,6 @@ _No fields or methods._
 :chainsaw.MovieContextInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.MovieContextInfo)
 ```
-
-## `chainsaw.MovieDefine`
-
-_No fields or methods._
 
 ## `chainsaw.MovieDefine.DisplayType`
 
@@ -382367,10 +380111,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.MovieWork get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.MovieWork)
 ```
-
-## `chainsaw.MysteryBagGimmickAdjustUserData`
-
-_No fields or methods._
 
 ## `chainsaw.MysteryBagGimmickAdjustUserData.ModelType`
 
@@ -384361,14 +382101,6 @@ sdk.call_native_func(nil, type_def, "smoothing_CubicSplineInterpolation", ...)  
 :System.Void set_Item(System.Int32, chainsaw.NavigationStrategyPoint.FindResult)
 ```
 
-## `chainsaw.NavigationStrategyPoint.IFailReport`
-
-_No fields or methods._
-
-## `chainsaw.NavigationStrategyPoint.ILinkInfo`
-
-_No fields or methods._
-
 ## `chainsaw.NavigationStrategyPoint.ILinkInfo[]`
 
 **Methods**
@@ -384389,22 +382121,6 @@ _No fields or methods._
 :chainsaw.NavigationStrategyPoint.ILinkInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.NavigationStrategyPoint.ILinkInfo)
 ```
-
-## `chainsaw.NavigationStrategyPoint.IMapFilter`
-
-_No fields or methods._
-
-## `chainsaw.NavigationStrategyPoint.INavigationInfo`
-
-_No fields or methods._
-
-## `chainsaw.NavigationStrategyPoint.IPathInfo`
-
-_No fields or methods._
-
-## `chainsaw.NavigationStrategyPoint.IPathQueryReport`
-
-_No fields or methods._
 
 ## `chainsaw.NavigationStrategyPoint.MapFilter`
 
@@ -385632,10 +383348,6 @@ sdk.call_native_func(nil, type_def, "calcRelayPos", ...)  -- System.Boolean calc
 :System.Void updateMessages(System.String[])
 ```
 
-## `chainsaw.NetworkErrorDialogGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.NetworkErrorDialogGuiBehavior.OpenParam`
 
 **Fields**
@@ -385958,10 +383670,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.NetworkErrorSettingUserdata.Setting)
 ```
 
-## `chainsaw.NetworkLogging`
-
-_No fields or methods._
-
 ## `chainsaw.NetworkLoggingTag`
 
 **Fields**
@@ -386217,10 +383925,6 @@ _No fields or methods._
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.NetworkRankingDefine`
-
-_No fields or methods._
 
 ## `chainsaw.NetworkRankingManager`
 
@@ -386826,10 +384530,6 @@ sdk.call_native_func(nil, type_def, "createService", ...)  -- chainsaw.NetworkUt
 :chainsaw.NewMarkCategory get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.NewMarkCategory)
 ```
-
-## `chainsaw.NewMarkGuiDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.NewMarkGuiEnumExtension`
 
@@ -389959,10 +387659,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.Npc.OrderItemType get_OrderItemType()
 ```
 
-## `chainsaw.NpcActionUpdaterBase`
-
-_No fields or methods._
-
 ## `chainsaw.NpcActionUpdaterUnit`
 
 **Fields**
@@ -390205,10 +387901,6 @@ _No fields or methods._
 :System.Void .ctor(chainsaw.NpcBackup)
 ```
 
-## `chainsaw.NpcBaseParameter`
-
-_No fields or methods._
-
 ## `chainsaw.NpcBodyUpdater`
 
 **Fields**
@@ -390312,10 +388004,6 @@ _No fields or methods._
 :System.Single get_FollowDistance()
 :System.Void set_FollowDistance(System.Single)
 ```
-
-## `chainsaw.NpcCommonParameterUnit`
-
-_No fields or methods._
 
 ## `chainsaw.NpcCommonParameterUnit[]`
 
@@ -390560,10 +388248,6 @@ _No fields or methods._
 :System.String get_DisplayName()
 :System.Void set_Areas(System.Collections.Generic.List`1<chainsaw.BoxShape>)
 ```
-
-## `chainsaw.NpcControlConditionBase`
-
-_No fields or methods._
 
 ## `chainsaw.NpcControlConditionHolder`
 
@@ -391389,14 +389073,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void .ctor()
 :System.String get_displayName()
 ```
-
-## `chainsaw.NpcParameterUnit`
-
-_No fields or methods._
-
-## `chainsaw.NpcParameterUnitBase`
-
-_No fields or methods._
 
 ## `chainsaw.NpcParameterUnitBase[]`
 
@@ -392286,10 +389962,6 @@ sdk.call_native_func(nil, type_def, "applyHide", ...)  -- System.Void applyHide(
 :System.Void set_Item(System.Int32, chainsaw.ObstacleInfoClass)
 ```
 
-## `chainsaw.OccupiedAffix`
-
-_No fields or methods._
-
 ## `chainsaw.OccupiedAffixInt`
 
 **Fields**
@@ -392335,10 +390007,6 @@ _No fields or methods._
 :chainsaw.OccupiedAffix get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.OccupiedAffix)
 ```
-
-## `chainsaw.OccupiedCallback`
-
-_No fields or methods._
 
 ## `chainsaw.OccupiedCallbackExclude`
 
@@ -392974,10 +390642,6 @@ _No fields or methods._
 | --- | --- | --- | --- |
 | `Container` | `chainsaw.OccupiedMediator.LockContainer` |  | 16 |
 | `Done` | `System.Boolean` |  | 24 |
-
-## `chainsaw.OccupiedMediator.StackBase`
-
-_No fields or methods._
 
 ## `chainsaw.OccupiedMediator.Stack[]`
 
@@ -393825,10 +391489,6 @@ sdk.call_native_func(nil, type_def, "getValueString", ...)  -- System.String get
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.OptionBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.OptionBehavior.OpenParam`
 
 **Fields**
@@ -394053,10 +391713,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.OptionControlButtonGuiSettingUserdata.ControlTypeSetting)
 ```
 
-## `chainsaw.OptionDescHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.OptionDescInfoData`
 
 **Fields**
@@ -394099,10 +391755,6 @@ _No fields or methods._
 :chainsaw.OptionDescInfoData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.OptionDescInfoData)
 ```
-
-## `chainsaw.OptionDescMovieHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.OptionDescMovieID`
 
@@ -394561,10 +392213,6 @@ sdk.call_native_func(nil, type_def, "LanguageUVPatternNo", ...)  -- System.UInt3
 :System.Void updateList()
 :System.Void updateRootMode()
 ```
-
-## `chainsaw.OptionKeyAssignBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.OptionKeyAssignBehavior.ListMode`
 
@@ -395324,10 +392972,6 @@ sdk.call_native_func(nil, type_def, "volatilize", ...)  -- System.Void volatiliz
 :System.Void set_GraphicsSettingPair(chainsaw.OptionMenuDetail.GraphicsSettingPanelPair)
 :System.Void set_SpeakerSettingPair(chainsaw.OptionMenuDetail.SpeakerSettingPanelPair)
 ```
-
-## `chainsaw.OptionMenuDetail.BrightnessSettingHDRPanel`
-
-_No fields or methods._
 
 ## `chainsaw.OptionMenuDetail.BrightnessSettingHDRPanelPair`
 
@@ -396437,10 +394081,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Int32 findValueById(chainsaw.option.OptionID)
 :System.Collections.Generic.List`1<chainsaw.OptionSingleSettingData> get_Datas()
 ```
-
-## `chainsaw.OptionSettingsBase`
-
-_No fields or methods._
 
 ## `chainsaw.OptionSingleCategory`
 
@@ -398491,10 +396131,6 @@ sdk.call_native_func(nil, type_def, "findTarget", ...)  -- via.GameObject findTa
 :chainsaw.AIMapNodeScore[] get_NodeScoreArray()
 ```
 
-## `chainsaw.PartnerActorZone`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerActorZoneSensor`
 
 **Fields**
@@ -398721,10 +396357,6 @@ _No fields or methods._
 :chainsaw.PartnerAttackTargetSelector.TargetJointInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.PartnerAttackTargetSelector.TargetJointInfo)
 ```
-
-## `chainsaw.PartnerAutoRecoveryZone`
-
-_No fields or methods._
 
 ## `chainsaw.PartnerAutoRecoveryZoneSensor`
 
@@ -401349,10 +398981,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void changeStatus(chainsaw.GuiNPCDefinition.Cha3HudType, chainsaw.GuiNPCDefinition.Cha3HudType)
 ```
 
-## `chainsaw.PartnerCha3HudGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerCha3HudGuiBehavior.GuideParts`
 
 **Methods**
@@ -403673,10 +401301,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void updateSpeed(System.Single, via.Range, via.curve.EaseType)
 ```
 
-## `chainsaw.PartnerIconGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerIconGuiBehavior.Direction`
 
 **Fields**
@@ -405602,10 +403226,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void via.physics.IColliders.onSeparate(via.physics.CollisionInfo)
 ```
 
-## `chainsaw.PartnerNpcParameterAvoid`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerNpcParameterBattle`
 
 **Fields**
@@ -405952,10 +403572,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.PartnerRescueGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.PartnerRescueGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerRescueGuiBehavior.OpenParam`
 
 **Fields**
@@ -406088,10 +403704,6 @@ _No fields or methods._
 :System.Void .ctor(via.gui.Panel)
 :System.Void changeStatus(chainsaw.GuiNPCDefinition.NPCSituation, chainsaw.GuiNPCDefinition.NPCSituation)
 ```
-
-## `chainsaw.PartnerSituationGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.PartnerSituationGuiBehavior.GuideParts`
 
@@ -406418,10 +404030,6 @@ _No fields or methods._
 :System.Void .ctor()
 ```
 
-## `chainsaw.PartnerTalkController`
-
-_No fields or methods._
-
 ## `chainsaw.PartnerTalkShakingHeadTracks`
 
 **Fields**
@@ -406694,10 +404302,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void clear()
 :System.Void setAttribute(System.UInt64, via.vec3, via.vec3, via.vec3, System.Int32)
 ```
-
-## `chainsaw.PauseDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.PauseDefinition.InEnding`
 
@@ -407767,10 +405371,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void startAnalysisLogPhotoMode()
 ```
 
-## `chainsaw.PhotoModeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.PhotoModeGuiBehavior.DrawContentsType`
 
 **Fields**
@@ -408080,10 +405680,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.PhotoModeUserData get_userdata()
 :System.Void onDestroy()
 ```
-
-## `chainsaw.PhotoModeTextureHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.PhotoModeUserData`
 
@@ -409064,10 +406660,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.PlMinorDemoSettings.Param)
 ```
 
-## `chainsaw.PlMinorDemoSettings.Work`
-
-_No fields or methods._
-
 ## `chainsaw.PlMinorDemoSettings.WorkLookAt`
 
 **Fields**
@@ -409818,10 +407410,6 @@ sdk.call_native_func(nil, type_def, "get_Group_UniqueActing", ...)  -- System.Bo
 :System.Void setup(chainsaw.PlayerHeadUpdater)
 ```
 
-## `chainsaw.PlayerActionDefineUserData`
-
-_No fields or methods._
-
 ## `chainsaw.PlayerActionEnd`
 
 **Fields**
@@ -409968,10 +407556,6 @@ _No fields or methods._
 :System.Void procReticleGui()
 :System.Void set_PlayerHeadUpdater(chainsaw.PlayerHeadUpdater)
 ```
-
-## `chainsaw.PlayerActorZone`
-
-_No fields or methods._
 
 ## `chainsaw.PlayerActorZoneSensor`
 
@@ -420512,10 +418096,6 @@ sdk.call_native_func(nil, type_def, "get_Group_WoodBox", ...)  -- System.Boolean
 :System.Boolean isPlayerDamage()
 ```
 
-## `chainsaw.PlayerCondition_True`
-
-_No fields or methods._
-
 ## `chainsaw.PlayerConfiguration`
 
 **Fields**
@@ -424686,10 +422266,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void copyFrom(via.render.Light)
 ```
 
-## `chainsaw.PlayerLightController.LightParamApplier`
-
-_No fields or methods._
-
 ## `chainsaw.PlayerLightController.PointParamApplier`
 
 **Fields**
@@ -425673,10 +423249,6 @@ sdk.call_native_func(nil, type_def, "hasFlag", ...)  -- System.Boolean hasFlag(c
 :System.Void set_TotalPlaythoughTime(System.UInt64)
 ```
 
-## `chainsaw.PointControlUtillity`
-
-_No fields or methods._
-
 ## `chainsaw.PointControlUtillity.Snap`
 
 **Fields**
@@ -426292,10 +423864,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.PostEffectInventoryLayerSettingUserdata.Data)
 ```
 
-## `chainsaw.PostEffectZone`
-
-_No fields or methods._
-
 ## `chainsaw.PostEffectZoneManager`
 
 **Fields**
@@ -426624,10 +424192,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void unregistReceiver(chainsaw.PrefectureSceneEventReceivable)
 ```
 
-## `chainsaw.PrefectureSceneEventReceivable`
-
-_No fields or methods._
-
 ## `chainsaw.PrefectureSceneEventReceivable[]`
 
 **Methods**
@@ -426865,10 +424429,6 @@ _No fields or methods._
 :System.Void unregistPrefecture(chainsaw.PrefectureID)
 :System.Void unregistPrefectureChapterScene(chainsaw.PrefectureID, chainsaw.ChapterID)
 ```
-
-## `chainsaw.PrefectureSceneRequester`
-
-_No fields or methods._
 
 ## `chainsaw.PrefectureToMessageCatalog`
 
@@ -427190,10 +424750,6 @@ sdk.call_native_func(nil, type_def, "getSortOrder", ...)  -- System.Int32 getSor
 :System.Void set_VecToTarget(via.vec3)
 :System.Void setup(chainsaw.ProjectileHudGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.ProjectileHudGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ProjectileHudGuiBehavior.Direction`
 
@@ -427583,10 +425139,6 @@ sdk.call_native_func(nil, type_def, "drawByFullHD", ...)  -- System.Void drawByF
 :System.Void setup(chainsaw.PurposeGuiBehavior.OpenParamCenter)
 :System.Void setupCenterSub(chainsaw.PurposeGuiBehavior.OpenParamCenterSub)
 ```
-
-## `chainsaw.PurposeGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.PurposeGuiBehavior.OpenParamBase`
 
@@ -428416,10 +425968,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.QuestFileHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.QuestFileID`
 
 **Fields**
@@ -428773,10 +426321,6 @@ sdk.call_native_func(nil, type_def, "IsMainContentsQuest", ...)  -- System.Boole
 :System.Boolean isClearPossible()
 :System.Void set_Condition(chainsaw.FlagConditionStrict)
 ```
-
-## `chainsaw.QuestJudgeElementBase`
-
-_No fields or methods._
 
 ## `chainsaw.QuestJudgeElementBase[]`
 
@@ -429266,10 +426810,6 @@ _No fields or methods._
 :System.Void requestNotify(chainsaw.QuestNotifier.NotifyCommand)
 :System.Void update()
 ```
-
-## `chainsaw.QuestNotifier.Command`
-
-_No fields or methods._
 
 ## `chainsaw.QuestNotifier.GameOccurrenceCommand`
 
@@ -429889,10 +427429,6 @@ _No fields or methods._
 :System.Void setUpHeader()
 ```
 
-## `chainsaw.RENETAgreeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RENETAgreeGuiBehavior.OpenParam`
 
 **Fields**
@@ -430234,10 +427770,6 @@ _No fields or methods._
 :System.Void onDeactivateEvent()
 ```
 
-## `chainsaw.RENETConfirmGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RENETConfirmGuiBehavior.OpenParam`
 
 **Fields**
@@ -430410,10 +427942,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.RENETScrollDialogFlow.Phase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RENETScrollDialogFlow.Phase)
 ```
-
-## `chainsaw.RENETScrollDialogFlow.UpdateCheck`
-
-_No fields or methods._
 
 ## `chainsaw.RTTCameraController`
 
@@ -430683,10 +428211,6 @@ _No fields or methods._
 :chainsaw.RadioHudTarget get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RadioHudTarget)
 ```
-
-## `chainsaw.RadioLogHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.RadioLogID`
 
@@ -431388,10 +428912,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void playSound()
 :System.Void stopSound()
 ```
-
-## `chainsaw.RadioMsgMovieHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.RadioMsgMovieID`
 
@@ -438869,10 +436389,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.ReNetNetworkCheckFlowModule.QuerySendParam.SendSelectType)
 ```
 
-## `chainsaw.ReNetNetworkCheckFlowModule.RequestParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.ReNetNetworkCheckFlowModule.RequestParamBase.NotifyType`
 
 **Fields**
@@ -438955,10 +436471,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "createService", ...)  -- chainsaw.ReNetServiceController createService()
 ```
-
-## `chainsaw.ReNetUnitBase`
-
-_No fields or methods._
 
 ## `chainsaw.ReNetUnit_AnimalData`
 
@@ -440344,10 +437856,6 @@ _No fields or methods._
 :System.Void updateSubList()
 ```
 
-## `chainsaw.RecordListGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RecordListGuiBehavior.OpenParam`
 
 **Fields**
@@ -440957,10 +438465,6 @@ sdk.call_native_func(nil, type_def, "setWidth", ...)  -- via.Rect setWidth(via.R
 :System.Void set_RemainingDisplayTimeSec(System.Single)
 ```
 
-## `chainsaw.RemainingBulletGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RemainingBulletGuiBehavior.OpenParam`
 
 **Fields**
@@ -441449,10 +438953,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.RequiemBannerGuiBehavior.Step)
 ```
 
-## `chainsaw.RequiemBannerGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RequiemBannerGuiBehavior.OpenParam`
 
 **Fields**
@@ -441678,10 +439178,6 @@ _No fields or methods._
 :chainsaw.RetargetCategoryAndWeaponData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RetargetCategoryAndWeaponData)
 ```
-
-## `chainsaw.RetargetDefine`
-
-_No fields or methods._
 
 ## `chainsaw.RetargetDefine.DynamicFeatureID`
 
@@ -442672,10 +440168,6 @@ sdk.call_native_func(nil, type_def, "getReticleGuiType", ...)  -- chainsaw.Retic
 :System.Void setup(chainsaw.RewardAnnounceGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.RewardAnnounceGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RewardAnnounceGuiBehavior.OpenParam`
 
 **Fields**
@@ -442827,10 +440319,6 @@ _No fields or methods._
 :System.Void .ctor()
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
-
-## `chainsaw.RichTutorialDetailGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.RichTutorialDetailGuiBehavior.ControlPanelState`
 
@@ -443351,10 +440839,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
 
-## `chainsaw.RichTutorialListGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.RichTutorialListGuiBehavior.OpenParam`
 
 **Fields**
@@ -443603,10 +441087,6 @@ _No fields or methods._
 :chainsaw.RichTutorialMediator.Work get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RichTutorialMediator.Work)
 ```
-
-## `chainsaw.RichTutorialMovieHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.RichTutorialMovieID`
 
@@ -444093,10 +441573,6 @@ _No fields or methods._
 :chainsaw.RichTutorialSingleSettingData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RichTutorialSingleSettingData)
 ```
-
-## `chainsaw.RichTutorialTextureHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.RichTutorialTextureID`
 
@@ -445089,10 +442565,6 @@ sdk.call_native_func(nil, type_def, "setGravityFactorAll", ...)  -- System.Void 
 :System.Void awake()
 ```
 
-## `chainsaw.RigidbodyRemoveTarget`
-
-_No fields or methods._
-
 ## `chainsaw.RigidbodyRemoveTarget[]`
 
 **Methods**
@@ -445338,14 +442810,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 ```
 
-## `chainsaw.RoomRandomizer`
-
-_No fields or methods._
-
-## `chainsaw.RopewayPlayerActionUpdaterInputUnit`
-
-_No fields or methods._
-
 ## `chainsaw.RotaryBeaconLight`
 
 **Fields**
@@ -445471,10 +442935,6 @@ _No fields or methods._
 :chainsaw.RotateGimmickOperateGuiBehavior.ButtonType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RotateGimmickOperateGuiBehavior.ButtonType)
 ```
-
-## `chainsaw.RotateGimmickOperateGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.RotateGimmickOperateGuiBehavior.Data`
 
@@ -445778,10 +443238,6 @@ sdk.call_native_func(nil, type_def, "init", ...)  -- System.Void init(chainsaw.R
 :chainsaw.RuleStratum.Container get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.RuleStratum.Container)
 ```
-
-## `chainsaw.RuleStratum.Particle`
-
-_No fields or methods._
 
 ## `chainsaw.RuleStratum.ParticleChapter`
 
@@ -446402,10 +443858,6 @@ _No fields or methods._
 :chainsaw.SaccadeContext createContext()
 ```
 
-## `chainsaw.SaccadeContext`
-
-_No fields or methods._
-
 ## `chainsaw.SaccadeContext[]`
 
 **Methods**
@@ -446512,10 +443964,6 @@ _No fields or methods._
 ```lua
 :System.Void clear()
 ```
-
-## `chainsaw.SaccadeRequest`
-
-_No fields or methods._
 
 ## `chainsaw.SaccadeRequest[]`
 
@@ -447569,10 +445017,6 @@ sdk.call_native_func(nil, type_def, "getSaveSlotNum", ...)  -- System.Int32 getS
 :System.Void updateScrollLoopSetting()
 ```
 
-## `chainsaw.SaveLoadMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.SaveLoadMenuGuiBehavior.OpenMode`
 
 **Fields**
@@ -448109,14 +445553,6 @@ _No fields or methods._
 :System.Void loadSystemSaveData(share.SaveDataBase)
 :share.SaveDataBase saveSystemSaveData()
 ```
-
-## `chainsaw.SaveSlotInfoManager.SystemSaveData`
-
-_No fields or methods._
-
-## `chainsaw.SaveSlotInfoManagerBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.SaveTransferringFlowBase`
 
@@ -448918,14 +446354,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :chainsaw.ScenarioFlagManager.Group get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.ScenarioFlagManager.Group)
 ```
-
-## `chainsaw.ScenarioFlagManager.PayloadBase`
-
-_No fields or methods._
-
-## `chainsaw.ScenarioFlagManager.PayloadFlagBucket`
-
-_No fields or methods._
 
 ## `chainsaw.ScenarioFlagManager.PayloadFlagOnRequest`
 
@@ -449872,10 +447300,6 @@ sdk.call_native_func(nil, type_def, "hasFlag", ...)  -- System.Boolean hasFlag(c
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.ScreenAreaSettingGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.ScreenAreaSettingGuiBehavior.GuideSizeState`
 
 **Fields**
@@ -450115,10 +447539,6 @@ sdk.call_native_func(nil, type_def, "get_BRIGHTNESS_STEP_COUNT", ...)  -- System
 :System.Void set_Item(System.Int32, chainsaw.SelectBrightnessBaseGuiBehavior.EndType)
 ```
 
-## `chainsaw.SelectBrightnessBaseGuiBehavior.SelectBrightnessBaseGuiCloseArgs`
-
-_No fields or methods._
-
 ## `chainsaw.SelectBrightnessBaseGuiBehavior.SelectBrightnessBaseGuiOpenArgs`
 
 **Fields**
@@ -450181,14 +447601,6 @@ _No fields or methods._
 :System.Void chainsaw.IParamAppliableGui<chainsaw.SelectBrightnessBlackboardBehavior.OpenParam>.applyGuiParam(chainsaw.IGuiParameterApplier`1<chainsaw.SelectBrightnessBlackboardBehavior.OpenParam>)
 :System.Boolean chainsaw.IValidatable.get_Valid()
 ```
-
-## `chainsaw.SelectBrightnessBlackboardBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.SelectBrightnessBlackboardBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.SelectBrightnessBlackboardControlBehavior`
 
@@ -450265,10 +447677,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "get_BRIGHTNESS_STEP_COUNT", ...)  -- System.Int32 get_BRIGHTNESS_STEP_COUNT()
 ```
-
-## `chainsaw.SelectBrightnessGuiBehaviorBase.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.SelectBrightnessGuiBehaviorBase.EndType`
 
@@ -450455,10 +447863,6 @@ sdk.call_native_func(nil, type_def, "calcBrightnessRateFromSlider", ...)  -- Sys
 :System.Void updateEngineBrightnessValue(System.Int32)
 ```
 
-## `chainsaw.SelectHDRBrightnessGuiBehavior.SelectBrightnessHDRGuiCloseArgs`
-
-_No fields or methods._
-
 ## `chainsaw.SelectHDRBrightnessGuiBehavior.SelectBrightnessHDRGuiOpenArgs`
 
 **Methods**
@@ -450501,10 +447905,6 @@ _No fields or methods._
 :System.Void setupPanel()
 :System.Void updateEngineBrightnessValue(System.Int32)
 ```
-
-## `chainsaw.SelectHDRBrightnessMaxGuiBehavior.SelectBrightnessHDRMaxGuiCloseArgs`
-
-_No fields or methods._
 
 ## `chainsaw.SelectHDRBrightnessMaxGuiBehavior.SelectBrightnessHDRMaxGuiOpenArgs`
 
@@ -450551,10 +447951,6 @@ _No fields or methods._
 :System.Void updateEngineBrightnessValue(System.Int32)
 ```
 
-## `chainsaw.SelectSDRBrightnessGammaGuiBehavior.SelectBrightnessSDRGammaGuiCloseArgs`
-
-_No fields or methods._
-
 ## `chainsaw.SelectSDRBrightnessGammaGuiBehavior.SelectBrightnessSDRGammaGuiOpenArgs`
 
 **Methods**
@@ -450598,10 +447994,6 @@ _No fields or methods._
 :System.Void updateEngineBrightnessValue(System.Int32)
 ```
 
-## `chainsaw.SelectSDRBrightnessMaxGuiBehavior.SelectBrightnessSDRMaxGuiCloseArgs`
-
-_No fields or methods._
-
 ## `chainsaw.SelectSDRBrightnessMaxGuiBehavior.SelectBrightnessSDRMaxGuiOpenArgs`
 
 **Methods**
@@ -450643,10 +448035,6 @@ _No fields or methods._
 :System.Void setupPanel()
 :System.Void updateEngineBrightnessValue(System.Int32)
 ```
-
-## `chainsaw.SelectSDRBrightnessMinGuiBehavior.SelectBrightnessSDRMinGuiCloseArgs`
-
-_No fields or methods._
 
 ## `chainsaw.SelectSDRBrightnessMinGuiBehavior.SelectBrightnessSDRMinGuiOpenArgs`
 
@@ -452445,10 +449833,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 ```
 
-## `chainsaw.ShellGeneratorBase`
-
-_No fields or methods._
-
 ## `chainsaw.ShellGeneratorBase.GenerateInfoBase`
 
 **Fields**
@@ -452742,10 +450126,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_ShellDummyManageUserData(chainsaw.ShellDummyManageUserData)
 :System.Void start()
 ```
-
-## `chainsaw.ShellOptionInfo`
-
-_No fields or methods._
 
 ## `chainsaw.ShellThrowingHarpoon`
 
@@ -454515,14 +451895,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.ShootingGalleryArea`
-
-_No fields or methods._
-
-## `chainsaw.ShootingGalleryController`
-
-_No fields or methods._
-
 ## `chainsaw.ShootingGalleryControllerBase`
 
 **Fields**
@@ -454536,10 +451908,6 @@ _No fields or methods._
 ```lua
 :System.Single getScaledTime()
 ```
-
-## `chainsaw.ShootingGalleryEndArea`
-
-_No fields or methods._
 
 ## `chainsaw.ShootingGalleryGachaMenuGuiBehavior`
 
@@ -454602,10 +451970,6 @@ _No fields or methods._
 :System.Void updateCaption()
 :System.Void updateInventoryDraw()
 ```
-
-## `chainsaw.ShootingGalleryGachaMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ShootingGalleryGachaMenuGuiBehavior.OpenParam`
 
@@ -455128,14 +452492,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.ShootingGallerySceneFlowController.Phase)
 ```
 
-## `chainsaw.ShootingGalleryTarget`
-
-_No fields or methods._
-
-## `chainsaw.ShootingGalleryUserdata`
-
-_No fields or methods._
-
 ## `chainsaw.ShootingLockOnGuiBehavior`
 
 **Fields**
@@ -455159,10 +452515,6 @@ _No fields or methods._
 :System.Void onSetup(chainsaw.GuiControllerBehavior)
 :System.Void updatePanel(via.gui.Panel, System.Boolean)
 ```
-
-## `chainsaw.ShootingLockOnGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.ShootingLockOnGuiBehavior.PanelState`
 
@@ -455333,10 +452685,6 @@ _No fields or methods._
 :System.Void .ctor(chainsaw.Item)
 :System.Void setup(chainsaw.Item)
 ```
-
-## `chainsaw.ShopRewardTextureHolderUserData`
-
-_No fields or methods._
 
 ## `chainsaw.ShortcuGuiDisplayType`
 
@@ -456652,10 +454000,6 @@ sdk.call_native_func(nil, type_def, "SpeedConversion", ...)  -- System.Single Sp
 :System.Void set_Item(System.Int32, chainsaw.SkeletonObserverRotateUserdataElement)
 ```
 
-## `chainsaw.SkeletonObserverUserDataBase`
-
-_No fields or methods._
-
 ## `chainsaw.SkeletonObserverUserDataBase[]`
 
 **Methods**
@@ -457089,10 +454433,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 :System.Void update()
 ```
-
-## `chainsaw.SkyZone`
-
-_No fields or methods._
 
 ## `chainsaw.SkyZoneBlendController`
 
@@ -464489,14 +461829,6 @@ sdk.call_native_func(nil, type_def, "getMainListener", ...)  -- chainsaw.SoundLi
 :System.Void createUpdater(System.Type, System.Int32)
 ```
 
-## `chainsaw.SoundManagerUpdater_10`
-
-_No fields or methods._
-
-## `chainsaw.SoundManagerUpdater_20`
-
-_No fields or methods._
-
 ## `chainsaw.SoundManagerUpdater_30`
 
 **Methods**
@@ -464504,10 +461836,6 @@ _No fields or methods._
 ```lua
 :System.Void lateUpdate()
 ```
-
-## `chainsaw.SoundManagerUpdater_40`
-
-_No fields or methods._
 
 ## `chainsaw.SoundManagerUpdater_50`
 
@@ -469999,10 +467327,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_EntryList(chainsaw.SpaceInfoConnection)
 ```
 
-## `chainsaw.SpaceInfoDataCatalog`
-
-_No fields or methods._
-
 ## `chainsaw.SpaceInfoForEnvSceneDB`
 
 **Fields**
@@ -470130,10 +467454,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.SpaceInfo)
 ```
 
-## `chainsaw.SpaceInfoable`
-
-_No fields or methods._
-
 ## `chainsaw.SpawnController`
 
 **Fields**
@@ -470223,10 +467543,6 @@ _No fields or methods._
 :System.Void uninitApplier(chainsaw.SpecialEyeColorOptionApplier.ColorOptionApplierBase[])
 :System.Void update()
 ```
-
-## `chainsaw.SpecialEyeColorOptionApplier.ColorOptionApplierBase`
-
-_No fields or methods._
 
 ## `chainsaw.SpecialEyeColorOptionApplier.ColorOptionApplierBase[]`
 
@@ -470867,10 +468183,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.SpecialEyeStartupGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.SpecialEyeStartupGuiBehavior.OpenParam`
 
@@ -473790,10 +471102,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.StagePairList)
 ```
 
-## `chainsaw.StageScenarioJumper`
-
-_No fields or methods._
-
 ## `chainsaw.StageScenarioJumper.Phase`
 
 **Fields**
@@ -474490,10 +471798,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.StatueHudGuiBehavior.Step)
 :System.Void setup(chainsaw.StatueHudGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.StatueHudGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.StatueHudGuiBehavior.CountPlayState`
 
@@ -476745,14 +474049,6 @@ sdk.call_native_func(nil, type_def, "getValidity", ...)  -- System.Boolean getVa
 :chainsaw.StrategyManager.GunLineEffectorInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.StrategyManager.GunLineEffectorInfo)
 ```
-
-## `chainsaw.StrategyManager.IMap`
-
-_No fields or methods._
-
-## `chainsaw.StrategyManager.IPathfinder`
-
-_No fields or methods._
 
 ## `chainsaw.StrategyManager.Map`
 
@@ -479141,10 +476437,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Components", ...)  -- System.Bool
 :System.Void set_AmmoCount(System.Int32)
 :System.Void set_AmmoID(chainsaw.ItemID)
 ```
-
-## `chainsaw.SystemContextIDDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.SystemContextIDDefinition.Index`
 
@@ -482169,10 +479461,6 @@ sdk.call_native_func(nil, type_def, "isTargetLayer", ...)  -- System.Boolean isT
 :System.Void set_Item(System.Int32, chainsaw.TextureHolderListUserData.Param)
 ```
 
-## `chainsaw.TextureHolderUserDataBase`
-
-_No fields or methods._
-
 ## `chainsaw.TextureLoaderBase`
 
 **Fields**
@@ -482305,10 +479593,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.ThankYouGuiBehavior.Step)
 :System.Void setup()
 ```
-
-## `chainsaw.ThankYouGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.ThankYouGuiBehavior.OpenParam`
 
@@ -482928,10 +480212,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.CommandScriptLibrary.Command convertAuto(chainsaw.ThinkScriptUserData.CommandData)
 ```
 
-## `chainsaw.ThinkScriptLibrary.PublicCmdFunc`
-
-_No fields or methods._
-
 ## `chainsaw.ThinkScriptLibrary.PublicCmdIf`
 
 **Methods**
@@ -482997,10 +480277,6 @@ _No fields or methods._
 :System.Void set_WAYPOINT(chainsaw.ThinkScriptLibrary.PublicCmdWayPoint)
 :System.Void setupAuto(chainsaw.CommandScriptLibrary.Context)
 ```
-
-## `chainsaw.ThinkScriptLibrary.ThinkScriptVariableHash`
-
-_No fields or methods._
 
 ## `chainsaw.ThinkScriptUserData`
 
@@ -483830,10 +481106,6 @@ sdk.call_native_func(nil, type_def, "get_ThrowingParam_Group", ...)  -- System.B
 :System.Void set_Item(System.Int32, chainsaw.TicketInfoGui.RootState)
 ```
 
-## `chainsaw.TicketInfoGui.TicketInfoLayoutSetting`
-
-_No fields or methods._
-
 ## `chainsaw.TimeBonusRateGuiBehavior`
 
 **Fields**
@@ -483905,10 +481177,6 @@ _No fields or methods._
 :chainsaw.TimeBonusRateGuiBehavior.BonusRatePlayState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.TimeBonusRateGuiBehavior.BonusRatePlayState)
 ```
-
-## `chainsaw.TimeBonusRateGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.TimeBonusRateGuiBehavior.MainPlayState`
 
@@ -485810,10 +483078,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.TimelineEventDefine.ID)
 ```
 
-## `chainsaw.TimelineEventDynamicResourceBase`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventDynamicResourceBindItemList`
 
 **Fields**
@@ -487150,10 +484414,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.TimelineEventEnvTransRequestSetting.ObjectAndEffectNames)
 ```
 
-## `chainsaw.TimelineEventFlowID`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventForceChangeParent`
 
 **Fields**
@@ -487633,10 +484893,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "requestResetLight", ...)  -- System.Void requestResetLight()
 ```
 
-## `chainsaw.TimelineEventLightResetterRoot`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventLightResetterRoot[]`
 
 **Methods**
@@ -487901,10 +485157,6 @@ _No fields or methods._
 :System.Void resetValue(via.render.SpotLight)
 :System.Void setupValue(via.render.SpotLight)
 ```
-
-## `chainsaw.TimelineEventLightSetManager`
-
-_No fields or methods._
 
 ## `chainsaw.TimelineEventManager`
 
@@ -490764,10 +488016,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.TimelineEventPosteffectUserDataSetting)
 ```
 
-## `chainsaw.TimelineEventPreviewCameraSetter`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventPropertyBroker`
 
 **Static methods**
@@ -491993,18 +489241,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void disableShadow(via.render.IESLight)
 ```
 
-## `chainsaw.TimelineEventSetLensflare`
-
-_No fields or methods._
-
-## `chainsaw.TimelineEventSetLightProbes`
-
-_No fields or methods._
-
-## `chainsaw.TimelineEventSetLightRoot`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventSetPointLight`
 
 **Methods**
@@ -492057,10 +489293,6 @@ _No fields or methods._
 :System.Void disableShadow(via.render.SpotLight)
 ```
 
-## `chainsaw.TimelineEventSimulationRecorder`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventSkyMediator`
 
 **Methods**
@@ -492068,10 +489300,6 @@ _No fields or methods._
 ```lua
 :System.Void onUpdate()
 ```
-
-## `chainsaw.TimelineEventSkyUserDataSetting`
-
-_No fields or methods._
 
 ## `chainsaw.TimelineEventStageStateChanger_cp11`
 
@@ -492290,10 +489518,6 @@ sdk.call_native_func(nil, type_def, "setStageActive", ...)  -- System.Void setSt
 :System.Void set_Item(System.Int32, chainsaw.TimelineEventTextController)
 ```
 
-## `chainsaw.TimelineEventWeatherMediator`
-
-_No fields or methods._
-
 ## `chainsaw.TimelineEventWeatherUserDataGroup`
 
 **Fields**
@@ -492301,10 +489525,6 @@ _No fields or methods._
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `UserData` | `chainsaw.WeatherInformationUserdata` |  | 16 |
-
-## `chainsaw.TimelineEventWeatherUserDataSetting`
-
-_No fields or methods._
 
 ## `chainsaw.TimelineEventWork`
 
@@ -492879,10 +490099,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.TimerGuiBehavior.Step)
 :System.Void setup(chainsaw.TimerGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.TimerGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.TimerGuiBehavior.OpenParam`
 
@@ -493770,10 +490986,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.TipsSettingUserdata.TipsCharacterOverrideSettingParam)
 ```
 
-## `chainsaw.TipsTextureHolderUserData`
-
-_No fields or methods._
-
 ## `chainsaw.TipsTextureID`
 
 **Fields**
@@ -494082,10 +491294,6 @@ sdk.call_native_func(nil, type_def, "getUVPatternNo", ...)  -- System.UInt32 get
 :System.Void set_EndSkipJumpToFrameRate(System.Single)
 :System.Void setup(chainsaw.TitleAnimGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.TitleAnimGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.TitleAnimGuiBehavior.OpenParam`
 
@@ -495365,10 +492573,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void initInteractTrigger(chainsaw.InteractTrigger)
 ```
 
-## `chainsaw.TutorialAdditionalConditionBase`
-
-_No fields or methods._
-
 ## `chainsaw.TutorialAdditionalConditionBase[]`
 
 **Methods**
@@ -495506,10 +492710,6 @@ _No fields or methods._
 :chainsaw.gui.TutorialDispConditionType get_Condition()
 :chainsaw.CharacterKindID get_Target()
 ```
-
-## `chainsaw.TutorialDispEndConditionBase`
-
-_No fields or methods._
 
 ## `chainsaw.TutorialDispEndConditionBase[]`
 
@@ -496015,10 +493215,6 @@ sdk.call_native_func(nil, type_def, "generateCondition", ...)  -- chainsaw.Tutor
 :System.Void set_LastTrgTutorialId(chainsaw.gui.TutorialID)
 :System.Void setup(chainsaw.TutorialGuiBehavior.OpenParam)
 ```
-
-## `chainsaw.TutorialGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.TutorialGuiBehavior.OpenParam`
 
@@ -496786,10 +493982,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void update()
 ```
 
-## `chainsaw.UVSequenceResourceDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.UVSequenceResourceKind`
 
 **Fields**
@@ -497225,10 +494417,6 @@ sdk.call_native_func(nil, type_def, "generateSetting", ...)  -- chainsaw.UVSeque
 :System.Void unregisterInventoryEvent()
 :System.Int32 useArmor(System.Int32)
 ```
-
-## `chainsaw.UniqueInventoryDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.UniqueInventoryItem`
 
@@ -498980,10 +496168,6 @@ sdk.call_native_func(nil, type_def, "xz", ...)  -- via.vec3 xz(via.vec3)
 :System.Void setup(chainsaw.VehicleGuiBaseBehavior.OpenParam)
 ```
 
-## `chainsaw.VehicleGuiBaseBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.VehicleGuiBaseBehavior.OpenParam`
 
 **Fields**
@@ -500198,14 +497382,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_CurrStep(chainsaw.VitalGuiBehavior.Step)
 :System.Void set_RemainingDisplayTime(System.Single)
 ```
-
-## `chainsaw.VitalGuiBehavior.BlinkParam`
-
-_No fields or methods._
-
-## `chainsaw.VitalGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.VitalGuiBehavior.HealPreviewParam`
 
@@ -501630,10 +498806,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start(via.behaviortree.ActionArg)
 ```
 
-## `chainsaw.WeaponBehaviorTreeAction_DrawRapidFrame`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponBehaviorTreeAction_McApplyPumpActionRapidSpeed`
 
 **Fields**
@@ -502453,10 +499625,6 @@ sdk.call_native_func(nil, type_def, "get_Group_Interpolation", ...)  -- System.B
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.WeaponCustomManagerBehavior`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponCustomStageInfo`
 
@@ -503658,10 +500826,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.WeaponCustomUserdata.LimitBreakCustomStage)
 ```
 
-## `chainsaw.WeaponCustomUserdata.LimitBreakParam`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponCustomUserdata.LimitBreak[]`
 
 **Methods**
@@ -503711,10 +500875,6 @@ _No fields or methods._
 :chainsaw.WeaponCustomUserdata.PolishCustomStage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.WeaponCustomUserdata.PolishCustomStage)
 ```
-
-## `chainsaw.WeaponCustomUserdata.PolishParam`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponCustomUserdata.RapidCustomStage`
 
@@ -503890,10 +501050,6 @@ _No fields or methods._
 :chainsaw.WeaponCustomUserdata.RepairCustomStage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.WeaponCustomUserdata.RepairCustomStage)
 ```
-
-## `chainsaw.WeaponCustomUserdata.RepairParam`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponCustomUserdata.StabilizationCustomStage`
 
@@ -504762,10 +501918,6 @@ _No fields or methods._
 :System.Void .ctor()
 ```
 
-## `chainsaw.WeaponCustomUserdata_Demo.LimitBreakParam`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponCustomUserdata_Demo.LimitBreak[]`
 
 **Methods**
@@ -504816,10 +501968,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.WeaponCustomUserdata_Demo.PolishCustomStage)
 ```
 
-## `chainsaw.WeaponCustomUserdata_Demo.PolishParam`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponCustomUserdata_Demo.RepairCustomStage`
 
 **Methods**
@@ -504848,10 +501996,6 @@ _No fields or methods._
 :chainsaw.WeaponCustomUserdata_Demo.RepairCustomStage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.WeaponCustomUserdata_Demo.RepairCustomStage)
 ```
-
-## `chainsaw.WeaponCustomUserdata_Demo.RepairParam`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponCustomUserdata_Demo.WeaponCustom`
 
@@ -507766,10 +504910,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup(chainsaw.WeaponShortcut2GuiBehavior.OpenParam)
 ```
 
-## `chainsaw.WeaponShortcut2GuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponShortcut2GuiBehavior.OpenParam`
 
 **Fields**
@@ -507839,10 +504979,6 @@ _No fields or methods._
 :System.Void .ctor()
 :System.Boolean chainsaw.IValidatable.get_Valid()
 ```
-
-## `chainsaw.WeaponShortcutGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponShortcutGuiControlBehavior`
 
@@ -507920,10 +505056,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.WeaponShortcutRegistGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.WeaponShortcutRegistGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.WeaponShortcutRegistGuiBehavior.DrawParam2`
 
 **Fields**
@@ -507931,10 +505063,6 @@ _No fields or methods._
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `InventoryController` | `chainsaw.CsInventoryController` |  | 16 |
-
-## `chainsaw.WeaponShortcutRegistGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.WeaponShortcutRegistGuiBehavior.Step`
 
@@ -508487,10 +505615,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `chainsaw.WeatherZone`
-
-_No fields or methods._
-
 ## `chainsaw.WeatherZoneParam`
 
 **Fields**
@@ -508836,10 +505960,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor()
 :System.Void awake()
 ```
-
-## `chainsaw.WindBase`
-
-_No fields or methods._
 
 ## `chainsaw.WindCatalogHolder`
 
@@ -509638,14 +506758,6 @@ sdk.call_native_func(nil, type_def, "attachWindSettingEffect", ...)  -- System.V
 :System.Void clear()
 :System.Void copyFrom(chainsaw.ChainsawGuiApplyParamBase)
 ```
-
-## `chainsaw.WirelessCommuHudGuiBehavior.CloseParam`
-
-_No fields or methods._
-
-## `chainsaw.WirelessCommuHudGuiBehavior.OpenParam`
-
-_No fields or methods._
 
 ## `chainsaw.WirelessCommuHudGuiBehavior.Phase`
 
@@ -510775,14 +507887,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.animation.UpdateTiming get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.animation.UpdateTiming)
 ```
-
-## `chainsaw.attribute.IgnoreSystemMenuMemberAttribute`
-
-_No fields or methods._
-
-## `chainsaw.attribute.SystemMenuMemberAttribute`
-
-_No fields or methods._
 
 ## `chainsaw.behaviortree.ActionInfo`
 
@@ -513579,10 +510683,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Head(chainsaw.Ch1f2z0HeadUpdater)
 ```
 
-## `chainsaw.ch1f2z0BehaviorTreeCondition_MFSM_CheckCancelTerreainMove`
-
-_No fields or methods._
-
 ## `chainsaw.ch1f2z0BehaviorTreeCondition_MFSM_CheckTargetCenter`
 
 **Fields**
@@ -515581,10 +512681,6 @@ sdk.call_native_func(nil, type_def, "getVibrationPower", ...)  -- System.Single 
 :System.Void set_Head(chainsaw.Ch4fbz0HeadUpdater)
 ```
 
-## `chainsaw.ch4fbz0BehaviorTreeCondition_MFSM_CheckCancelTerreainMove`
-
-_No fields or methods._
-
 ## `chainsaw.ch4fbz0BehaviorTreeCondition_MFSM_CheckTargetCenter`
 
 **Fields**
@@ -516129,10 +513225,6 @@ _No fields or methods._
 :System.Void set_ActionAfterIntervalForm(System.Single)
 :System.Void set_IsAttackIntervalCheckForm(System.Boolean)
 ```
-
-## `chainsaw.character.ActionCondition_AttackDataOnlyWorker`
-
-_No fields or methods._
 
 ## `chainsaw.character.ActionCondition_AttackShotCh1c8z0`
 
@@ -519661,10 +516753,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.character.ActionProperty)
 ```
 
-## `chainsaw.character.AppendActionGroupBase`
-
-_No fields or methods._
-
 ## `chainsaw.character.AppendActionGroupBase[]`
 
 **Methods**
@@ -520668,10 +517756,6 @@ sdk.call_native_func(nil, type_def, "isCostume12", ...)  -- System.Boolean isCos
 :chainsaw.character.ConditionWorkerBase onCreateWorker()
 ```
 
-## `chainsaw.character.Ch1d4z0ActionCondition_ThreatWorker`
-
-_No fields or methods._
-
 ## `chainsaw.character.Ch1d6z0ActionCondition_Attack`
 
 **Fields**
@@ -521514,10 +518598,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Boolean evaluate(chainsaw.EnemyActionArg)
 :chainsaw.character.EnemyActionCondition_ActionTargetIsOnBoat get_Condition()
 ```
-
-## `chainsaw.character.IAttackConditionData`
-
-_No fields or methods._
 
 ## `chainsaw.character.MergedActionUserData`
 
@@ -525914,10 +522994,6 @@ sdk.call_native_func(nil, type_def, "get_WeakPointMax", ...)  -- System.Int32 ge
 :System.Void set_Item(System.Int32, chainsaw.character.ch1c0z0.Ch1c0TargetDistChecker.DistData)
 ```
 
-## `chainsaw.character.ch1c0z0.Ch1c0WeaponSetterDefine`
-
-_No fields or methods._
-
 ## `chainsaw.character.ch1c0z0.Ch1c0z0SiegeGlobalContext`
 
 **Fields**
@@ -529183,10 +526259,6 @@ sdk.call_native_func(nil, type_def, "<searchRestraintAttackerNum>g__isEnableComb
 :System.Void updateInfo()
 :System.Void updateSquadCapacity()
 ```
-
-## `chainsaw.character.ch1c0z0.group.FormationUpdaterBase`
-
-_No fields or methods._
 
 ## `chainsaw.character.ch1c0z0.group.FormationUpdaterBase[]`
 
@@ -534929,10 +532001,6 @@ sdk.call_native_func(nil, type_def, "getType", ...)  -- chainsaw.character.ch1d4
 :System.Boolean update(System.Single)
 ```
 
-## `chainsaw.character.ch1d4z0.BreakPartsInfo.Repair.WorkBase`
-
-_No fields or methods._
-
 ## `chainsaw.character.ch1d4z0.BreakPartsInfo.Repair.WorkBase[]`
 
 **Methods**
@@ -536511,10 +533579,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :via.Quaternion get_ReverseRotation()
 :via.Quaternion get_Rotation()
 ```
-
-## `chainsaw.character.ch1e0z0.WallMovePoint`
-
-_No fields or methods._
 
 ## `chainsaw.character.ch1e0z0.WallMovePoint[]`
 
@@ -548222,10 +545286,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.character.ch4fa.BattlePhase)
 ```
 
-## `chainsaw.character.ch4fa.Ch4faActionCancelTracks`
-
-_No fields or methods._
-
 ## `chainsaw.character.ch4fa.Ch4faActionPoint`
 
 **Fields**
@@ -548471,10 +545531,6 @@ _No fields or methods._
 :via.vec3 getAreaCenterPos(chainsaw.VariableColliderShape)
 ```
 
-## `chainsaw.character.ch4fa.Ch4faDownedTracks`
-
-_No fields or methods._
-
 ## `chainsaw.character.ch4fa.Ch4faMoveSettingsBase`
 
 **Fields**
@@ -548509,10 +545565,6 @@ _No fields or methods._
 :System.Boolean checkRestart(System.Single, System.Single)
 :System.Boolean checkStop(System.Single, System.Single)
 ```
-
-## `chainsaw.character.ch4fa.Ch4faMoveTracks`
-
-_No fields or methods._
 
 ## `chainsaw.character.ch4fa.Ch4faRoofArea`
 
@@ -553729,10 +550781,6 @@ sdk.call_native_func(nil, type_def, "getSkipID", ...)  -- System.Int32 getSkipID
 | `SetFreeMove` | `System.UInt32` | yes | 16 |
 | `SetLie` | `System.UInt32` | yes | 16 |
 
-## `chainsaw.character.ch8g3z0.Ch8g3z0Definition`
-
-_No fields or methods._
-
 ## `chainsaw.character.ch8g3z0.Ch8g3z0Definition.DeadType`
 
 **Fields**
@@ -554260,10 +551308,6 @@ sdk.call_native_func(nil, type_def, "getMoveType", ...)  -- chainsaw.character.c
 | `WindowBreakThorugh_Fall` | `System.UInt32` | yes | 16 |
 | `WindowThorugh` | `System.UInt32` | yes | 16 |
 | `WindowThorugh_Fall` | `System.UInt32` | yes | 16 |
-
-## `chainsaw.collision.ActionSignUserData`
-
-_No fields or methods._
 
 ## `chainsaw.collision.AttackDataCatalogRegister`
 
@@ -555379,10 +552423,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.collision.HitInfo)
 ```
 
-## `chainsaw.collision.HitUserDataRoot`
-
-_No fields or methods._
-
 ## `chainsaw.collision.MotionColliderTrack`
 
 **Fields**
@@ -555403,10 +552443,6 @@ _No fields or methods._
 :System.Void set_KeyNameHash(System.UInt32)
 :System.Void set_RequestSetGroup(System.UInt32)
 ```
-
-## `chainsaw.collision.ParryStartUserData`
-
-_No fields or methods._
 
 ## `chainsaw.collision.PartnerActorZoneUserData`
 
@@ -555548,14 +552584,6 @@ _No fields or methods._
 :chainsaw.collision.PressGroupID get_GroupID()
 :System.Void set_GroupID(chainsaw.collision.PressGroupID)
 ```
-
-## `chainsaw.collision.SuspensionBridgeSensorUserData`
-
-_No fields or methods._
-
-## `chainsaw.collision.TouchUserData`
-
-_No fields or methods._
 
 ## `chainsaw.cp1011BinocularsOptionSettings`
 
@@ -556633,10 +553661,6 @@ sdk.call_native_func(nil, type_def, "showGmGeneralGuide", ...)  -- System.Void s
 :System.Void unloadTexture()
 ```
 
-## `chainsaw.gui.ArtWorkDetailGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.ArtWorkDetailGuiBehavior.OpenParam`
 
 **Fields**
@@ -556833,10 +553857,6 @@ _No fields or methods._
 :System.Void updateNewMark(chainsaw.ArtWorkId)
 :System.Void updateScrollLoopSetting()
 ```
-
-## `chainsaw.gui.ArtWorkListGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ArtWorkListGuiBehavior.OpenParam`
 
@@ -557097,10 +554117,6 @@ _No fields or methods._
 | `CH_GUI_CRAFT_UNIQUE_19` | `System.UInt32` | yes | 16 |
 | `CH_GUI_CRAFT_UNIQUE_20` | `System.UInt32` | yes | 16 |
 
-## `chainsaw.gui.CaseCustomGuiObjectBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.CaseCustomMenuGuiBehavior`
 
 **Fields**
@@ -557198,10 +554214,6 @@ _No fields or methods._
 :System.Void updateTargetItem()
 :System.Void updateTargetItem(chainsaw.gui.casecustom.CaseCustomSelectType, chainsaw.gui.casecustom.CaseCustomInfoBase)
 ```
-
-## `chainsaw.gui.CaseCustomMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.CaseCustomMenuGuiBehavior.OpenParam`
 
@@ -558898,10 +555910,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup(chainsaw.CraftWindowGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.gui.CraftWindowGuiDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.gui.CraftWindowGuiEnumDefinition`
 
 **Fields**
@@ -560369,10 +557377,6 @@ sdk.call_native_func(nil, type_def, "isSoundSupportOnlyAnalyzeType", ...)  -- Sy
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.gui.ExContentsShopGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.ExContentsShopGuiBehavior.OpenParam`
 
 **Fields**
@@ -560682,10 +557686,6 @@ sdk.call_native_func(nil, type_def, "isCP12Item", ...)  -- System.Boolean isCP12
 :System.Void switchGuideMessage()
 ```
 
-## `chainsaw.gui.FigureViewerDetailGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.FigureViewerDetailGuiBehavior.OpenParam`
 
 **Fields**
@@ -560865,10 +557865,6 @@ _No fields or methods._
 :System.Void updateNewMark(chainsaw.FigureId)
 :System.Void updateScrollLoopSetting()
 ```
-
-## `chainsaw.gui.FigureViewerListGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.FigureViewerListGuiBehavior.OpenParam`
 
@@ -561991,10 +558987,6 @@ sdk.call_native_func(nil, type_def, "getGuiHash", ...)  -- System.UInt32 getGuiH
 :System.Void set_Item(System.Int32, chainsaw.gui.GuiHashGenerateType)
 ```
 
-## `chainsaw.gui.GuiLightControllerBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.GuiLightControllerBase[]`
 
 **Methods**
@@ -562015,10 +559007,6 @@ _No fields or methods._
 :chainsaw.gui.GuiLightControllerBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.GuiLightControllerBase)
 ```
-
-## `chainsaw.gui.GuiLightDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.gui.GuiLightType`
 
@@ -562140,10 +559128,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, chainsaw.gui.GuiObserverBase)
 ```
 
-## `chainsaw.gui.GuiObserverNotifyBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.GuiObserverNotifyType`
 
 **Fields**
@@ -562174,10 +559158,6 @@ _No fields or methods._
 :chainsaw.gui.GuiObserverNotifyType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.GuiObserverNotifyType)
 ```
-
-## `chainsaw.gui.GuiObserverNotify_OnReload`
-
-_No fields or methods._
 
 ## `chainsaw.gui.GuiObserverType`
 
@@ -562267,10 +559247,6 @@ sdk.call_native_func(nil, type_def, "setItemIcon_uvs4050", ...)  -- System.Boole
 :chainsaw.gui.GuiLightType get_LightType()
 :System.Void setIntensity(System.Single)
 ```
-
-## `chainsaw.gui.GuiReNetDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.gui.GuiSoundType`
 
@@ -562591,26 +559567,6 @@ _No fields or methods._
 :chainsaw.gui.GuiStateBase.ForceEndReason get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.GuiStateBase.ForceEndReason)
 ```
-
-## `chainsaw.gui.GuiStateEnterParamBase`
-
-_No fields or methods._
-
-## `chainsaw.gui.GuiStateExitParamBase`
-
-_No fields or methods._
-
-## `chainsaw.gui.GuiStateExtension`
-
-_No fields or methods._
-
-## `chainsaw.gui.GuiStateInitParam`
-
-_No fields or methods._
-
-## `chainsaw.gui.GuiStateSetupParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.GuiStateUpdateArgs`
 
@@ -564865,10 +561821,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void show()
 ```
 
-## `chainsaw.gui.KeyTreasureCombineGuiDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.gui.KeyTreasureHeaderGui`
 
 **Fields**
@@ -566120,10 +563072,6 @@ sdk.call_native_func(nil, type_def, "getJewelShape", ...)  -- chainsaw.gui.Jewel
 :System.Void set_Item(System.Int32, chainsaw.gui.MessageDispParam.Data)
 ```
 
-## `chainsaw.gui.MessageDispParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.MessageEmotionParam`
 
 **Fields**
@@ -566181,10 +563129,6 @@ _No fields or methods._
 :chainsaw.gui.MessageEmotionParam.Data get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.MessageEmotionParam.Data)
 ```
-
-## `chainsaw.gui.MessageEmotionParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.MessageHandleRequestArgs`
 
@@ -566267,10 +563211,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.gui.MessageOptionParam.Data get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.MessageOptionParam.Data)
 ```
-
-## `chainsaw.gui.MessageOptionParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.MessageParamBase`
 
@@ -566510,10 +563450,6 @@ _No fields or methods._
 :System.String getSpeakerId()
 ```
 
-## `chainsaw.gui.MessageSoundParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.MessageSoundSupportParam`
 
 **Fields**
@@ -566643,10 +563579,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :chainsaw.gui.MessageUiParam.Data get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.MessageUiParam.Data)
 ```
-
-## `chainsaw.gui.MessageUiParamBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.MessageUserParamDefinition`
 
@@ -567197,10 +564129,6 @@ sdk.call_native_func(nil, type_def, "getPriority", ...)  -- chainsaw.gui.DialogP
 :chainsaw.gui.PhotoStyleID get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.PhotoStyleID)
 ```
-
-## `chainsaw.gui.PopupGuiEnterStateArgsBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.PopupGuiStateBase`
 
@@ -569884,10 +566812,6 @@ sdk.call_native_func(nil, type_def, "getTextureID", ...)  -- chainsaw.RichTutori
 :System.Void updateGauge()
 ```
 
-## `chainsaw.gui.ShootingGalleryHudComboGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.ShootingGalleryHudComboGuiBehavior.OpenParam`
 
 **Fields**
@@ -569985,10 +566909,6 @@ _No fields or methods._
 :System.Void setIncreaseDefeatText(System.Int32)
 :System.Void set_CurrStep(chainsaw.gui.ShootingGalleryHudDefeatGuiBehavior.Step)
 ```
-
-## `chainsaw.gui.ShootingGalleryHudDefeatGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ShootingGalleryHudDefeatGuiBehavior.OpenParam`
 
@@ -570094,10 +567014,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.gui.ShootingGalleryHudGetScoreGuiBehavior.OpenParam)
 :System.Void updateFinding(via.vec3, System.Boolean)
 ```
-
-## `chainsaw.gui.ShootingGalleryHudGetScoreGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ShootingGalleryHudGetScoreGuiBehavior.OpenParam`
 
@@ -570238,10 +567154,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.gui.ShootingGalleryHudNoticeGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.gui.ShootingGalleryHudNoticeGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.ShootingGalleryHudNoticeGuiBehavior.NoticeType`
 
 **Fields**
@@ -570376,10 +567288,6 @@ _No fields or methods._
 :System.Void set_CurrStep(chainsaw.gui.ShootingGalleryHudScoreGuiBehavior.Step)
 ```
 
-## `chainsaw.gui.ShootingGalleryHudScoreGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.ShootingGalleryHudScoreGuiBehavior.OpenParam`
 
 **Fields**
@@ -570471,10 +567379,6 @@ _No fields or methods._
 :System.Void setTimerText(System.Single)
 :System.Void set_CurrStep(chainsaw.gui.ShootingGalleryHudTimerGuiBehavior.Step)
 ```
-
-## `chainsaw.gui.ShootingGalleryHudTimerGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ShootingGalleryHudTimerGuiBehavior.OpenParam`
 
@@ -570638,10 +567542,6 @@ _No fields or methods._
 :System.Void startTitle()
 :System.Void updateDisp()
 ```
-
-## `chainsaw.gui.ShootingGalleryResultGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ShootingGalleryResultGuiBehavior.DispStep`
 
@@ -570836,10 +567736,6 @@ _No fields or methods._
 :System.Void setup(chainsaw.gui.ShootingGallerySelectMenuGuiBehavior.OpenParam)
 :System.Void unlockStage(chainsaw.gui.ShootingGallerySelectMenuGuiBehavior.Limit)
 ```
-
-## `chainsaw.gui.ShootingGallerySelectMenuGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.ShootingGallerySelectMenuGuiBehavior.Limit`
 
@@ -574875,10 +571771,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 | --- | --- | --- | --- |
 | `Controller` | `chainsaw.ArmouryStateController` |  | 16 |
 
-## `chainsaw.gui.armoury.ArmouryGuiStateSetupParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.armoury.ArmouryGuiState[]`
 
 **Methods**
@@ -576643,10 +573535,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setupTab(chainsaw.gui.armoury.ArmouryTabGuiBehavior.OpenParam)
 ```
 
-## `chainsaw.gui.armoury.ArmouryTabGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.armoury.ArmouryTabGuiBehavior.OpenParam`
 
 **Fields**
@@ -576971,10 +573859,6 @@ _No fields or methods._
 :System.Void setup()
 :System.Void skipPage(via.gui.ListInputDirection)
 ```
-
-## `chainsaw.gui.casecustom.AttacheCaseSkinGui.DrawParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.casecustom.AttacheCaseSkinInfoBase`
 
@@ -579313,10 +576197,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.gui.commandmenu.PopupNoticeType)
 ```
 
-## `chainsaw.gui.fuzzytutorial.FuzzyTutorialDefinition`
-
-_No fields or methods._
-
 ## `chainsaw.gui.fuzzytutorial.FuzzyTutorialWorkBase`
 
 **Fields**
@@ -579873,10 +576753,6 @@ sdk.call_native_func(nil, type_def, "generateWork", ...)  -- chainsaw.gui.fuzzyt
 :chainsaw.gui.inventory.InventoryOperationType get_OperationType()
 :System.Boolean isValid()
 ```
-
-## `chainsaw.gui.inventory.InventoryOperationBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.inventory.InventoryOperationBase[]`
 
@@ -580656,14 +577532,6 @@ sdk.call_native_func(nil, type_def, "hasFlag", ...)  -- System.Boolean hasFlag(c
 :System.Void transit(System.Int32)
 ```
 
-## `chainsaw.gui.keyitem.KeyItemInventoryGui.DrawParam`
-
-_No fields or methods._
-
-## `chainsaw.gui.keyitem.KeyItemInventoryGuiObjectBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.keyitem.KeyItemInventoryItem`
 
 **Methods**
@@ -580698,10 +577566,6 @@ _No fields or methods._
 :chainsaw.gui.keyitem.KeyItemInventoryItem get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.keyitem.KeyItemInventoryItem)
 ```
-
-## `chainsaw.gui.keyitem.KeyItemInventoryOperationBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.keyitem.KeyItemInventoryOperationType`
 
@@ -581526,10 +578390,6 @@ _No fields or methods._
 :System.Void updateServiceMonitoring()
 ```
 
-## `chainsaw.gui.mcranking.Cp1021RankingGuiBehavior.CloseParam`
-
-_No fields or methods._
-
 ## `chainsaw.gui.mcranking.Cp1021RankingGuiBehavior.GetScoreRequestInfo`
 
 **Fields**
@@ -581697,10 +578557,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `chainsaw.gui.mcranking.Cp1021RankingStageDialogGuiBehavior.CloseParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.mcranking.Cp1021RankingStageDialogGuiBehavior.OpenParam`
 
@@ -582168,10 +579024,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `chainsaw.gui.richtutorial.ModuleBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.richtutorial.StreamingModule`
 
 **Fields**
@@ -582289,10 +579141,6 @@ _No fields or methods._
 :chainsaw.gui.shop.AdditionalCaptionGui.RootState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.shop.AdditionalCaptionGui.RootState)
 ```
-
-## `chainsaw.gui.shop.AttacheCaseControlModule`
-
-_No fields or methods._
 
 ## `chainsaw.gui.shop.CapitalPosGui`
 
@@ -583909,10 +580757,6 @@ sdk.call_native_func(nil, type_def, "getUVPatternNo", ...)  -- System.UInt32 get
 | --- | --- | --- | --- |
 | `User` | `chainsaw.ContextID` |  | 16 |
 
-## `chainsaw.gui.shop.InGameShopGuiParamHub.StateParamBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.shop.InGameShopGuiStartState`
 
 **Fields**
@@ -584174,10 +581018,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `Controller` | `chainsaw.InGameShopStateController` |  | 16 |
-
-## `chainsaw.gui.shop.InGameShopGuiStateSetupParam`
-
-_No fields or methods._
 
 ## `chainsaw.gui.shop.InGameShopGuiState[]`
 
@@ -588062,14 +584902,6 @@ sdk.call_native_func(nil, type_def, "getWeaponSellPrice", ...)  -- System.Int32 
 :chainsaw.gui.shop.InGameShopMenuKind get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.shop.InGameShopMenuKind)
 ```
-
-## `chainsaw.gui.shop.InGameShopModuleBase`
-
-_No fields or methods._
-
-## `chainsaw.gui.shop.InGameShopModuleDefinition`
-
-_No fields or methods._
 
 ## `chainsaw.gui.shop.InGameShopModuleType`
 
@@ -592520,14 +589352,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, chainsaw.gui.treasure.TreasureInventoryGui.TreasureInventorySelectItem)
 ```
 
-## `chainsaw.gui.treasure.TreasureInventoryGuiDefinition`
-
-_No fields or methods._
-
-## `chainsaw.gui.treasure.TreasureInventoryGuiObjectBase`
-
-_No fields or methods._
-
 ## `chainsaw.gui.treasure.TreasureInventoryItem`
 
 **Methods**
@@ -592563,10 +589387,6 @@ _No fields or methods._
 :chainsaw.gui.treasure.TreasureInventoryItem get_Item(System.Int32)
 :System.Void set_Item(System.Int32, chainsaw.gui.treasure.TreasureInventoryItem)
 ```
-
-## `chainsaw.gui.treasure.TreasureInventoryOperationBase`
-
-_No fields or methods._
 
 ## `chainsaw.gui.treasure.TreasureInventoryOperationType`
 
@@ -594575,10 +591395,6 @@ sdk.call_native_func(nil, type_def, "getMessage", ...)  -- System.String[] getMe
 ```lua
 :System.Void .ctor()
 ```
-
-## `chainsaw.posteffect.FilterSettingRoot`
-
-_No fields or methods._
 
 ## `chainsaw.posteffect.FilterSettingRoot.ApplyType`
 

@@ -4,7 +4,8 @@
 
 Writes one Markdown page per namespace plus an index. Generic instantiations
 and compiler-generated names are filtered out by default; pass --all to keep
-them.
+them. Types with no fields and no methods carry no information and are always
+dropped.
 """
 import argparse
 import json
@@ -55,9 +56,6 @@ def render_type(rec: dict) -> str:
                       for m in statics]
             lines += ["```", ""]
 
-    if not fields and not methods:
-        lines += ["_No fields or methods._", ""]
-
     return "\n".join(lines)
 
 
@@ -75,6 +73,8 @@ def main():
     buckets: dict[str, list] = defaultdict(list)
     for name, rec in data.items():
         if not args.all and is_noise(name):
+            continue
+        if not rec["fields"] and not rec["methods"]:
             continue
         bucket = name.split(".")[0] if "." in name else "(global)"
         buckets[bucket].append(rec)

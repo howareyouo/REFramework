@@ -1,6 +1,6 @@
 # `app.*`
 
-444 types.
+429 types.
 
 ## `app.Accessor_GimmickActorCharacterMFsmUserVariables`
 
@@ -200,10 +200,6 @@ sdk.call_native_func(nil, type_def, "<Setup>g__find|98_0", ...)  -- via.userdata
 ```lua
 :System.Void .ctor()
 ```
-
-## `app.CommonUserdataBase`
-
-_No fields or methods._
 
 ## `app.EffectorLocator`
 
@@ -700,10 +696,6 @@ sdk.call_native_func(nil, type_def, "specify", ...)  -- System.Boolean specify(v
 :System.Int64 get_Result()
 :System.Void set_Result(System.Int64)
 ```
-
-## `app.dev1lab.AnalysisLogEventParamBase`
-
-_No fields or methods._
 
 ## `app.dev1lab.AnalysisLogEventParamBonus_mode_play`
 
@@ -4150,10 +4142,6 @@ _No fields or methods._
 :System.Void set_UserParams(app.dev1lab.AnalysisLogUserParam)
 ```
 
-## `app.dev1lab.AnalysisLogParamTypeBase`
-
-_No fields or methods._
-
 ## `app.dev1lab.AnalysisLogParamType_Date`
 
 **Fields**
@@ -5734,10 +5722,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_PS4ProDefaultAsset(app.dev1lab.CommonGraphicsOptionDefaultValueUserData)
 ```
 
-## `app.dev1lab.CommonGraphicsOptionUserData.PlatformSetting`
-
-_No fields or methods._
-
 ## `app.dev1lab.CommonGraphicsOptionUserData.XBoxOneSetting`
 
 **Fields**
@@ -5757,10 +5741,6 @@ _No fields or methods._
 :System.Void set_XBoxOneDefaultAsset(app.dev1lab.CommonGraphicsOptionDefaultValueUserData)
 :System.Void set_XBoxOne_XDefaultAsset(app.dev1lab.CommonGraphicsOptionDefaultValueUserData)
 ```
-
-## `app.dev1lab.CommonObjectBase`
-
-_No fields or methods._
 
 ## `app.dev1lab.CommonRuntimeArgument`
 
@@ -5829,14 +5809,6 @@ _No fields or methods._
 ```lua
 :System.Single getScaledDeltaTime()
 ```
-
-## `app.dev1lab.DictionaryExtension`
-
-_No fields or methods._
-
-## `app.dev1lab.GameOption`
-
-_No fields or methods._
 
 ## `app.dev1lab.GameOption.ID`
 
@@ -6258,10 +6230,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, app.dev1lab.GraphicsPresetType)
 ```
 
-## `app.dev1lab.ICommonInterfaceBase`
-
-_No fields or methods._
-
 ## `app.dev1lab.LocalSaveIO`
 
 **Fields**
@@ -6383,10 +6351,6 @@ sdk.call_native_func(nil, type_def, "get__lockObject", ...)  -- System.Object ge
 ```lua
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
-
-## `app.dev1lab.OptionCategory`
-
-_No fields or methods._
 
 ## `app.dev1lab.OptionCategory.ID`
 
@@ -7263,10 +7227,6 @@ sdk.call_native_func(nil, type_def, "set_runtimeArgs", ...)  -- System.Void set_
 :System.Void set_SettingAsset(app.dev1lab.CommonGraphicsOptionUserData)
 ```
 
-## `app.dev1lab.TitleLocalSaveIO`
-
-_No fields or methods._
-
 ## `app.dev1lab.TitleLocalSaveIO.TitleSaveDescription`
 
 **Methods**
@@ -7754,18 +7714,6 @@ sdk.call_native_func(nil, type_def, "getRate", ...)  -- System.Single getRate(ap
 :System.Void update(System.Single)
 :System.Void update(System.Single, System.Boolean, System.Single)
 ```
-
-## `app.facial.IEyelid`
-
-_No fields or methods._
-
-## `app.facial.ILipSync`
-
-_No fields or methods._
-
-## `app.facial.ILookAt`
-
-_No fields or methods._
 
 ## `app.facial.LipSync`
 
@@ -9564,10 +9512,6 @@ sdk.call_native_func(nil, type_def, "debugTraceLabel", ...)  -- System.Void debu
 :System.Void set_Item(System.Int32, app.tram.TramSolverWeightedDistance.DistanceInfo)
 ```
 
-## `app.tram.TramTrace`
-
-_No fields or methods._
-
 ## `app.tram.TramTrack`
 
 **Fields**
@@ -9611,10 +9555,6 @@ sdk.call_native_func(nil, type_def, "getMaxStartFrame", ...)  -- System.Nullable
 ```lua
 sdk.call_native_func(nil, type_def, "get_WeightTypeList", ...)  -- System.String[] get_WeightTypeList()
 ```
-
-## `app.tram.TramWeightBase`
-
-_No fields or methods._
 
 ## `app.tram.TramWeightScalar`
 

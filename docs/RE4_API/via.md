@@ -1,6 +1,6 @@
 # `via.*`
 
-7187 types.
+6600 types.
 
 ## `via.AABB`
 
@@ -5505,10 +5505,6 @@ sdk.call_native_func(nil, type_def, "op_Equality", ...)  -- System.Boolean op_Eq
 sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_Inequality(via.Prefab, via.Prefab)
 ```
 
-## `via.PrefabResourceHolder`
-
-_No fields or methods._
-
 ## `via.Prefab[]`
 
 **Methods**
@@ -6115,10 +6111,6 @@ sdk.call_native_func(nil, type_def, "set_ParallelAwake", ...)  -- System.Void se
 sdk.call_native_func(nil, type_def, "set_ParallelComponentLoad", ...)  -- System.Void set_ParallelComponentLoad(System.Boolean)
 sdk.call_native_func(nil, type_def, "set_ParallelWorldOffset", ...)  -- System.Void set_ParallelWorldOffset(System.Boolean)
 ```
-
-## `via.SceneResourceHolder`
-
-_No fields or methods._
 
 ## `via.SceneView`
 
@@ -8230,10 +8222,6 @@ sdk.call_native_func(nil, type_def, "op_Equality", ...)  -- System.Boolean op_Eq
 sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_Inequality(via.UserData, via.UserData)
 ```
 
-## `via.UserDataResourceHolder`
-
-_No fields or methods._
-
 ## `via.UserData[]`
 
 **Methods**
@@ -8319,10 +8307,6 @@ _No fields or methods._
 :System.Boolean get_Valid()
 :System.Boolean get_ValidNativeUserId()
 ```
-
-## `via.UserInfoBase`
-
-_No fields or methods._
 
 ## `via.UserInfo[]`
 
@@ -8605,14 +8589,6 @@ sdk.call_native_func(nil, type_def, "showTouchControlLayout", ...)  -- System.Vo
 :System.UInt64 get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.UInt64)
 ```
-
-## `via.abort`
-
-_No fields or methods._
-
-## `via.abort.detail`
-
-_No fields or methods._
 
 ## `via.areamap.AreaConnectionObject`
 
@@ -8925,10 +8901,6 @@ sdk.call_native_func(nil, type_def, "updateCurrentRegion", ...)  -- System.Boole
 :System.Void set_Item(System.Int32, via.areamap.AreaMapObject)
 ```
 
-## `via.areamap.AreaMapResourceHolder`
-
-_No fields or methods._
-
 ## `via.areamap.AreaMap[]`
 
 **Methods**
@@ -9107,10 +9079,6 @@ sdk.call_native_func(nil, type_def, "updateQuery", ...)  -- via.areamap.AreaQuer
 sdk.call_native_func(nil, type_def, "weightedPathBetweenRegions", ...)  -- via.areamap.AreaRegionObject[] weightedPathBetweenRegions(via.areamap.AreaRegionObject, via.areamap.AreaRegionObject, System.String, System.Single, System.Boolean, System.Boolean, System.Boolean, System.Boolean, System.Boolean)
 sdk.call_native_func(nil, type_def, "weightedPathBetweenRegions", ...)  -- via.areamap.AreaRegionObject[] weightedPathBetweenRegions(System.UInt32, System.UInt32, System.String, System.Single, System.Boolean, System.Boolean, System.Boolean, System.Boolean, System.Boolean)
 ```
-
-## `via.areamap.AreaQueryResourceHolder`
-
-_No fields or methods._
 
 ## `via.areamap.AreaQueryResponse`
 
@@ -10320,14 +10288,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.attribute.AreaQueryCategoryAttribute.Category)
 ```
 
-## `via.attribute.AudioClipEditorAttribute`
-
-_No fields or methods._
-
-## `via.attribute.AudioRenderContentArrayAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.AudioRenderContentPropertyAttribute`
 
 **Fields**
@@ -10358,14 +10318,6 @@ _No fields or methods._
 :System.Void set_TabName(System.String)
 ```
 
-## `via.attribute.AudioRenderMarkerSelectorAttribute`
-
-_No fields or methods._
-
-## `via.attribute.AudioRenderTriggerIdAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.BehaviorTreeObsoleteAttribute`
 
 **Fields**
@@ -10380,10 +10332,6 @@ _No fields or methods._
 :System.Void .ctor(System.String)
 :System.String get_WarningStr()
 ```
-
-## `via.attribute.BehaviorTreeStaticObjectAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.BitsArrayAttribute`
 
@@ -10455,10 +10403,6 @@ _No fields or methods._
 :System.Void set_Value(System.Boolean)
 ```
 
-## `via.attribute.BranchActionAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.BrowsableAttribute`
 
 **Fields**
@@ -10473,14 +10417,6 @@ _No fields or methods._
 :System.Void .ctor(System.Boolean)
 :System.Boolean get_Browsable()
 ```
-
-## `via.attribute.BuiltInAttribute`
-
-_No fields or methods._
-
-## `via.attribute.BusIdSelectorAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.CapsuleEditAttribute`
 
@@ -10669,14 +10605,6 @@ _No fields or methods._
 :System.String get_DefaultComment()
 ```
 
-## `via.attribute.ClipDefaultSetValueAttribute`
-
-_No fields or methods._
-
-## `via.attribute.ClipDelayedExecutionAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.ClipDiffFrameSetAttribute`
 
 **Fields**
@@ -10693,10 +10621,6 @@ _No fields or methods._
 :System.String get_NextFrameDiffName()
 :System.String get_PrevFrameDiffName()
 ```
-
-## `via.attribute.ClipEndActionAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.ClipFCurveRangeAttribute`
 
@@ -10716,10 +10640,6 @@ _No fields or methods._
 :System.Void set_MaxValue(System.Double)
 :System.Void set_MinValue(System.Double)
 ```
-
-## `via.attribute.ClipFixedValueTrackAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.ClipOverlapInterpolationType`
 
@@ -10751,14 +10671,6 @@ _No fields or methods._
 :via.attribute.ClipOverlapInterpolationType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.attribute.ClipOverlapInterpolationType)
 ```
-
-## `via.attribute.ClipSequenceBoxAlwaysExecuteAttribute`
-
-_No fields or methods._
-
-## `via.attribute.ClipSequenceBoxCurvePreviewAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.ClipSequenceBoxInspectorTargetAttribute`
 
@@ -10812,14 +10724,6 @@ _No fields or methods._
 :System.Void set_EnableBoxOverlap(System.Boolean)
 ```
 
-## `via.attribute.ClipStartActionAttribute`
-
-_No fields or methods._
-
-## `via.attribute.ClipToolPauseActionAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.ClipTrackVisibleAttribute`
 
 **Fields**
@@ -10836,10 +10740,6 @@ _No fields or methods._
 :System.Boolean get_TrackVisible()
 :System.Void set_TrackVisible(System.Boolean)
 ```
-
-## `via.attribute.ClipUpdateActionAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.ColorPickerAttribute`
 
@@ -11000,10 +10900,6 @@ _No fields or methods._
 :System.Void set_TimeRangeMin(System.Single)
 ```
 
-## `via.attribute.DataCompressAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.DataMemberAttribute`
 
 **Fields**
@@ -11034,14 +10930,6 @@ _No fields or methods._
 :System.Void .ctor(System.String)
 :System.String get_Description()
 ```
-
-## `via.attribute.DevelopAttribute`
-
-_No fields or methods._
-
-## `via.attribute.DialogueTrackAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.DirectionAttribute`
 
@@ -11091,10 +10979,6 @@ _No fields or methods._
 :System.String get_Group()
 :System.Int32 get_Order()
 ```
-
-## `via.attribute.DontRecordHistoryAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.DoubleKeyValueHighlightAttribute`
 
@@ -11320,10 +11204,6 @@ _No fields or methods._
 :System.Void set_Level(System.UInt32)
 ```
 
-## `via.attribute.EmptyEditorAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.EnumSelectorAttribute`
 
 **Fields**
@@ -11535,10 +11415,6 @@ _No fields or methods._
 :System.String get_DisplayName()
 ```
 
-## `via.attribute.GUIColorPresetSelectorAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.GameObjectRefEditAttribute`
 
 **Fields**
@@ -11676,18 +11552,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```
 
-## `via.attribute.GroupEndSeparatorAttribute`
-
-_No fields or methods._
-
-## `via.attribute.GroupSeparatorAttribute`
-
-_No fields or methods._
-
-## `via.attribute.HSVColorPickerAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.HeaderAttribute`
 
 **Fields**
@@ -11703,14 +11567,6 @@ _No fields or methods._
 :System.String get_Header()
 :System.Void set_Header(System.String)
 ```
-
-## `via.attribute.HideAttribute`
-
-_No fields or methods._
-
-## `via.attribute.IgnoreDataMemberAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.IndexComboBoxAttribute`
 
@@ -11777,10 +11633,6 @@ _No fields or methods._
 :System.Int32 get_Value()
 :System.Void set_Value(System.Int32)
 ```
-
-## `via.attribute.JointSelectorAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.KeyComparisonType`
 
@@ -12019,14 +11871,6 @@ _No fields or methods._
 :System.String get_Category()
 ```
 
-## `via.attribute.MessageIdAttribute`
-
-_No fields or methods._
-
-## `via.attribute.MotionIdAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.MotionSequenceCategoryAttribute`
 
 **Fields**
@@ -12086,10 +11930,6 @@ _No fields or methods._
 :System.Void set_ValuesName(System.String)
 ```
 
-## `via.attribute.MusicPlaylistEditAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.MusicPlaylistPropertyAttribute`
 
 **Fields**
@@ -12122,10 +11962,6 @@ _No fields or methods._
 :System.Void set_SegmentCurveColorType(System.UInt32)
 ```
 
-## `via.attribute.MusicSegmentEditAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.MusicSegmentPropertyAttribute`
 
 **Fields**
@@ -12141,10 +11977,6 @@ _No fields or methods._
 :System.UInt32 get_SegmentPropertyType()
 :System.Void set_SegmentPropertyType(System.UInt32)
 ```
-
-## `via.attribute.MusicSwitchContainerAssociationEditAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.MusicSwitchContainerAssociationPropertyAttribute`
 
@@ -12200,10 +12032,6 @@ _No fields or methods._
 :System.Int32 get_VirtualTableLength()
 :System.Void set_VirtualTableLength(System.Int32)
 ```
-
-## `via.attribute.NonKeyableAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.NormalizedColorPickerAttribute`
 
@@ -12359,10 +12187,6 @@ _No fields or methods._
 :System.Void set_IsExpanded(System.Boolean)
 ```
 
-## `via.attribute.PreviewFbxSkeletonSelectorAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.ReadOnlyAttribute`
 
 **Fields**
@@ -12443,14 +12267,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.attribute.RemoteFieldAttribute.SyncMode)
 ```
 
-## `via.attribute.RemoteProcedureAttribute`
-
-_No fields or methods._
-
-## `via.attribute.RemoteProcedureIgnoreAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.RemotePropertyAttribute`
 
 **Fields**
@@ -12515,10 +12331,6 @@ _No fields or methods._
 :System.Type get_RequireType()
 :System.Void set_RequireType(System.Type)
 ```
-
-## `via.attribute.RequireJointAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.SelectableAttribute`
 
@@ -12672,10 +12484,6 @@ _No fields or methods._
 :System.Void set_CategoryName(System.String)
 ```
 
-## `via.attribute.SoundIdCategoryRegistrationClassForExprGraphAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.SoundIdCategoryRegistrationForExprGraphAttribute`
 
 **Fields**
@@ -12801,10 +12609,6 @@ _No fields or methods._
 :System.Void set_SelectFromSameGameObject(System.Boolean)
 ```
 
-## `via.attribute.SoundPCRChildrenAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.SoundPCRPropertyAttribute`
 
 **Fields**
@@ -12901,10 +12705,6 @@ _No fields or methods._
 :System.Void set_IdPropName(System.String)
 ```
 
-## `via.attribute.SoundStateListAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.SphereEditAttribute`
 
 **Fields**
@@ -12937,14 +12737,6 @@ _No fields or methods._
 :System.String get_Value()
 :System.Void set_Value(System.String)
 ```
-
-## `via.attribute.TagSelectorAttribute`
-
-_No fields or methods._
-
-## `via.attribute.TamperCheckAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.TextEnumSelectorAttribute`
 
@@ -13003,10 +12795,6 @@ _No fields or methods._
 :System.Void set_PropertyNameHash(System.UInt32)
 ```
 
-## `via.attribute.TypeEditorAttribute`
-
-_No fields or methods._
-
 ## `via.attribute.UIntClipDefaultSetValueAttribute`
 
 **Fields**
@@ -13056,10 +12844,6 @@ _No fields or methods._
 :System.Int32 get_GroupId()
 :System.Void set_GroupId(System.Int32)
 ```
-
-## `via.attribute.UserCurveAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.UserHelpAttribute`
 
@@ -13223,10 +13007,6 @@ _No fields or methods._
 :System.Void set_StepValue(System.Double)
 :System.Void set_StringFormat(System.String)
 ```
-
-## `via.attribute.VolatileDataMemberAttribute`
-
-_No fields or methods._
 
 ## `via.attribute.WaterMarkTextAttribute`
 
@@ -13449,10 +13229,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_AudioRenderExprGraph(via.audiorender.AudioRenderExprGraphResourceHolder)
 :System.Void set_OwnerComponent(via.Component)
 ```
-
-## `via.audiorender.AudioRenderExprGraphResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.AudioRenderer`
 
@@ -14686,10 +14462,6 @@ sdk.call_native_func(nil, type_def, "updateRequestInfo", ...)  -- System.Void up
 :System.Void set_ImpulseResoponce(via.audiorender.SourceResourceHolder)
 ```
 
-## `via.audiorender.ConvolutionReverbResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.CoordinateSystemType`
 
 **Fields**
@@ -14810,10 +14582,6 @@ _No fields or methods._
 :System.Void set_OutputGainDb(System.Single)
 ```
 
-## `via.audiorender.DistortionResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.EffectAccessor`
 
 **Static methods**
@@ -14854,10 +14622,6 @@ sdk.call_native_func(nil, type_def, "getParameter", ...)  -- System.Single getPa
 :via.audiorender.EffectBaseParameter get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.audiorender.EffectBaseParameter)
 ```
-
-## `via.audiorender.EffectBaseResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.EffectBaseResourceHolder[]`
 
@@ -14963,10 +14727,6 @@ _No fields or methods._
 :via.audiorender.FadeCurveType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.audiorender.FadeCurveType)
 ```
-
-## `via.audiorender.FilterBaseResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.FilterParametersBase`
 
@@ -15095,10 +14855,6 @@ _No fields or methods._
 :System.Void set_RoomRolloffFactor(System.Single)
 ```
 
-## `via.audiorender.I3DL2ReverbResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.Listener`
 
 **Fields**
@@ -15214,10 +14970,6 @@ _No fields or methods._
 :System.Single getParameter(System.UInt32, System.UInt32)
 ```
 
-## `via.audiorender.LowPassFilterResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.MTCompressorParameter`
 
 **Fields**
@@ -15271,10 +15023,6 @@ _No fields or methods._
 :System.Void set_ThresholdDb(System.Single)
 ```
 
-## `via.audiorender.MTCompressorResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.MTEqualizerParameter`
 
 **Fields**
@@ -15327,10 +15075,6 @@ _No fields or methods._
 :System.Void set_Unit2(via.audiorender.MTEqualizerUnitParameters)
 :System.Void set_Unit3(via.audiorender.MTEqualizerUnitParameters)
 ```
-
-## `via.audiorender.MTEqualizerResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.MTEqualizerUnitParameters`
 
@@ -15396,10 +15140,6 @@ _No fields or methods._
 :System.Void set_OutputGainDb(System.Single)
 :System.Void set_ThresholdDb(System.Single)
 ```
-
-## `via.audiorender.MTLimiterResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.MemAllocType`
 
@@ -15492,10 +15232,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.Void set_Item(System.Int32, via.audiorender.MemoryPool.MemoryPoolType)
 ```
 
-## `via.audiorender.MixerResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.MultiBandEqParameter`
 
 **Fields**
@@ -15571,10 +15307,6 @@ _No fields or methods._
 :via.audiorender.MultiBandEqUnitParameters get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.audiorender.MultiBandEqUnitParameters)
 ```
-
-## `via.audiorender.MultiBandEqResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.MultiBandEqUnitParameters`
 
@@ -15914,10 +15646,6 @@ _No fields or methods._
 :System.Void set_MinFrequency(System.UInt32)
 ```
 
-## `via.audiorender.PicolaPitchShiftResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.PrepareType`
 
 **Fields**
@@ -16031,10 +15759,6 @@ _No fields or methods._
 :System.String get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.String)
 ```
-
-## `via.audiorender.ProvSourceResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.RequestBoolean`
 
@@ -16343,10 +16067,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.audiorender.ResourceChunkTag)
 ```
 
-## `via.audiorender.ReverbBaseResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.ReverbParametersBase`
 
 **Methods**
@@ -16643,10 +16363,6 @@ sdk.call_native_func(nil, type_def, "updateObjectPriority", ...)  -- System.UInt
 :System.Void set_WetVolume(System.Single)
 ```
 
-## `via.audiorender.SimpleFdnReverbResourceHolder`
-
-_No fields or methods._
-
 ## `via.audiorender.SourceAccessor`
 
 **Static methods**
@@ -16687,10 +16403,6 @@ sdk.call_native_func(nil, type_def, "requestPreviewPlay", ...)  -- System.Void r
 sdk.call_native_func(nil, type_def, "sendPreviewPlayCursorQuery", ...)  -- System.Void sendPreviewPlayCursorQuery()
 sdk.call_native_func(nil, type_def, "updateSources", ...)  -- System.Void updateSources()
 ```
-
-## `via.audiorender.SourceResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.SourceStatus`
 
@@ -16836,10 +16548,6 @@ _No fields or methods._
 :via.audiorender.StreamType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.audiorender.StreamType)
 ```
-
-## `via.audiorender.VibrationSourceResourceHolder`
-
-_No fields or methods._
 
 ## `via.audiorender.WFormatTag`
 
@@ -17283,10 +16991,6 @@ sdk.call_native_func(nil, type_def, "setOutputLogFlag", ...)  -- System.Void set
 :System.Void set_Item(System.Int32, via.audiorender.fx.multi_band_eq.EQUnitEnable)
 ```
 
-## `via.audiorender.fx.unit`
-
-_No fields or methods._
-
 ## `via.audiorender.fx.unit.fdn4`
 
 **Fields**
@@ -17330,10 +17034,6 @@ _No fields or methods._
 :System.Void set_Ps5NpClientSecretStr(System.String)
 :System.Void set_Ps5ScopeStr(System.String)
 ```
-
-## `via.auth_token.detail.AuthTokenManager`
-
-_No fields or methods._
 
 ## `via.autoplay.Action`
 
@@ -17563,10 +17263,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :via.autoplay.AutoPlayManager.AutoPlayStatus get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.autoplay.AutoPlayManager.AutoPlayStatus)
 ```
-
-## `via.autoplay.AutoPlayResourceHolder`
-
-_No fields or methods._
 
 ## `via.autoplay.ContentArg`
 
@@ -18435,10 +18131,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.userdata.UserVariablesHub)
 ```
 
-## `via.behaviortree.BehaviorTreeBaseResourceHolder`
-
-_No fields or methods._
-
 ## `via.behaviortree.BehaviorTreeManager`
 
 **Fields**
@@ -18487,10 +18179,6 @@ sdk.call_native_func(nil, type_def, "set_SortByUpdateCost", ...)  -- System.Void
 sdk.call_native_func(nil, type_def, "set_UpdateDynamicScheduling", ...)  -- System.Void set_UpdateDynamicScheduling(System.Boolean)
 sdk.call_native_func(nil, type_def, "set_UpdateParallelUnit", ...)  -- System.Void set_UpdateParallelUnit(System.UInt32)
 ```
-
-## `via.behaviortree.BehaviorTreeResourceHolder`
-
-_No fields or methods._
 
 ## `via.behaviortree.Condition`
 
@@ -18721,10 +18409,6 @@ _No fields or methods._
 ```lua
 :System.UInt32[] get_Tags()
 ```
-
-## `via.behaviortree.FSMv2TreeResourceHolder`
-
-_No fields or methods._
 
 ## `via.behaviortree.ManualBehaviorTree`
 
@@ -18957,10 +18641,6 @@ _No fields or methods._
 :System.Void start(via.behaviortree.SelectorCallerArg)
 ```
 
-## `via.behaviortree.SelectorConditionArg`
-
-_No fields or methods._
-
 ## `via.behaviortree.SelectorFSM`
 
 **Methods**
@@ -19115,10 +18795,6 @@ _No fields or methods._
 :System.Void set_Enabled(System.Boolean)
 :System.Void set_UID(System.UInt32)
 ```
-
-## `via.behaviortree.TransitionEventArg`
-
-_No fields or methods._
 
 ## `via.behaviortree.action.AddPosition`
 
@@ -19714,10 +19390,6 @@ sdk.call_native_func(nil, type_def, "set_OnNtcClose", ...)  -- System.Void set_O
 :System.Void set_Item(System.Int32, via.charset.EncodingType)
 ```
 
-## `via.charset.ShiftJIS`
-
-_No fields or methods._
-
 ## `via.charset.UTF16`
 
 **Static methods**
@@ -19760,14 +19432,6 @@ sdk.call_native_func(nil, type_def, "length", ...)  -- System.UInt64 length(Syst
 :via.charset.UTF16Type get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.charset.UTF16Type)
 ```
-
-## `via.charset.UTF8`
-
-_No fields or methods._
-
-## `via.charset.detail`
-
-_No fields or methods._
 
 ## `via.clipboard`
 
@@ -21505,10 +21169,6 @@ sdk.call_native_func(nil, type_def, "waitForPendingFinalizers", ...)  -- System.
 :System.Void set_Item(System.Int32, via.clr.VMObjType)
 ```
 
-## `via.clr.detail`
-
-_No fields or methods._
-
 ## `via.codec`
 
 **Static methods**
@@ -21995,14 +21655,6 @@ sdk.call_native_func(nil, type_def, "sqrDistance", ...)  -- System.Single sqrDis
 :System.Void .ctor(via.vec3, via.vec3, System.Single, System.Single, System.Boolean)
 :System.String ToString()
 ```
-
-## `via.collision.detail`
-
-_No fields or methods._
-
-## `via.collisionlib.HeightTextureResourceHolder`
-
-_No fields or methods._
 
 ## `via.compression`
 
@@ -22560,46 +22212,6 @@ sdk.call_native_func(nil, type_def, "getGPOSlotCount", ...)  -- System.UInt32 ge
 sdk.call_native_func(nil, type_def, "set", ...)  -- System.Void set(System.UInt32, System.Boolean)
 ```
 
-## `via.detail`
-
-_No fields or methods._
-
-## `via.detail.atomic`
-
-_No fields or methods._
-
-## `via.detail.color_cast`
-
-_No fields or methods._
-
-## `via.detail.operator_new_delete`
-
-_No fields or methods._
-
-## `via.detail.random`
-
-_No fields or methods._
-
-## `via.detail.static_crc`
-
-_No fields or methods._
-
-## `via.detail.static_crc.data`
-
-_No fields or methods._
-
-## `via.detail.static_murmurhash_impl`
-
-_No fields or methods._
-
-## `via.detail.static_test`
-
-_No fields or methods._
-
-## `via.detail_bitset`
-
-_No fields or methods._
-
 ## `via.detail_bitset.BIT_IMPL`
 
 **Fields**
@@ -22631,18 +22243,6 @@ _No fields or methods._
 :via.detail_bitset.BIT_IMPL get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.detail_bitset.BIT_IMPL)
 ```
-
-## `via.detail_char_cast`
-
-_No fields or methods._
-
-## `via.detail_enumlator`
-
-_No fields or methods._
-
-## `via.detail_qt`
-
-_No fields or methods._
 
 ## `via.detail_qt.qt_cell_link_bit`
 
@@ -22677,14 +22277,6 @@ _No fields or methods._
 :via.detail_qt.qt_cell_link_bit get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.detail_qt.qt_cell_link_bit)
 ```
-
-## `via.detail_reserve_adapter`
-
-_No fields or methods._
-
-## `via.detail_storage`
-
-_No fields or methods._
 
 ## `via.dev.net.ConnectionState`
 
@@ -22937,10 +22529,6 @@ sdk.call_native_func(nil, type_def, "open", ...)  -- via.dialog.Error open(via.d
 | --- | --- | --- | --- |
 | `value__` | `System.Int32` |  | 16 |
 
-## `via.dialog.core.dummy4`
-
-_No fields or methods._
-
 ## `via.dialog.core.dummy[]`
 
 **Methods**
@@ -22988,10 +22576,6 @@ sdk.call_native_func(nil, type_def, "type", ...)  -- System.Type type(System.UIn
 | `Root` | `System.UInt16` | yes | 16 |
 | `Script` | `System.UInt16` | yes | 16 |
 | `Singleton` | `System.UInt16` | yes | 16 |
-
-## `via.dti.detail`
-
-_No fields or methods._
 
 ## `via.dve.Device`
 
@@ -23512,14 +23096,6 @@ sdk.call_native_func(nil, type_def, "registerContinuousCollision", ...)  -- Syst
 :via.dynamics.ConvexHullShape cut(via.Plane, via.mat4)
 ```
 
-## `via.dynamics.ConvexShape`
-
-_No fields or methods._
-
-## `via.dynamics.DefinitionResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.DistanceLinkVisibleType`
 
 **Fields**
@@ -23555,10 +23131,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.dynamics.DistanceLinkVisibleType)
 ```
 
-## `via.dynamics.DynamicsBaseResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.FilterInfo`
 
 **Methods**
@@ -23579,10 +23151,6 @@ _No fields or methods._
 :System.Void set_Layer(System.Int32)
 :System.Void set_SubGroup(System.Int32)
 ```
-
-## `via.dynamics.FilterInfoResourceHolder`
-
-_No fields or methods._
 
 ## `via.dynamics.ForceField`
 
@@ -23837,14 +23405,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, System.Int32)
 ```
 
-## `via.dynamics.GpuCloth2ResourceHolder`
-
-_No fields or methods._
-
-## `via.dynamics.GpuClothResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.GpuCloth[]`
 
 **Methods**
@@ -23885,10 +23445,6 @@ _No fields or methods._
 :System.Void set_Influence(System.Single)
 :System.Void set_TextureNumber(System.Int32)
 ```
-
-## `via.dynamics.HeightFieldResourceHolder`
-
-_No fields or methods._
 
 ## `via.dynamics.HeightFieldShape`
 
@@ -24000,14 +23556,6 @@ _No fields or methods._
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `Value` | `System.UInt32` |  | 16 |
-
-## `via.dynamics.OverlappingEventArgs`
-
-_No fields or methods._
-
-## `via.dynamics.ParticleResourceHolder`
-
-_No fields or methods._
 
 ## `via.dynamics.ParticleRigidBodyId`
 
@@ -24227,14 +23775,6 @@ sdk.call_native_func(nil, type_def, "updateTerrainSDF", ...)  -- System.Void upd
 :System.Void set_Item(System.Int32, System.String)
 ```
 
-## `via.dynamics.RagdollControllerResourceHolder`
-
-_No fields or methods._
-
-## `via.dynamics.RagdollResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.RayCastOption`
 
 **Fields**
@@ -24430,14 +23970,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `Value` | `System.UInt32` |  | 16 |
-
-## `via.dynamics.RigidBodyMaterialResourceHolder`
-
-_No fields or methods._
-
-## `via.dynamics.RigidBodyMeshResourceHolder`
-
-_No fields or methods._
 
 ## `via.dynamics.RigidBodyMeshResourceHolder[]`
 
@@ -24802,10 +24334,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.dynamics.RigidBodyState)
 ```
 
-## `via.dynamics.RigidBodySetResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.RigidBodySet[]`
 
 **Methods**
@@ -24862,14 +24390,6 @@ _No fields or methods._
 :via.dynamics.RigidBodyState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.dynamics.RigidBodyState)
 ```
-
-## `via.dynamics.RigidBodyUserData`
-
-_No fields or methods._
-
-## `via.dynamics.SeparateEventArgs`
-
-_No fields or methods._
 
 ## `via.dynamics.Shape`
 
@@ -25458,10 +24978,6 @@ sdk.call_native_func(nil, type_def, "set_WeightAmplifyCoefficient", ...)  -- Sys
 :System.Void set_Item(System.Int32, via.dynamics.VehicleGear)
 ```
 
-## `via.dynamics.VehicleResourceHolder`
-
-_No fields or methods._
-
 ## `via.dynamics.WaterSurface`
 
 **Methods**
@@ -25617,10 +25133,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "closest", ...)  -- System.Boolean closest(via.dynamics.ConvexShape, via.mat4, via.dynamics.ConvexShape, via.mat4, via.dynamics.ContactPoint)
 ```
-
-## `via.dynamics.particle`
-
-_No fields or methods._
 
 ## `via.dynamics.particle.RigidBodyState`
 
@@ -25893,10 +25405,6 @@ sdk.call_native_func(nil, type_def, "set_Resource", ...)  -- System.Void set_Res
 sdk.call_native_func(nil, type_def, "set_UseDeferredCollision", ...)  -- System.Void set_UseDeferredCollision(System.Boolean)
 ```
 
-## `via.effect.EffectCollisionResourceHolder`
-
-_No fields or methods._
-
 ## `via.effect.EffectCollisionSettingsUserData`
 
 **Methods**
@@ -25905,14 +25413,6 @@ _No fields or methods._
 :System.Void setCollisionSettings(System.UInt64, via.effect.CollisionSetting)
 :System.Void setCollisionSettingsCount(System.UInt64)
 ```
-
-## `via.effect.EffectCsvResourceHolder`
-
-_No fields or methods._
-
-## `via.effect.EffectEmitMaskResourceHolder`
-
-_No fields or methods._
 
 ## `via.effect.EffectFactory`
 
@@ -26199,10 +25699,6 @@ sdk.call_native_func(nil, type_def, "updateResource", ...)  -- System.Void updat
 :via.effect.EffectPlayer[] get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.EffectPlayer[])
 ```
-
-## `via.effect.EffectResourceHolder`
-
-_No fields or methods._
 
 ## `via.effect.EffectResourceHolder[]`
 
@@ -27065,10 +26561,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_Item(System.Int32, via.effect.WindInfluenceDrawFlag)
 ```
 
-## `via.effect.detail.MeshMaterialEmitterManager`
-
-_No fields or methods._
-
 ## `via.effect.detail.PlayerManager`
 
 **Static methods**
@@ -27659,14 +27151,6 @@ sdk.call_native_func(nil, type_def, "transformYVector", ...)  -- via.vec3 transf
 :System.Void set_Item(System.Int32, via.effect.fluid.VCTexResolution)
 ```
 
-## `via.effect.fluid.detail`
-
-_No fields or methods._
-
-## `via.effect.fluid.renderer`
-
-_No fields or methods._
-
 ## `via.effect.fluid.renderer.DebugDrawMode`
 
 **Fields**
@@ -27704,14 +27188,6 @@ _No fields or methods._
 :via.effect.fluid.renderer.DebugDrawMode get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.fluid.renderer.DebugDrawMode)
 ```
-
-## `via.effect.gpgpu`
-
-_No fields or methods._
-
-## `via.effect.gpgpu.detail`
-
-_No fields or methods._
 
 ## `via.effect.lensflare.AxisType`
 
@@ -27867,10 +27343,6 @@ _No fields or methods._
 :via.effect.lensflare.LensflarePlayer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.lensflare.LensflarePlayer)
 ```
-
-## `via.effect.lensflare.LensflareResourceHolder`
-
-_No fields or methods._
 
 ## `via.effect.lensflare.ResourceType`
 
@@ -28874,10 +28346,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.effect.script.DecalContainerData.DecalData)
 ```
 
-## `via.effect.script.EPVBase`
-
-_No fields or methods._
-
 ## `via.effect.script.EPVCameraHelper`
 
 **Methods**
@@ -29017,10 +28485,6 @@ _No fields or methods._
 :System.Void set_normal(via.vec3)
 :System.Void set_position(via.vec3)
 ```
-
-## `via.effect.script.EPVDataBase`
-
-_No fields or methods._
 
 ## `via.effect.script.EPVDataBase.EffectRelationType`
 
@@ -29297,10 +28761,6 @@ _No fields or methods._
 :via.effect.script.EPVDataElement get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.script.EPVDataElement)
 ```
-
-## `via.effect.script.EPVDefine`
-
-_No fields or methods._
 
 ## `via.effect.script.EPVDefine.AttackTypeEnum`
 
@@ -31790,10 +31250,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Boolean get_isTopPriority()
 ```
 
-## `via.effect.script.EffectCommonDefine`
-
-_No fields or methods._
-
 ## `via.effect.script.EffectCommonDefine.EffectActionOnCulling`
 
 **Fields**
@@ -32221,10 +31677,6 @@ sdk.call_native_func(nil, type_def, "getInstanceTbl", ...)  -- via.effect.script
 :via.effect.script.EffectCustomExternParameter get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.script.EffectCustomExternParameter)
 ```
-
-## `via.effect.script.EffectDebugDip`
-
-_No fields or methods._
 
 ## `via.effect.script.EffectDecal`
 
@@ -33138,10 +32590,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :via.effect.script.EffectEmitZoneGroup get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.script.EffectEmitZoneGroup)
 ```
-
-## `via.effect.script.EffectExternParamWatcher`
-
-_No fields or methods._
 
 ## `via.effect.script.EffectFluid2DObstacle`
 
@@ -34467,10 +33915,6 @@ sdk.call_native_func(nil, type_def, "setExternParamaterFromHolder", ...)  -- Sys
 :via.effect.script.EffectManager.RequestOverwriteParam get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.script.EffectManager.RequestOverwriteParam)
 ```
-
-## `via.effect.script.EffectManager.WwiseTriggerInfo`
-
-_No fields or methods._
 
 ## `via.effect.script.EffectManagerHelper`
 
@@ -36531,30 +35975,6 @@ sdk.call_native_func(nil, type_def, "removeChecker", ...)  -- System.Boolean rem
 :via.effect.script.Group get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.effect.script.Group)
 ```
-
-## `via.effect.script.IHasEffectActionOnParentDisappear`
-
-_No fields or methods._
-
-## `via.effect.script.IHasEffectActionOnProviderDestroy`
-
-_No fields or methods._
-
-## `via.effect.script.IHasEffectEndType`
-
-_No fields or methods._
-
-## `via.effect.script.IHasEffectExternParameter`
-
-_No fields or methods._
-
-## `via.effect.script.IHasEffectSoundTrigger`
-
-_No fields or methods._
-
-## `via.effect.script.ISimpleEffectContainer`
-
-_No fields or methods._
 
 ## `via.effect.script.ObjectEffectManager`
 
@@ -39510,10 +38930,6 @@ sdk.call_native_func(nil, type_def, "toFloat", ...)  -- System.Single toFloat(Sy
 | `f` | `System.Single` |  | 16 |
 | `u` | `System.UInt32` |  | 16 |
 
-## `via.ffts`
-
-_No fields or methods._
-
 ## `via.ffts.ErrType`
 
 **Fields**
@@ -39576,10 +38992,6 @@ sdk.call_native_func(nil, type_def, "get_MultiThread", ...)  -- System.Boolean g
 sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasInstance()
 sdk.call_native_func(nil, type_def, "set_MultiThread", ...)  -- System.Void set_MultiThread(System.Boolean)
 ```
-
-## `via.fluidflock.FluidFlockSimulationModel`
-
-_No fields or methods._
 
 ## `via.fluidflock.FluidFlockSimulationModelBase`
 
@@ -40176,10 +39588,6 @@ sdk.call_native_func(nil, type_def, "set_UseLateStateChanging", ...)  -- System.
 :System.Void set_Item(System.Int32, via.fsm.FsmManager.SelectorTiming)
 ```
 
-## `via.fsm.FsmResourceHolder`
-
-_No fields or methods._
-
 ## `via.fsm.FsmSelectorType`
 
 **Fields**
@@ -40209,10 +39617,6 @@ _No fields or methods._
 :via.fsm.FsmSelectorType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.fsm.FsmSelectorType)
 ```
-
-## `via.fsm.IDList`
-
-_No fields or methods._
 
 ## `via.fsm.NetworkSyncDelegateHandle`
 
@@ -40383,10 +39787,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.fsm.SelectTiming)
 ```
 
-## `via.fsm.SelectorArg`
-
-_No fields or methods._
-
 ## `via.fsm.SetStateInfo`
 
 **Methods**
@@ -40512,10 +39912,6 @@ _No fields or methods._
 :System.Void set_Enabled(System.Boolean)
 :System.Void set_UID(System.UInt32)
 ```
-
-## `via.fsm.TransitionEventArg`
-
-_No fields or methods._
 
 ## `via.fsm.action.AddPosition`
 
@@ -41754,10 +41150,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.Void set_Item(System.Int32, via.geometry.Vertex)
 ```
 
-## `via.graph`
-
-_No fields or methods._
-
 ## `via.graph.VertexIndex`
 
 **Fields**
@@ -41820,18 +41212,6 @@ _No fields or methods._
 :via.graph.VertexRemoveOption get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.graph.VertexRemoveOption)
 ```
-
-## `via.graph.allocator`
-
-_No fields or methods._
-
-## `via.graph.interface_`
-
-_No fields or methods._
-
-## `via.graph.interface_.detail`
-
-_No fields or methods._
 
 ## `via.gui.AdditionalIconFont`
 
@@ -42011,10 +41391,6 @@ _No fields or methods._
 :via.gui.BarVisibility get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.BarVisibility)
 ```
-
-## `via.gui.BaseResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.BlendType`
 
@@ -42864,10 +42240,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.gui.DialogueLinkData)
 ```
 
-## `via.gui.DialogueListResourceHolder`
-
-_No fields or methods._
-
 ## `via.gui.DialogueNodeData`
 
 **Methods**
@@ -42915,10 +42287,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, "op_Implicit", ...)  -- System.Boolean op_Implicit(via.gui.DialogueObject)
 ```
 
-## `via.gui.DialogueResourceHolder`
-
-_No fields or methods._
-
 ## `via.gui.DialogueTalkData`
 
 **Methods**
@@ -42948,10 +42316,6 @@ _No fields or methods._
 :via.gui.DialogueTalkData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.DialogueTalkData)
 ```
-
-## `via.gui.DialogueUserData`
-
-_No fields or methods._
 
 ## `via.gui.DistanceFieldType`
 
@@ -42983,10 +42347,6 @@ _No fields or methods._
 :via.gui.DistanceFieldType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.DistanceFieldType)
 ```
-
-## `via.gui.DrawableElement`
-
-_No fields or methods._
 
 ## `via.gui.DynamicSizeItemHorizontalAlignment`
 
@@ -43840,10 +43200,6 @@ _No fields or methods._
 | `Slot9` | `via.gui.FontSlot` | yes | 16 |
 | `value__` | `System.Int32` |  | 16 |
 
-## `via.gui.FontSlotResourceHolder`
-
-_No fields or methods._
-
 ## `via.gui.FontSlot[]`
 
 **Methods**
@@ -44079,10 +43435,6 @@ _No fields or methods._
 :System.Void shrinkVertexAndIndexTbl()
 ```
 
-## `via.gui.FreePolygonResourceHolder`
-
-_No fields or methods._
-
 ## `via.gui.FreePolygonUpdateArg`
 
 **Methods**
@@ -44243,14 +43595,6 @@ _No fields or methods._
 :System.Void set_ScreenOffset(via.Float2)
 :System.Void set_VerticalEnable(System.Boolean)
 ```
-
-## `via.gui.GUIColorPresetResourceHolder`
-
-_No fields or methods._
-
-## `via.gui.GUIConfigResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.GUIController`
 
@@ -44454,10 +43798,6 @@ sdk.call_native_func(nil, type_def, "op_Implicit", ...)  -- System.String op_Imp
 :System.Void set_Item(System.Int32, via.gui.GUIPropertyLabel)
 ```
 
-## `via.gui.GUIResourceHolder`
-
-_No fields or methods._
-
 ## `via.gui.GUIShaderCommonFlag`
 
 **Fields**
@@ -44493,14 +43833,6 @@ _No fields or methods._
 :via.gui.GUIShaderCommonFlag get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.GUIShaderCommonFlag)
 ```
-
-## `via.gui.GUISoundResourceHolder`
-
-_No fields or methods._
-
-## `via.gui.GUIStyleListResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.GUISystem`
 
@@ -45194,10 +44526,6 @@ sdk.call_native_func(nil, type_def, "ReplaceRefMessage", ...)  -- System.String 
 :via.gui.IconColorType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.IconColorType)
 ```
-
-## `via.gui.IconFontResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.ImageFilter`
 
@@ -46722,10 +46050,6 @@ _No fields or methods._
 :via.gui.MessageTextObject get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.MessageTextObject)
 ```
-
-## `via.gui.MessageResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.MessageResourceHolder[]`
 
@@ -57746,14 +57070,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_SelectedNumberMsg(System.String)
 ```
 
-## `via.gui.OutlineFontResourceHolder`
-
-_No fields or methods._
-
-## `via.gui.OverlayUITexture`
-
-_No fields or methods._
-
 ## `via.gui.PageAlignment`
 
 **Fields**
@@ -57791,10 +57107,6 @@ _No fields or methods._
 :via.gui.PageAlignment get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.PageAlignment)
 ```
-
-## `via.gui.Panel`
-
-_No fields or methods._
 
 ## `via.gui.Panel[]`
 
@@ -58609,14 +57921,6 @@ sdk.call_native_func(nil, type_def, "op_Implicit", ...)  -- System.Boolean op_Im
 :via.gui.SVGAssetType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.SVGAssetType)
 ```
-
-## `via.gui.SVGResourceHolder`
-
-_No fields or methods._
-
-## `via.gui.SVGSequenceResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.SVGStrokeRangeType`
 
@@ -59682,10 +58986,6 @@ sdk.call_native_func(nil, type_def, "isHitTestEnable", ...)  -- System.Boolean i
 ```lua
 :via.gui.Text get_Text()
 ```
-
-## `via.gui.TextAnimationResourceHolder`
-
-_No fields or methods._
 
 ## `via.gui.TextAnimationStartArg`
 
@@ -61058,10 +60358,6 @@ sdk.call_native_func(nil, type_def, "fillRect", ...)  -- System.Void fillRect(vi
 :System.Void set_Segment(System.UInt32)
 ```
 
-## `via.gui.detail`
-
-_No fields or methods._
-
 ## `via.gui.dialogue`
 
 **Static methods**
@@ -61120,10 +60416,6 @@ sdk.call_native_func(nil, type_def, "isExistGuid", ...)  -- System.Boolean isExi
 sdk.call_native_func(nil, type_def, "isExistName", ...)  -- System.Boolean isExistName(System.String)
 ```
 
-## `via.gui.parameter`
-
-_No fields or methods._
-
 ## `via.gui.png`
 
 **Static methods**
@@ -61165,10 +60457,6 @@ sdk.call_native_func(nil, type_def, "createPngTexture", ...)  -- via.gui.PngText
 :via.gui.renderer.PrimitiveError get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.gui.renderer.PrimitiveError)
 ```
-
-## `via.hansoft.CreateRequest`
-
-_No fields or methods._
 
 ## `via.hansoft.DataMode`
 
@@ -61625,18 +60913,6 @@ sdk.call_native_func(nil, type_def, "createUnorderedListsText", ...)  -- System.
 :System.Void set_Item(System.Int32, via.hansoft.HttpMethod)
 ```
 
-## `via.hansoft.OverwriteRequest`
-
-_No fields or methods._
-
-## `via.hardwareService`
-
-_No fields or methods._
-
-## `via.hardwareService.detail`
-
-_No fields or methods._
-
 ## `via.hid.AccountPickerResults`
 
 **Fields**
@@ -61770,10 +61046,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.hid.AdaptiveTriggerState)
 ```
 
-## `via.hid.AndroidSoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.AndroidSoftwareKeyboardDevice`
 
 **Methods**
@@ -61781,10 +61053,6 @@ _No fields or methods._
 ```lua
 :via.hid.AndroidSoftwareKeyboardAppearArg get_AppearArg()
 ```
-
-## `via.hid.AppleGamePadDevice`
-
-_No fields or methods._
 
 ## `via.hid.AudioInManager`
 
@@ -62195,26 +61463,6 @@ sdk.call_native_func(nil, type_def, "set_TriggerButtonOnStep", ...)  -- System.V
 :System.Void set_VibrationWaveIndex(System.UInt32)
 ```
 
-## `via.hid.Dualshock4Device`
-
-_No fields or methods._
-
-## `via.hid.DummyDualSenseDevice`
-
-_No fields or methods._
-
-## `via.hid.DummyDualshock4Device`
-
-_No fields or methods._
-
-## `via.hid.DummyNpadDevice`
-
-_No fields or methods._
-
-## `via.hid.DummyXB1GamePadDevice`
-
-_No fields or methods._
-
 ## `via.hid.ExecuteGroup_hdVibration`
 
 **Fields**
@@ -62290,10 +61538,6 @@ _No fields or methods._
 | `state` | `via.hid.GestureState` |  | 32 |
 | `direction` | `via.hid.FlickDirection` |  | 36 |
 | `fingerNumber` | `via.hid.GestureFingerNumber` |  | 40 |
-
-## `via.hid.GameCoreSoftwareKeyboardAppearArg`
-
-_No fields or methods._
 
 ## `via.hid.GameCoreSoftwareKeyboardDevice`
 
@@ -62853,10 +62097,6 @@ sdk.call_native_func(nil, type_def, "unassignAll", ...)  -- System.Void unassign
 :via.hid.gamePlayer.PlayerOtherDeviceHandlingCaps get_PlayerOtherDeviceHandlingCaps()
 ```
 
-## `via.hid.GamePlayerAssignMethodNone`
-
-_No fields or methods._
-
 ## `via.hid.GamePlayerAssignMethodSelectUser`
 
 **Methods**
@@ -63167,10 +62407,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :via.UserIndex get_UserIndex()
 ```
 
-## `via.hid.GestureManagerMobile`
-
-_No fields or methods._
-
 ## `via.hid.GestureManagerMobileEmulation`
 
 **Methods**
@@ -63179,10 +62415,6 @@ _No fields or methods._
 :via.Point convertToScreenSpacePosition(via.Point)
 :via.Size convertToScreenSpaceSize(via.Size)
 ```
-
-## `via.hid.GestureManagerNSW`
-
-_No fields or methods._
 
 ## `via.hid.GestureManagerPs4`
 
@@ -63365,10 +62597,6 @@ sdk.call_native_func(nil, type_def, "setPause", ...)  -- System.Void setPause(Sy
 | `position` | `via.Point` |  | 36 |
 | `fingerNumber` | `via.hid.GestureFingerNumber` |  | 44 |
 
-## `via.hid.IOSSoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.IOSSoftwareKeyboardDevice`
 
 **Methods**
@@ -63376,10 +62604,6 @@ _No fields or methods._
 ```lua
 :via.hid.IOSSoftwareKeyboardAppearArg get_AppearArg()
 ```
-
-## `via.hid.JoypadDevice`
-
-_No fields or methods._
 
 ## `via.hid.Keyboard`
 
@@ -63502,30 +62726,6 @@ sdk.call_native_func(nil, type_def, "translateKey", ...)  -- via.hid.KeyboardKey
 sdk.call_native_func(nil, type_def, "makeNullDevice", ...)  -- via.hid.KeyboardDevice makeNullDevice()
 ```
 
-## `via.hid.KeyboardDeviceGameCore`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDeviceMac`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDeviceNSW`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDeviceNull`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDevicePS4`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDevicePS5`
-
-_No fields or methods._
-
 ## `via.hid.KeyboardDeviceSTADIA`
 
 **Methods**
@@ -63534,14 +62734,6 @@ _No fields or methods._
 :via.hid.KeyboardDisplayKey getDisplayKey(via.hid.KeyboardKey)
 :via.hid.KeyboardKey translateKey(via.hid.KeyboardKey)
 ```
-
-## `via.hid.KeyboardDeviceUWP`
-
-_No fields or methods._
-
-## `via.hid.KeyboardDeviceWin64`
-
-_No fields or methods._
 
 ## `via.hid.KeyboardDevice[]`
 
@@ -64060,10 +63252,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.hid.KeyboardState)
 ```
 
-## `via.hid.MacSoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.MacSoftwareKeyboardDevice`
 
 **Methods**
@@ -64071,22 +63259,6 @@ _No fields or methods._
 ```lua
 :via.hid.MacSoftwareKeyboardAppearArg get_AppearArg()
 ```
-
-## `via.hid.MergedGamePadDevice`
-
-_No fields or methods._
-
-## `via.hid.MergedKeyboardDevice`
-
-_No fields or methods._
-
-## `via.hid.MergedMouseDevice`
-
-_No fields or methods._
-
-## `via.hid.MobileGamePadDevice`
-
-_No fields or methods._
 
 ## `via.hid.MobileSensor`
 
@@ -64269,38 +63441,6 @@ sdk.call_native_func(nil, type_def, "setupCursorImage", ...)  -- System.Boolean 
 ```lua
 sdk.call_native_func(nil, type_def, "makeNullDevice", ...)  -- via.hid.MouseDevice makeNullDevice()
 ```
-
-## `via.hid.MouseDeviceGameCore`
-
-_No fields or methods._
-
-## `via.hid.MouseDeviceMac`
-
-_No fields or methods._
-
-## `via.hid.MouseDeviceNSW`
-
-_No fields or methods._
-
-## `via.hid.MouseDevicePS4`
-
-_No fields or methods._
-
-## `via.hid.MouseDevicePS5`
-
-_No fields or methods._
-
-## `via.hid.MouseDeviceSTADIA`
-
-_No fields or methods._
-
-## `via.hid.MouseDeviceUWP`
-
-_No fields or methods._
-
-## `via.hid.MouseDeviceWin64`
-
-_No fields or methods._
 
 ## `via.hid.MouseState`
 
@@ -64844,10 +63984,6 @@ _No fields or methods._
 :System.UInt32 get_PrevCursorPos()
 ```
 
-## `via.hid.NswSoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.NswSoftwareKeyboardDevice`
 
 **Methods**
@@ -64876,18 +64012,6 @@ _No fields or methods._
 :System.Void set_DialogText(System.String)
 :System.Void set_Result(via.hid.virtualKeyboard.nsw.TextCheckResult)
 ```
-
-## `via.hid.NullGamePadDevice`
-
-_No fields or methods._
-
-## `via.hid.NullMouseDevice`
-
-_No fields or methods._
-
-## `via.hid.OculusTouchDevice`
-
-_No fields or methods._
 
 ## `via.hid.PCVRDevice`
 
@@ -65012,10 +64136,6 @@ sdk.call_native_func(nil, type_def, "standup", ...)  -- System.Boolean standup()
 :System.Void set_Item(System.Int32, via.hid.PinchInOutGestureInfo)
 ```
 
-## `via.hid.Ps4SoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.Ps4SoftwareKeyboardDevice`
 
 **Methods**
@@ -65024,14 +64144,6 @@ _No fields or methods._
 :via.hid.Ps4SoftwareKeyboardAppearArg get_AppearArg()
 ```
 
-## `via.hid.Ps4TextInputArg`
-
-_No fields or methods._
-
-## `via.hid.Ps5SoftwareKeyboardAppearArg`
-
-_No fields or methods._
-
 ## `via.hid.Ps5SoftwareKeyboardDevice`
 
 **Methods**
@@ -65039,10 +64151,6 @@ _No fields or methods._
 ```lua
 :via.hid.Ps5SoftwareKeyboardAppearArg get_AppearArg()
 ```
-
-## `via.hid.Ps5TextInputArg`
-
-_No fields or methods._
 
 ## `via.hid.PsSoftwareKeyboardAppearArg`
 
@@ -65094,14 +64202,6 @@ sdk.call_native_func(nil, type_def, "set_Enable", ...)  -- System.Void set_Enabl
 | `id` | `System.UInt64` |  | 24 |
 | `state` | `via.hid.GestureState` |  | 32 |
 | `angle` | `System.Single` |  | 36 |
-
-## `via.hid.STADIAGamePadDevice`
-
-_No fields or methods._
-
-## `via.hid.StadiaSoftwareKeyboardAppearArg`
-
-_No fields or methods._
 
 ## `via.hid.StadiaSoftwareKeyboardDevice`
 
@@ -65464,14 +64564,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.Void set_TrackingOutOfSightMode(via.hid.TrackingOutOfSightMode)
 ```
 
-## `via.hid.VendorNativeDualSenseDevice`
-
-_No fields or methods._
-
-## `via.hid.VendorNativeDualshock4Device`
-
-_No fields or methods._
-
 ## `via.hid.VibrationManager`
 
 **Methods**
@@ -65639,10 +64731,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.hid.VibrationPriority)
 ```
 
-## `via.hid.VibrationResourceHolder`
-
-_No fields or methods._
-
 ## `via.hid.VirtualDeviceOwnerType`
 
 **Fields**
@@ -65789,18 +64877,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 ```lua
 sdk.call_native_func(nil, type_def, "makeNullDevice", ...)  -- via.hid.VirtualKeyboardDevice makeNullDevice()
 ```
-
-## `via.hid.VirtualKeyboardDeviceMac`
-
-_No fields or methods._
-
-## `via.hid.VirtualKeyboardDeviceNull`
-
-_No fields or methods._
-
-## `via.hid.ViveControllerDevice`
-
-_No fields or methods._
 
 ## `via.hid.VrTracker`
 
@@ -66333,14 +65409,6 @@ sdk.call_native_func(nil, type_def, "stopHMD", ...)  -- via.hid.VrTracker.StopSt
 :System.Void set_Item(System.Int32, via.hid.VrTrackerResultData.Validation)
 ```
 
-## `via.hid.WGInputDevice`
-
-_No fields or methods._
-
-## `via.hid.WGInputGamePadDevice`
-
-_No fields or methods._
-
 ## `via.hid.WindowsTextInputArg`
 
 **Methods**
@@ -66349,10 +65417,6 @@ _No fields or methods._
 :System.UInt32 get_PreEditMargin()
 :System.Void set_PreEditMargin(System.UInt32)
 ```
-
-## `via.hid.XB1GamePadDevice`
-
-_No fields or methods._
 
 ## `via.hid.XB1GamePadDevice[]`
 
@@ -66374,18 +65438,6 @@ _No fields or methods._
 :via.hid.XB1GamePadDevice get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.hid.XB1GamePadDevice)
 ```
-
-## `via.hid.XInputDevice`
-
-_No fields or methods._
-
-## `via.hid.XInputGamePadDevice`
-
-_No fields or methods._
-
-## `via.hid.Xb1SoftwareKeyboardAppearArg`
-
-_No fields or methods._
 
 ## `via.hid.Xb1SoftwareKeyboardDevice`
 
@@ -66841,14 +65893,6 @@ sdk.call_native_func(nil, type_def, "isDiagnosticMode", ...)  -- System.Boolean 
 sdk.call_native_func(nil, type_def, "setDiagnosticMode", ...)  -- System.Void setDiagnosticMode(System.Boolean)
 ```
 
-## `via.hid.detail.MobileSoftwareKeyboardDevice`
-
-_No fields or methods._
-
-## `via.hid.detail.SceneObserver`
-
-_No fields or methods._
-
 ## `via.hid.detail.VibrationSystem`
 
 **Static methods**
@@ -66856,14 +65900,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "get_NullManager", ...)  -- via.hid.VibrationManager get_NullManager()
 ```
-
-## `via.hid.detail.debug`
-
-_No fields or methods._
-
-## `via.hid.gamePlayer`
-
-_No fields or methods._
 
 ## `via.hid.gamePlayer.AccountPickerResult`
 
@@ -67681,10 +66717,6 @@ sdk.call_native_func(nil, type_def, "set_VrModeStatusWaitingFrame", ...)  -- Sys
 :System.Void set_Item(System.Int32, via.hid.hmd.MorpheusTrackerState.StatusCombination)
 ```
 
-## `via.hid.mouse`
-
-_No fields or methods._
-
 ## `via.hid.mouse.ManipulatorClientDefaultType`
 
 **Fields**
@@ -67817,10 +66849,6 @@ _No fields or methods._
 :via.hid.mouse.ManipulatorClientType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.hid.mouse.ManipulatorClientType)
 ```
-
-## `via.hid.mouse.impl`
-
-_No fields or methods._
 
 ## `via.hid.mouse.impl.ManipulatorClientType`
 
@@ -67998,10 +67026,6 @@ _No fields or methods._
 :via.hid.textInput.TextInputSystemMessage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.hid.textInput.TextInputSystemMessage)
 ```
-
-## `via.hid.virtualKeyboard`
-
-_No fields or methods._
 
 ## `via.hid.virtualKeyboard.CollapseSetting`
 
@@ -68805,10 +67829,6 @@ sdk.call_native_func(nil, type_def, "CreateParams", ...)  -- via.houdini.HdaPara
 :System.Void toHapi()
 ```
 
-## `via.houdini.HdaParamLabel`
-
-_No fields or methods._
-
 ## `via.houdini.HdaParamMultiParamList`
 
 **Methods**
@@ -68877,10 +67897,6 @@ _No fields or methods._
 :System.Boolean get_Directory()
 :System.Void toHapi()
 ```
-
-## `via.houdini.HdaParamSeparator`
-
-_No fields or methods._
 
 ## `via.houdini.HdaParamString`
 
@@ -69461,10 +68477,6 @@ sdk.call_native_func(nil, type_def, "rename", ...)  -- System.Boolean rename(Sys
 sdk.call_native_func(nil, type_def, "size", ...)  -- System.UInt64 size(System.String)
 ```
 
-## `via.kernel`
-
-_No fields or methods._
-
 ## `via.kernel.XCloudResult`
 
 **Fields**
@@ -69497,10 +68509,6 @@ _No fields or methods._
 :via.kernel.XCloudResult get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.kernel.XCloudResult)
 ```
-
-## `via.kernel.bcat`
-
-_No fields or methods._
 
 ## `via.kernel.bcat.BcatResult`
 
@@ -69579,22 +68587,6 @@ _No fields or methods._
 :via.kernel.bcat.BcatStatus get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.kernel.bcat.BcatStatus)
 ```
-
-## `via.kernel.bcat.detail`
-
-_No fields or methods._
-
-## `via.keyframe`
-
-_No fields or methods._
-
-## `via.keyframe.detail`
-
-_No fields or methods._
-
-## `via.keyframe.detail.keytype`
-
-_No fields or methods._
 
 ## `via.landscape.AabbAreaRange`
 
@@ -69722,10 +68714,6 @@ _No fields or methods._
 :via.landscape.AreaRangeType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.AreaRangeType)
 ```
-
-## `via.landscape.BakeFoliageIndex`
-
-_No fields or methods._
 
 ## `via.landscape.BakeTexture`
 
@@ -70179,10 +69167,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.landscape.DummyPipelineType)
 ```
 
-## `via.landscape.EcotopeBiomeResourceHolder`
-
-_No fields or methods._
-
 ## `via.landscape.EcotopeManager`
 
 **Static methods**
@@ -70577,14 +69561,6 @@ sdk.call_native_func(nil, type_def, "set_UseRayOffset", ...)  -- System.Void set
 sdk.call_native_func(nil, type_def, "set_UseTextureStreamingDistanceThreshold", ...)  -- System.Void set_UseTextureStreamingDistanceThreshold(System.Boolean)
 ```
 
-## `via.landscape.FoliageMapBakeConfig`
-
-_No fields or methods._
-
-## `via.landscape.FoliageResourceHolder`
-
-_No fields or methods._
-
 ## `via.landscape.FoliageTextureStreamingPositionStrategy`
 
 **Fields**
@@ -70636,10 +69612,6 @@ _No fields or methods._
 :via.landscape.Foliage get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.Foliage)
 ```
-
-## `via.landscape.GeneratePatternResourceHolder`
-
-_No fields or methods._
 
 ## `via.landscape.Ground`
 
@@ -70739,10 +69711,6 @@ _No fields or methods._
 :System.Void set_WindRippleVelocity(System.Single)
 :System.Void set_WindVelocity(System.Single)
 ```
-
-## `via.landscape.GroundBakeConfig`
-
-_No fields or methods._
 
 ## `via.landscape.GroundCommonSegment`
 
@@ -71226,18 +70194,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.Void set_Item(System.Int32, via.landscape.GroundManager.TextureId)
 ```
 
-## `via.landscape.GroundMaterialListResourceHolder`
-
-_No fields or methods._
-
-## `via.landscape.GroundMaterialParameter`
-
-_No fields or methods._
-
-## `via.landscape.GroundMaterialTextureResourceHolder`
-
-_No fields or methods._
-
 ## `via.landscape.GroundOverlaySplat`
 
 **Methods**
@@ -71393,18 +70349,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.landscape.GroundOverlaySplatRegion)
 ```
 
-## `via.landscape.GroundResourceHolder`
-
-_No fields or methods._
-
-## `via.landscape.GroundTextureListResourceHolder`
-
-_No fields or methods._
-
-## `via.landscape.HeightIntersectBakeConfig`
-
-_No fields or methods._
-
 ## `via.landscape.HeightIntersectBakeMethod`
 
 **Fields**
@@ -71435,10 +70379,6 @@ _No fields or methods._
 :via.landscape.HeightIntersectBakeMethod get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.HeightIntersectBakeMethod)
 ```
-
-## `via.landscape.HeightIntersectInput`
-
-_No fields or methods._
 
 ## `via.landscape.InterpolateType`
 
@@ -71564,10 +70504,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :via.landscape.LandformPipelineStateType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.LandformPipelineStateType)
 ```
-
-## `via.landscape.LandformResourceHolder`
-
-_No fields or methods._
 
 ## `via.landscape.LandformTextureData`
 
@@ -72417,10 +71353,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.landscape.RoadBakeSegmentFilter)
 ```
 
-## `via.landscape.RoadResourceHolder`
-
-_No fields or methods._
-
 ## `via.landscape.ShaderType`
 
 **Fields**
@@ -72454,10 +71386,6 @@ _No fields or methods._
 :via.landscape.ShaderType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.ShaderType)
 ```
-
-## `via.landscape.SlopeTexture`
-
-_No fields or methods._
 
 ## `via.landscape.SpeedTreeController`
 
@@ -72558,10 +71486,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasInstance()
 ```
-
-## `via.landscape.SplineMeshTypeResourceHolder`
-
-_No fields or methods._
 
 ## `via.landscape.SplinePipelineState`
 
@@ -72721,10 +71645,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.landscape.TileState)
 ```
 
-## `via.landscape.UserAttributeMapBaker`
-
-_No fields or methods._
-
 ## `via.landscape.UserAttributeMapBaker.State`
 
 **Fields**
@@ -72791,14 +71711,6 @@ _No fields or methods._
 :via.landscape.WireframeType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.landscape.WireframeType)
 ```
-
-## `via.landscape.detail`
-
-_No fields or methods._
-
-## `via.landscape.dev`
-
-_No fields or methods._
 
 ## `via.landscape.layer.HeightmapLayer`
 
@@ -73194,10 +72106,6 @@ _No fields or methods._
 :System.Void set_Position(via.vec3)
 :System.Void set_Selected(System.Boolean)
 ```
-
-## `via.landscape.path.PathResourceHolder`
-
-_No fields or methods._
 
 ## `via.landscape.path.Path[]`
 
@@ -73960,10 +72868,6 @@ sdk.call_native_func(nil, type_def, "worldPos2ScreenPosDepth", ...)  -- via.vec3
 :System.Void set_Item(System.Int32, via.math.RotationOrder)
 ```
 
-## `via.math.detail`
-
-_No fields or methods._
-
 ## `via.math.legacy`
 
 **Static methods**
@@ -74462,22 +73366,6 @@ sdk.call_native_func(nil, type_def, "setTimeSlicePageCollectionEnabled", ...)  -
 :System.Void set_Item(System.Int32, via.memory.PerfCounterType)
 ```
 
-## `via.memory.detail`
-
-_No fields or methods._
-
-## `via.memory.detail.simd`
-
-_No fields or methods._
-
-## `via.memory.detail.tls`
-
-_No fields or methods._
-
-## `via.memory.detail.utility`
-
-_No fields or methods._
-
 ## `via.memory_order`
 
 **Fields**
@@ -74791,10 +73679,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.mlsupport.mlshape)
 ```
 
-## `via.mlsupport.MLBuildParamCPU`
-
-_No fields or methods._
-
 ## `via.mlsupport.MLBuildParamGPU`
 
 **Methods**
@@ -74938,10 +73822,6 @@ _No fields or methods._
 :via.render.TextureResourceHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.TextureResourceHolder)
 ```
-
-## `via.mlsupport.MLGraphDefResourceHolder`
-
-_No fields or methods._
 
 ## `via.mlsupport.MLNetwork`
 
@@ -75736,10 +74616,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void set_Item(System.Int32, via.motion.AnimationTransformData)
 ```
 
-## `via.motion.AppendData`
-
-_No fields or methods._
-
 ## `via.motion.AppendDataArrayInfo`
 
 **Methods**
@@ -75866,14 +74742,6 @@ _No fields or methods._
 :via.motion.BlendType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.BlendType)
 ```
-
-## `via.motion.CaptureFacialResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.CaptureHandResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.Chain`
 
@@ -76483,10 +75351,6 @@ sdk.call_native_func(nil, type_def, "set_GlobalColliderAreaLimitScale", ...)  --
 :System.Void set_Item(System.Int32, via.motion.ChainNodeConstMode)
 ```
 
-## `via.motion.ChainResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.ChainType`
 
 **Fields**
@@ -76536,10 +75400,6 @@ _No fields or methods._
 :System.Void set_Speed(System.Single)
 :System.Void set_WindAsset(via.motion.ChainWindResourceHolder)
 ```
-
-## `via.motion.ChainWindResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.Chain[]`
 
@@ -77352,10 +76212,6 @@ _No fields or methods._
 :System.Void update()
 ```
 
-## `via.motion.DevSampleTracks`
-
-_No fields or methods._
-
 ## `via.motion.DevelopRetarget`
 
 **Methods**
@@ -77602,10 +76458,6 @@ _No fields or methods._
 :via.motion.DevelopRetarget.ArmTargetSetting get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.DevelopRetarget.ArmTargetSetting)
 ```
-
-## `via.motion.DevelopRetargetResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.DummySkeleton`
 
@@ -77931,10 +76783,6 @@ _No fields or methods._
 :via.motion.ExpressionUpdate get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.ExpressionUpdate)
 ```
-
-## `via.motion.FbxSkeletonResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.Fsm2ActionPlayMotion`
 
@@ -78331,10 +77179,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.FullBodyIKRig.LimbSolverType)
 ```
 
-## `via.motion.FullBodyIKRig.Quadruped`
-
-_No fields or methods._
-
 ## `via.motion.FullBodyIKRig.SetupLevel`
 
 **Fields**
@@ -78420,10 +77264,6 @@ _No fields or methods._
 :via.motion.FullBodyIKRig.LimbChain get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.FullBodyIKRig.LimbChain)
 ```
-
-## `via.motion.FullBodyIKRigResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.GpuMotion`
 
@@ -78533,10 +77373,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.GpuMotion.WrapMode)
 ```
 
-## `via.motion.GpuMotionListResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.HipLegRig`
 
 **Fields**
@@ -78601,14 +77437,6 @@ _No fields or methods._
 :via.motion.HipLegRig.LegSolverMode get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.HipLegRig.LegSolverMode)
 ```
-
-## `via.motion.IMotionData`
-
-_No fields or methods._
-
-## `via.motion.IMotionSequenceData`
-
-_No fields or methods._
 
 ## `via.motion.IkBodyRig`
 
@@ -79040,10 +77868,6 @@ _No fields or methods._
 :System.Void set_RightHumerusJointName(System.String)
 ```
 
-## `via.motion.IkBodyRigResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.IkDamageAction`
 
 **Methods**
@@ -79348,10 +78172,6 @@ _No fields or methods._
 :via.motion.IkDamageAction.DebugDamageTransition get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.IkDamageAction.DebugDamageTransition)
 ```
-
-## `via.motion.IkDamageActionResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.IkDog`
 
@@ -80097,10 +78917,6 @@ _No fields or methods._
 :via.motion.IkHand2.SkipStatus get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.IkHand2.SkipStatus)
 ```
-
-## `via.motion.IkHand2ResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.IkHandDataContainer`
 
@@ -81621,10 +80437,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.IkLeg2.ToeCtrlOption)
 ```
 
-## `via.motion.IkLeg2ResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.IkLegSpine`
 
 **Fields**
@@ -82549,10 +81361,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.IkLegSpine.WallLimitCtrl)
 ```
 
-## `via.motion.IkLegSpineResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.IkLookAt`
 
 **Methods**
@@ -83054,14 +81862,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.IkLookAt2.State)
 ```
 
-## `via.motion.IkLookAt2ResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.IkLookAtResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.IkMultiBone`
 
 **Methods**
@@ -83130,18 +81930,6 @@ _No fields or methods._
 :System.Void set_TargetPosition(via.vec3)
 ```
 
-## `via.motion.IkMultiBone.JointIKCCD`
-
-_No fields or methods._
-
-## `via.motion.IkMultiBone.JointIKFABR`
-
-_No fields or methods._
-
-## `via.motion.IkMultiBone.JointIKNCF`
-
-_No fields or methods._
-
 ## `via.motion.IkMultiBone.JointIK[]`
 
 **Methods**
@@ -83189,10 +81977,6 @@ _No fields or methods._
 :via.motion.IkMultiBone.JointIK get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.IkMultiBone.JointIK)
 ```
-
-## `via.motion.IkMultiBoneResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.IkMultiLookAt2`
 
@@ -84574,10 +83358,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.IkSpineConformGround.ManageJoint)
 ```
 
-## `via.motion.IkSpineConformGroundResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.IkTrain`
 
 **Methods**
@@ -84829,14 +83609,6 @@ _No fields or methods._
 :System.Void set_TurningRate(System.Single)
 ```
 
-## `via.motion.IkTrain2ResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.IkTrainResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.InterpolationCurve`
 
 **Fields**
@@ -84992,10 +83764,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.JointConstraintsLayer)
 ```
 
-## `via.motion.JointConstraintsResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.JointConstraints[]`
 
 **Methods**
@@ -85142,10 +83910,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.JointExprGraphLayer)
 ```
 
-## `via.motion.JointExprGraphResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.JointGroup`
 
 **Fields**
@@ -85193,14 +83957,6 @@ _No fields or methods._
 :System.Void set_Enabled(System.Boolean)
 :System.Void update()
 ```
-
-## `via.motion.JointLODGroupResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.JointMapResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.JointMaskIDMode`
 
@@ -85698,10 +84454,6 @@ _No fields or methods._
 :via.motion.JointSettingElement get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.JointSettingElement)
 ```
-
-## `via.motion.JointSettingResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.JointType`
 
@@ -86399,14 +85151,6 @@ sdk.call_native_func(nil, type_def, "get_EmptyMotionID", ...)  -- System.UInt32 
 :System.Void set_MotionList(via.motion.MotionListBaseResourceHolder)
 ```
 
-## `via.motion.MotionBankBaseResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.MotionBankResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.MotionBank[]`
 
 **Methods**
@@ -86427,10 +85171,6 @@ _No fields or methods._
 :via.motion.MotionBank get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.MotionBank)
 ```
-
-## `via.motion.MotionBaseResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.MotionBindFook`
 
@@ -86525,10 +85265,6 @@ _No fields or methods._
 :via.motion.MotionBindHook.DirtyFlags get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.MotionBindHook.DirtyFlags)
 ```
-
-## `via.motion.MotionBlendResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.MotionCallUpdate`
 
@@ -86723,22 +85459,6 @@ _No fields or methods._
 :via.motion.MotionBank get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.MotionBank)
 ```
-
-## `via.motion.MotionCameraBankResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.MotionCameraListResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.MotionCameraResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.MotionFacialResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.MotionFilter`
 
@@ -86954,10 +85674,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.MotionFsm2Layer)
 ```
 
-## `via.motion.MotionFsm2ResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.MotionFsm2[]`
 
 **Methods**
@@ -87015,10 +85731,6 @@ _No fields or methods._
 :via.motion.MotionFsmLayer get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.MotionFsmLayer)
 ```
-
-## `via.motion.MotionFsmResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.MotionInfo`
 
@@ -87403,14 +86115,6 @@ sdk.call_native_func(nil, type_def, "get_UndefID", ...)  -- System.UInt32 get_Un
 :System.Void setLocalScale(System.UInt32, via.vec3)
 ```
 
-## `via.motion.MotionListBaseResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.MotionListResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.MotionManager`
 
 **Static methods**
@@ -87598,10 +86302,6 @@ sdk.call_native_func(nil, type_def, "traceAsyncLoadWait", ...)  -- System.Void t
 :System.Void set_Item(System.Int32, via.motion.MotionNodeCtrl)
 ```
 
-## `via.motion.MotionResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.MotionRootInterpolator`
 
 **Methods**
@@ -87663,10 +86363,6 @@ _No fields or methods._
 :System.Void set_Point(System.Int32)
 ```
 
-## `via.motion.MotionTracks`
-
-_No fields or methods._
-
 ## `via.motion.MotionTransitionInfo`
 
 **Methods**
@@ -87687,10 +86383,6 @@ _No fields or methods._
 :via.motion.TreeLayer get_Layer()
 :System.Single[] get_Values()
 ```
-
-## `via.motion.MotionTreeResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.MotionType`
 
@@ -87781,10 +86473,6 @@ _No fields or methods._
 :System.Void set_RightHeelContact(System.Boolean)
 :System.Void set_RightToeContact(System.Boolean)
 ```
-
-## `via.motion.PFNNResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.PFNNTracks`
 
@@ -87880,10 +86568,6 @@ _No fields or methods._
 :via.motion.RIKJointId get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.RIKJointId)
 ```
-
-## `via.motion.RefSkeletonResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.ResetCommonDataFlag`
 
@@ -87991,14 +86675,6 @@ _No fields or methods._
 :via.motion.RetargetBodySizeItem get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.RetargetBodySizeItem)
 ```
-
-## `via.motion.RetargetBodySizeListResourceHolder`
-
-_No fields or methods._
-
-## `via.motion.RetargetBodySizeResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.RetargetFourLegRig`
 
@@ -88415,10 +87091,6 @@ _No fields or methods._
 :System.UInt32 get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.UInt32)
 ```
-
-## `via.motion.RetargetFourLegRigResourceHolder`
-
-_No fields or methods._
 
 ## `via.motion.RetargetRig`
 
@@ -88980,10 +87652,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.RetargetRigFlipFlag)
 ```
 
-## `via.motion.RetargetRigResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.RootPlayMode`
 
 **Fields**
@@ -89381,10 +88049,6 @@ _No fields or methods._
 :System.Void set_StartTime(System.Single)
 ```
 
-## `via.motion.SkeletonResourceHolder`
-
-_No fields or methods._
-
 ## `via.motion.SmoothAnimator`
 
 **Fields**
@@ -89756,10 +88420,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void set_Item(System.Int32, via.motion.TimingType)
 ```
 
-## `via.motion.Tracks`
-
-_No fields or methods._
-
 ## `via.motion.TransitionState`
 
 **Fields**
@@ -89793,10 +88453,6 @@ _No fields or methods._
 :via.motion.TransitionState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.motion.TransitionState)
 ```
-
-## `via.motion.TreeCameraLayer`
-
-_No fields or methods._
 
 ## `via.motion.TreeCameraLayer[]`
 
@@ -90273,10 +88929,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.motion.WrapMode)
 ```
 
-## `via.motion.chain`
-
-_No fields or methods._
-
 ## `via.motion.chain.ChainSpringCalcType`
 
 **Fields**
@@ -90455,10 +89107,6 @@ sdk.call_native_func(nil, type_def, "adoptVMDOffsetQuat", ...)  -- System.Void a
 sdk.call_native_func(nil, type_def, "adoptVMDOffsetScale", ...)  -- System.Void adoptVMDOffsetScale(via.vec3, via.Joint)
 sdk.call_native_func(nil, type_def, "solveVMDIK", ...)  -- System.Void solveVMDIK(via.Joint, via.Joint, via.Joint, System.Int32, System.Int32, System.Int32, System.Single, System.Boolean)
 ```
-
-## `via.motion.largematrix`
-
-_No fields or methods._
 
 ## `via.motion.motmath`
 
@@ -91159,10 +89807,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 ```lua
 :System.Void .ctor()
 ```
-
-## `via.motion.script.MotionAppendDataBase`
-
-_No fields or methods._
 
 ## `via.motion.script.MotionAppendDataUtil`
 
@@ -91897,10 +90541,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_Item(System.Int32, via.movie.MovieManager.GCTarget)
 ```
 
-## `via.movie.MovieResourceHolder`
-
-_No fields or methods._
-
 ## `via.movie.Movie[]`
 
 **Methods**
@@ -92028,10 +90668,6 @@ sdk.call_native_func(nil, type_def, "calc32", ...)  -- System.UInt32 calc32(Syst
 sdk.call_native_func(nil, type_def, "calc32AsUTF8", ...)  -- System.UInt32 calc32AsUTF8(System.String, System.UInt64)
 ```
 
-## `via.murmur_hash.detail`
-
-_No fields or methods._
-
 ## `via.navigation.AIMap`
 
 **Fields**
@@ -92119,14 +90755,6 @@ _No fields or methods._
 :via.navigation.MapHandle get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.navigation.MapHandle)
 ```
-
-## `via.navigation.AIMapAttributeResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapBaseResourceHolder`
-
-_No fields or methods._
 
 ## `via.navigation.AIMapEffector`
 
@@ -92398,18 +91026,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.navigation.AIMapEffector)
 ```
 
-## `via.navigation.AIMapNavMeshResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapNavMeshSectionManagerResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapResourceHolder`
-
-_No fields or methods._
-
 ## `via.navigation.AIMapSection`
 
 **Fields**
@@ -92485,22 +91101,6 @@ _No fields or methods._
 :via.navigation.AIMapTaskExecPostionType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.navigation.AIMapTaskExecPostionType)
 ```
-
-## `via.navigation.AIMapVolumeSpaceResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapVolumeSpaceSectionManagerResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapWaypointResourceHolder`
-
-_No fields or methods._
-
-## `via.navigation.AIMapWaypointSectionManagerResourceHolder`
-
-_No fields or methods._
 
 ## `via.navigation.AdjustPrio`
 
@@ -92621,10 +91221,6 @@ _No fields or methods._
 :via.navigation.DebugDrawAttribute get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.navigation.DebugDrawAttribute)
 ```
-
-## `via.navigation.EffectorAttributeInfo`
-
-_No fields or methods._
 
 ## `via.navigation.FailReport`
 
@@ -93739,10 +92335,6 @@ _No fields or methods._
 :System.Void set_StartNodeUserDataFilterDelegate(bool__via_navigation_map_NodeInfo___)
 ```
 
-## `via.navigation.NavigationFilterSettingResourceHolder`
-
-_No fields or methods._
-
 ## `via.navigation.NavigationInfo`
 
 **Methods**
@@ -94455,10 +93047,6 @@ sdk.call_native_func(nil, type_def, "set_SwitchDrawWireframeCount", ...)  -- Sys
 :System.Void set_Item(System.Int32, via.navigation.NodeQueryInfo.RegionType)
 ```
 
-## `via.navigation.ObstacleAttributeInfo`
-
-_No fields or methods._
-
 ## `via.navigation.ObstacleFilterInfo`
 
 **Methods**
@@ -94865,10 +93453,6 @@ sdk.call_native_func(nil, type_def, "intersectTestLength", ...)  -- System.Singl
 :System.Void set_Item(System.Int32, via.navigation.WarningType)
 ```
 
-## `via.navigation.detail`
-
-_No fields or methods._
-
 ## `via.navigation.map.InteractionShape`
 
 **Fields**
@@ -94893,10 +93477,6 @@ _No fields or methods._
 :via.AABB get_Shape()
 :System.Void set_Shape(via.AABB)
 ```
-
-## `via.navigation.map.InteractionShapeBase`
-
-_No fields or methods._
 
 ## `via.navigation.map.InteractionShapeColliderBoundary`
 
@@ -95028,10 +93608,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.navigation.map.LinkInfo)
 ```
 
-## `via.navigation.map.ManagedIndexedLink`
-
-_No fields or methods._
-
 ## `via.navigation.map.MapType`
 
 **Fields**
@@ -95082,10 +93658,6 @@ _No fields or methods._
 :System.Int32 get_Count()
 :via.navigation.map.NodeInfo get_Item(System.Int32)
 ```
-
-## `via.navigation.map.NodeCollectShape`
-
-_No fields or methods._
 
 ## `via.navigation.map.NodeCollectShapeOBB`
 
@@ -95296,10 +93868,6 @@ _No fields or methods._
 :via.navigation.map.NodeShapeType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.navigation.map.NodeShapeType)
 ```
-
-## `via.navigation.map.NodeUserData`
-
-_No fields or methods._
 
 ## `via.navigation.map.NodeVertices`
 
@@ -95567,10 +94135,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.navigation.map.VerticesMatrixType)
 ```
 
-## `via.network.AchievementsAgc`
-
-_No fields or methods._
-
 ## `via.network.AchievementsBase`
 
 **Methods**
@@ -95607,18 +94171,6 @@ _No fields or methods._
 :System.Void set_OnNtcAchievementsWriteSucceed(void__via_UserIndex__via_string_)
 ```
 
-## `via.network.AchievementsGgp`
-
-_No fields or methods._
-
-## `via.network.AchievementsLamm`
-
-_No fields or methods._
-
-## `via.network.AchievementsLive`
-
-_No fields or methods._
-
 ## `via.network.AchievementsPs5Psn`
 
 **Methods**
@@ -95636,10 +94188,6 @@ _No fields or methods._
 :System.UInt32 get_ServiceLabel()
 :System.Void set_ServiceLabel(System.UInt32)
 ```
-
-## `via.network.AchievementsSteam`
-
-_No fields or methods._
 
 ## `via.network.AchievementsWeGame`
 
@@ -96117,10 +94665,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.AutoMatchmaking.RuleListEditor)
 ```
 
-## `via.network.AutoSessionRulesResourceHolder`
-
-_No fields or methods._
-
 ## `via.network.BattleInput`
 
 **Fields**
@@ -96251,10 +94795,6 @@ _No fields or methods._
 :via.network.BattleInput.Error get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.network.BattleInput.Error)
 ```
-
-## `via.network.BattleMetaBase`
-
-_No fields or methods._
 
 ## `via.network.BattleReplay`
 
@@ -97292,38 +95832,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.Void set_OnNtcIdConverterFinalize(void__via_network_Error___)
 ```
 
-## `via.network.IdConverterGgp`
-
-_No fields or methods._
-
-## `via.network.IdConverterLamm`
-
-_No fields or methods._
-
-## `via.network.IdConverterLive`
-
-_No fields or methods._
-
-## `via.network.IdConverterPs5Psn`
-
-_No fields or methods._
-
-## `via.network.IdConverterPsn`
-
-_No fields or methods._
-
-## `via.network.IdConverterRebe`
-
-_No fields or methods._
-
-## `via.network.IdConverterSteam`
-
-_No fields or methods._
-
-## `via.network.IdConverterWeGame`
-
-_No fields or methods._
-
 ## `via.network.InvitationBase`
 
 **Methods**
@@ -97354,34 +95862,6 @@ _No fields or methods._
 :System.Void set_OnNtcInvitationAcceptSucceed(void__via_UserIndex__via_network_session_Info___)
 :System.Void set_OnNtcInvitationFinalize(void__via_network_Error___)
 ```
-
-## `via.network.InvitationLamm`
-
-_No fields or methods._
-
-## `via.network.InvitationLive`
-
-_No fields or methods._
-
-## `via.network.InvitationPs5Psn`
-
-_No fields or methods._
-
-## `via.network.InvitationPsn`
-
-_No fields or methods._
-
-## `via.network.InvitationRebe`
-
-_No fields or methods._
-
-## `via.network.InvitationSteam`
-
-_No fields or methods._
-
-## `via.network.InvitationWeGame`
-
-_No fields or methods._
 
 ## `via.network.MatchesPsn`
 
@@ -98200,10 +96680,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.MatchmakingRules.RuleType)
 ```
 
-## `via.network.MatchmakingRulesResourceHolder`
-
-_No fields or methods._
-
 ## `via.network.MatchmakingTeam`
 
 **Methods**
@@ -98514,26 +96990,6 @@ sdk.call_native_func(nil, type_def, "xboUserHashGet", ...)  -- System.String xbo
 sdk.call_native_func(nil, type_def, "xboUserIdGet", ...)  -- System.String xboUserIdGet(via.UserIndex)
 ```
 
-## `via.network.Native.NpPresenceStatus`
-
-_No fields or methods._
-
-## `via.network.NetworkConfigHolder`
-
-_No fields or methods._
-
-## `via.network.NetworkFineGrainedRateLimitingHolder`
-
-_No fields or methods._
-
-## `via.network.NetworkRequestFrequencyLimitHolder`
-
-_No fields or methods._
-
-## `via.network.OodleNetworkRuntimeDataHolder`
-
-_No fields or methods._
-
 ## `via.network.OverlaySession`
 
 **Methods**
@@ -98564,10 +97020,6 @@ _No fields or methods._
 :System.Void set_OnAnsSessionJoinFail(void__via_network_utility_Request____via_network_Error___)
 :System.Void set_OnAnsSessionJoinSucceed(void__via_network_utility_Request____s32__via_network_session_MemberInfo____via_network_session_Info___)
 ```
-
-## `via.network.OverlaySession.Slot`
-
-_No fields or methods._
 
 ## `via.network.OverlaySession.Slot[]`
 
@@ -98778,30 +97230,6 @@ _No fields or methods._
 :System.Void set_OnNtcRankingFinalize(void__via_network_Error___)
 ```
 
-## `via.network.RankingGgp`
-
-_No fields or methods._
-
-## `via.network.RankingLamm`
-
-_No fields or methods._
-
-## `via.network.RankingLive`
-
-_No fields or methods._
-
-## `via.network.RankingNex`
-
-_No fields or methods._
-
-## `via.network.RankingNpln`
-
-_No fields or methods._
-
-## `via.network.RankingPiaInet`
-
-_No fields or methods._
-
 ## `via.network.RankingPs5Psn`
 
 **Methods**
@@ -98831,10 +97259,6 @@ _No fields or methods._
 :System.Void set_IsEnableRequestUserInformation(System.Boolean)
 :System.Void set_UploadScoreTimeout(System.Int64)
 ```
-
-## `via.network.RankingWeGame`
-
-_No fields or methods._
 
 ## `via.network.ReceiveThread`
 
@@ -99368,14 +97792,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_Item(System.Int32, via.network.Error)
 ```
 
-## `via.network.SessionGgp`
-
-_No fields or methods._
-
-## `via.network.SessionLamm`
-
-_No fields or methods._
-
 ## `via.network.SessionLive`
 
 **Methods**
@@ -99390,10 +97806,6 @@ _No fields or methods._
 :System.Void setEnableActivity(System.Boolean)
 :System.Void setSessionTemplateName(System.String)
 ```
-
-## `via.network.SessionNex`
-
-_No fields or methods._
 
 ## `via.network.SessionNpln`
 
@@ -99415,18 +97827,6 @@ _No fields or methods._
 :System.Boolean waitCreateShortId(System.Boolean)
 :System.Boolean waitSetEnableBackfill(System.Boolean)
 ```
-
-## `via.network.SessionPiaInet`
-
-_No fields or methods._
-
-## `via.network.SessionPiaLocal`
-
-_No fields or methods._
-
-## `via.network.SessionPlayFab`
-
-_No fields or methods._
 
 ## `via.network.SessionPs5Psn`
 
@@ -99574,10 +97974,6 @@ _No fields or methods._
 :System.Void set_SearchByUniqueIdOnFriend(System.Boolean)
 ```
 
-## `via.network.SessionWeGame`
-
-_No fields or methods._
-
 ## `via.network.StorageBase`
 
 **Methods**
@@ -99621,10 +98017,6 @@ _No fields or methods._
 :System.Void set_OnNtcStorageReadResult(void__via_network_utility_BinaryInfo____size_t_)
 ```
 
-## `via.network.StorageLamm`
-
-_No fields or methods._
-
 ## `via.network.StorageLive`
 
 **Methods**
@@ -99633,18 +98025,6 @@ _No fields or methods._
 :System.Int32 get_TitleStorageType()
 :System.Void set_TitleStorageType(System.Int32)
 ```
-
-## `via.network.StorageNex`
-
-_No fields or methods._
-
-## `via.network.StorageNpln`
-
-_No fields or methods._
-
-## `via.network.StoragePiaInet`
-
-_No fields or methods._
 
 ## `via.network.StoragePs5Psn`
 
@@ -99665,14 +98045,6 @@ _No fields or methods._
 :System.UInt32 get_ServiceLabel()
 :System.Void set_ServiceLabel(System.UInt32)
 ```
-
-## `via.network.StorageSteam`
-
-_No fields or methods._
-
-## `via.network.StorageWeGame`
-
-_No fields or methods._
 
 ## `via.network.SubsidiarySession`
 
@@ -99807,10 +98179,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.SubsidiarySession.Slot)
 ```
 
-## `via.network.SubsidiarySessionProtocol`
-
-_No fields or methods._
-
 ## `via.network.TagChecker`
 
 **Methods**
@@ -99849,50 +98217,6 @@ _No fields or methods._
 :System.Void set_OnNtcUtilityCloseProfile(void__s32_)
 :System.Void set_OnNtcUtilityFinalize(void__via_network_Error___)
 ```
-
-## `via.network.UtilityGgp`
-
-_No fields or methods._
-
-## `via.network.UtilityLamm`
-
-_No fields or methods._
-
-## `via.network.UtilityLive`
-
-_No fields or methods._
-
-## `via.network.UtilityNex`
-
-_No fields or methods._
-
-## `via.network.UtilityPiaInet`
-
-_No fields or methods._
-
-## `via.network.UtilityPiaLocal`
-
-_No fields or methods._
-
-## `via.network.UtilityPs5Psn`
-
-_No fields or methods._
-
-## `via.network.UtilityPsn`
-
-_No fields or methods._
-
-## `via.network.UtilityRebe`
-
-_No fields or methods._
-
-## `via.network.UtilitySteam`
-
-_No fields or methods._
-
-## `via.network.UtilityWeGame`
-
-_No fields or methods._
 
 ## `via.network.VoiceChatExtension`
 
@@ -99994,10 +98318,6 @@ _No fields or methods._
 :System.Boolean get_Unlock()
 :via.UserIndex get_UserIndex()
 ```
-
-## `via.network.bson`
-
-_No fields or methods._
 
 ## `via.network.bson.ElementId`
 
@@ -100529,10 +98849,6 @@ sdk.call_native_func(nil, type_def, "outputForScript", ...)  -- System.Void outp
 :System.Void set_Item(System.Int32, via.network.datalog.Level)
 ```
 
-## `via.network.detail.donburi`
-
-_No fields or methods._
-
 ## `via.network.donburi`
 
 **Fields**
@@ -100574,10 +98890,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.donburi.StreamDir)
 ```
 
-## `via.network.donburi.error`
-
-_No fields or methods._
-
 ## `via.network.donburi.error.Cause`
 
 **Fields**
@@ -100618,10 +98930,6 @@ _No fields or methods._
 :via.network.donburi.error.Cause get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.network.donburi.error.Cause)
 ```
-
-## `via.network.error`
-
-_No fields or methods._
 
 ## `via.network.error.CauseAchievements`
 
@@ -102348,10 +100656,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.log.Level)
 ```
 
-## `via.network.msgpack`
-
-_No fields or methods._
-
 ## `via.network.msgpack.ObjectType`
 
 **Fields**
@@ -102392,10 +100696,6 @@ _No fields or methods._
 :via.network.msgpack.ObjectType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.network.msgpack.ObjectType)
 ```
-
-## `via.network.msgpack.detail`
-
-_No fields or methods._
 
 ## `via.network.native.MacAppStoreError`
 
@@ -103777,10 +102077,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.native.XboNatType)
 ```
 
-## `via.network.network`
-
-_No fields or methods._
-
 ## `via.network.p2p.Constants`
 
 **Fields**
@@ -103821,10 +102117,6 @@ _No fields or methods._
 :via.network.p2p.StarSocketProtocol get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.network.p2p.StarSocketProtocol)
 ```
-
-## `via.network.protocol`
-
-_No fields or methods._
 
 ## `via.network.protocol.MemberIndex`
 
@@ -104231,10 +102523,6 @@ sdk.call_native_func(nil, type_def, "lessValue", ...)  -- System.Boolean lessVal
 | `MaxNumSearchResult` | `System.UInt64` | yes | 16 |
 | `MaxSizeSendBuffer` | `System.UInt64` | yes | 16 |
 | `MaxSizeSendOnce` | `System.UInt64` | yes | 16 |
-
-## `via.network.session.CustomProperty`
-
-_No fields or methods._
 
 ## `via.network.session.FilterAttr`
 
@@ -105120,10 +103408,6 @@ _No fields or methods._
 | --- | --- | --- | --- |
 | `MaxSizeCustomProperty` | `System.UInt64` | yes | 16 |
 
-## `via.network.utility.CustomProperty`
-
-_No fields or methods._
-
 ## `via.network.utility.FriendList`
 
 **Fields**
@@ -105170,10 +103454,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.network.utility.UniqueId)
 ```
 
-## `via.network.utility.HttpClient`
-
-_No fields or methods._
-
 ## `via.network.utility.HttpClient.ResponseHeader`
 
 **Methods**
@@ -105184,10 +103464,6 @@ _No fields or methods._
 :System.String get_LocationStr()
 :System.Int32 get_StatusCode()
 ```
-
-## `via.network.utility.ISerializable`
-
-_No fields or methods._
 
 ## `via.network.utility.Nickname`
 
@@ -105961,10 +104237,6 @@ sdk.call_native_func(nil, type_def, "base64encode", ...)  -- System.Byte[] base6
 :System.Void pushName(System.String)
 ```
 
-## `via.network.wrangler.XsapiEventWriter`
-
-_No fields or methods._
-
 ## `via.network.wrangler.XsapiPropertySet`
 
 **Fields**
@@ -106323,18 +104595,6 @@ _No fields or methods._
 :via.nnfc.nfp.FontRegion get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.nnfc.nfp.FontRegion)
 ```
-
-## `via.nnfc.nfp.INfp`
-
-_No fields or methods._
-
-## `via.nnfc.nfp.INfpApp`
-
-_No fields or methods._
-
-## `via.nnfc.nfp.NFPResourceHolder`
-
-_No fields or methods._
 
 ## `via.nnfc.nfp.NfpApplet`
 
@@ -107022,10 +105282,6 @@ sdk.call_native_func(nil, type_def, "start", ...)  -- System.Void start()
 sdk.call_native_func(nil, type_def, "terminate", ...)  -- System.Void terminate()
 sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 ```
-
-## `via.octree.LayerGridResourceHolder`
-
-_No fields or methods._
 
 ## `via.octree.LayerGrid[]`
 
@@ -108601,10 +106857,6 @@ sdk.call_native_func(nil, type_def, "setWebSocketClientDefaultMaxSendOnceSize", 
 :System.Void set_Item(System.Int32, via.os.TocPtError)
 ```
 
-## `via.os.asyncTaskQueue`
-
-_No fields or methods._
-
 ## `via.os.asyncTaskQueue.TaskType`
 
 **Fields**
@@ -108672,10 +106924,6 @@ _No fields or methods._
 :via.os.asyncTaskQueue.WorkType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.os.asyncTaskQueue.WorkType)
 ```
-
-## `via.os.detail`
-
-_No fields or methods._
 
 ## `via.os.dialog`
 
@@ -108793,10 +107041,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- via.os.dialog.Result upda
 :via.os.dialog.State get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.os.dialog.State)
 ```
-
-## `via.os.http_client`
-
-_No fields or methods._
 
 ## `via.os.http_client.Error`
 
@@ -109024,10 +107268,6 @@ sdk.call_native_func(nil, type_def, "writeBarrier", ...)  -- System.Void writeBa
 ```lua
 sdk.call_native_func(nil, type_def, "barrier", ...)  -- System.Void barrier(via.memory_order)
 ```
-
-## `via.os.websocket_client`
-
-_No fields or methods._
 
 ## `via.os.websocket_client.Error`
 
@@ -109302,10 +107542,6 @@ sdk.call_native_func(nil, type_def, "setDrivePath", ...)  -- System.Void setDriv
 :via.path.PathKind get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.path.PathKind)
 ```
-
-## `via.path.detail`
-
-_No fields or methods._
 
 ## `via.perf`
 
@@ -109599,10 +107835,6 @@ sdk.call_native_func(nil, type_def, "writeRawProfileData", ...)  -- System.Boole
 :via.physics.CastRayResult get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.physics.CastRayResult)
 ```
-
-## `via.physics.CharacterColliderBankResourceHolder`
-
-_No fields or methods._
 
 ## `via.physics.CharacterController`
 
@@ -110023,10 +108255,6 @@ _No fields or methods._
 :System.Void updatePose(System.UInt32)
 ```
 
-## `via.physics.ColliderSetResourceHolder`
-
-_No fields or methods._
-
 ## `via.physics.ColliderSetUserData`
 
 **Methods**
@@ -110106,18 +108334,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.physics.Colliders)
 ```
 
-## `via.physics.CollisionBaseResourceHolder`
-
-_No fields or methods._
-
-## `via.physics.CollisionDefinitionResourceHolder`
-
-_No fields or methods._
-
-## `via.physics.CollisionFilterResourceHolder`
-
-_No fields or methods._
-
 ## `via.physics.CollisionHeightFieldEditor`
 
 **Methods**
@@ -110138,10 +108354,6 @@ _No fields or methods._
 :System.Void set_TextureNumber(System.Int32)
 ```
 
-## `via.physics.CollisionHeightFieldResourceHolder`
-
-_No fields or methods._
-
 ## `via.physics.CollisionInfo`
 
 **Fields**
@@ -110155,10 +108367,6 @@ _No fields or methods._
 | `padding2` | `System.UInt32` |  | 40 |
 | `padding3` | `System.UInt32` |  | 44 |
 | `ContactPoint` | `via.physics.ContactPoint` |  | 48 |
-
-## `via.physics.CollisionMaterialResourceHolder`
-
-_No fields or methods._
 
 ## `via.physics.CollisionMaterialResourceHolder[]`
 
@@ -110180,14 +108388,6 @@ _No fields or methods._
 :via.physics.CollisionMaterialResourceHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.physics.CollisionMaterialResourceHolder)
 ```
-
-## `via.physics.CollisionMeshResourceHolder`
-
-_No fields or methods._
-
-## `via.physics.CollisionSkinningMeshResourceHolder`
-
-_No fields or methods._
 
 ## `via.physics.ContactPoint`
 
@@ -110255,10 +108455,6 @@ _No fields or methods._
 :via.Sphere get_Sphere()
 :System.Void set_Sphere(via.Sphere)
 ```
-
-## `via.physics.ConvexShape`
-
-_No fields or methods._
 
 ## `via.physics.CylinderShape`
 
@@ -110679,14 +108875,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :System.UInt32 get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.UInt32)
 ```
-
-## `via.physics.IColliderSetSync`
-
-_No fields or methods._
-
-## `via.physics.IColliders`
-
-_No fields or methods._
 
 ## `via.physics.MaskType`
 
@@ -111126,10 +109314,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void set_Item(System.Int32, via.physics.RequestSetCollider.RequestSetGroup)
 ```
 
-## `via.physics.RequestSetColliderResourceHolder`
-
-_No fields or methods._
-
 ## `via.physics.RequestSetColliderUserData`
 
 **Methods**
@@ -111174,14 +109358,6 @@ _No fields or methods._
 :via.physics.RequestState get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.physics.RequestState)
 ```
-
-## `via.physics.SampleZone1`
-
-_No fields or methods._
-
-## `via.physics.SampleZone2`
-
-_No fields or methods._
 
 ## `via.physics.ScalableMeshColliderSet`
 
@@ -112877,10 +111053,6 @@ sdk.call_native_func(nil, type_def, "updateNumPolygons", ...)  -- System.Void up
 :System.Void updateBroadphase(System.UInt32)
 ```
 
-## `via.physics.Terrain2dResourceHolder`
-
-_No fields or methods._
-
 ## `via.physics.Terrain2dUserData`
 
 **Methods**
@@ -112891,10 +111063,6 @@ _No fields or methods._
 :via.physics.UserData get_ParentUserData()
 :System.Void set_Name(System.String)
 ```
-
-## `via.physics.TerrainResourceHolder`
-
-_No fields or methods._
 
 ## `via.physics.TriangleShape`
 
@@ -112949,18 +111117,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.physics.TriangleVoronoiId)
 ```
 
-## `via.physics.UserData`
-
-_No fields or methods._
-
-## `via.physics.Zone`
-
-_No fields or methods._
-
-## `via.physics.ZoneGroup`
-
-_No fields or methods._
-
 ## `via.physics.constants`
 
 **Fields**
@@ -112996,14 +111152,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "castRay", ...)  -- System.Boolean castRay(via.vec3, via.vec3, System.Single, via.physics.FilterInfo, via.vec3, via.vec3, System.UInt32, via.physics.Collidable)
 sdk.call_native_func(nil, type_def, "castRay", ...)  -- System.Boolean castRay(via.vec3, via.vec3, via.physics.FilterInfo, via.vec3, via.vec3, System.UInt32, via.physics.Collidable)
 ```
-
-## `via.pointer`
-
-_No fields or methods._
-
-## `via.pointer.detail`
-
-_No fields or methods._
 
 ## `via.primitive`
 
@@ -113047,10 +111195,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 ```lua
 :System.Byte get_LodLevel()
 ```
-
-## `via.puppet.PuppetResourceHolder`
-
-_No fields or methods._
 
 ## `via.puppet.ReceiveRateLimitter`
 
@@ -113460,10 +111604,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.puppet.RemoteGameObject.WarpType)
 ```
 
-## `via.puppet.RemoteGameObjectReplayMaster`
-
-_No fields or methods._
-
 ## `via.puppet.RemotePrefab`
 
 **Methods**
@@ -113526,10 +111666,6 @@ _No fields or methods._
 :System.Void set_OnNtcInstantiate(void__via_GameObject____via_clr_Variable_)
 :System.Void set_OnNtcIsolate(void__via_GameObject____via_clr_Variable_)
 ```
-
-## `via.puppet.StateAppendData`
-
-_No fields or methods._
 
 ## `via.puppet.SyncConditions`
 
@@ -113618,10 +111754,6 @@ _No fields or methods._
 :System.Object popStateAppendData(System.Type)
 :System.Void pushStateAppendData(System.Object)
 ```
-
-## `via.puppet.detail`
-
-_No fields or methods._
 
 ## `via.puppet.dev.SyncInfo`
 
@@ -113723,10 +111855,6 @@ sdk.call_native_func(nil, type_def, "squad", ...)  -- via.Quaternion squad(via.Q
 sdk.call_native_func(nil, type_def, "squadSetup", ...)  -- System.Void squadSetup(via.Quaternion, via.Quaternion, via.Quaternion, via.Quaternion, via.Quaternion, via.Quaternion, via.Quaternion)
 ```
 
-## `via.quaternion.detail`
-
-_No fields or methods._
-
 ## `via.random`
 
 **Static methods**
@@ -113744,14 +111872,6 @@ sdk.call_native_func(nil, type_def, "tableF64", ...)  -- System.Double tableF64(
 sdk.call_native_func(nil, type_def, "tableU32", ...)  -- System.UInt32 tableU32()
 sdk.call_native_func(nil, type_def, "tableU32", ...)  -- System.UInt32 tableU32(System.UInt32)
 ```
-
-## `via.range`
-
-_No fields or methods._
-
-## `via.range.detail`
-
-_No fields or methods._
 
 ## `via.rds.CitrusService`
 
@@ -113963,10 +112083,6 @@ sdk.call_native_func(nil, type_def, "lookingUpAtTheSky", ...)  -- System.Boolean
 :via.rds.SkyService.SkyType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.rds.SkyService.SkyType)
 ```
-
-## `via.rebe.RebeConfigHolder`
-
-_No fields or methods._
 
 ## `via.rebe.RebeDevFlags`
 
@@ -114305,10 +112421,6 @@ sdk.call_native_func(nil, type_def, "getEnumTypeCount", ...)  -- System.UInt64 g
 :via.reflection.TypeKind get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.reflection.TypeKind)
 ```
-
-## `via.reflection.detail`
-
-_No fields or methods._
 
 ## `via.relib.BlendUtility`
 
@@ -117665,10 +115777,6 @@ sdk.call_native_func(nil, type_def, "set_WindowMode", ...)  -- System.Void set_W
 :System.Void stop()
 ```
 
-## `via.render.AlembicMeshResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.AlphaAA`
 
 **Methods**
@@ -119194,10 +117302,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 :via.render.ByteBufferDataType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.ByteBufferDataType)
 ```
-
-## `via.render.ByteBufferResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.ByteBufferUpdateExecutor`
 
@@ -120897,26 +119001,6 @@ sdk.call_native_func(nil, type_def, "set_FixSSSProfile", ...)  -- System.Void se
 :System.Void set_Item(System.Int32, via.render.IntermediateTarget)
 ```
 
-## `via.render.CustomFilterBeforeTonemap`
-
-_No fields or methods._
-
-## `via.render.CustomFilterBeforeTonemapLayer`
-
-_No fields or methods._
-
-## `via.render.CustomFilterBeforeTransparent`
-
-_No fields or methods._
-
-## `via.render.CustomFilterBeforeTransparentLayer`
-
-_No fields or methods._
-
-## `via.render.CustomFilterLayer`
-
-_No fields or methods._
-
 ## `via.render.DLSSUpscalingInterface`
 
 **Methods**
@@ -121091,10 +119175,6 @@ _No fields or methods._
 :System.Void start()
 :System.Void update()
 ```
-
-## `via.render.DepthBlockerResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.DepthOcclusion`
 
@@ -121881,10 +119961,6 @@ sdk.call_native_func(nil, type_def, "set_GlobalSDFVoxelSize", ...)  -- System.Vo
 :System.Void set_Interval(System.UInt32)
 :System.Void set_PrevRate(System.Single)
 ```
-
-## `via.render.EditableMeshResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.EntityRenderer`
 
@@ -122782,10 +120858,6 @@ sdk.call_native_func(nil, type_def, "getRCASDispatchNum", ...)  -- System.UInt32
 :via.render.FFX.UpscaleType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.FFX.UpscaleType)
 ```
-
-## `via.render.FSR1UpscalingInterface`
-
-_No fields or methods._
 
 ## `via.render.FSR2UpscalingInterface`
 
@@ -124560,14 +122632,6 @@ sdk.call_native_func(nil, type_def, "get_MaxResolution", ...)  -- System.UInt32 
 :System.Void set_UseResourceCone(System.Boolean)
 ```
 
-## `via.render.IESLightResourceHolder`
-
-_No fields or methods._
-
-## `via.render.IESLightSpot`
-
-_No fields or methods._
-
 ## `via.render.IESPointLight`
 
 **Methods**
@@ -124580,10 +122644,6 @@ _No fields or methods._
 :System.Void set_IES(via.render.IESLightResourceHolder)
 :System.Void set_UpdateIESCache(System.Boolean)
 ```
-
-## `via.render.IPrimitiveCoprocessor`
-
-_No fields or methods._
 
 ## `via.render.IndexBufferFormat`
 
@@ -125996,10 +124056,6 @@ _No fields or methods._
 :System.Void set_SubLineSecondaryLightProbes(via.render.LightProbesResourceHolder)
 ```
 
-## `via.render.LightProbesResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.LightRenderer`
 
 **Fields**
@@ -126648,10 +124704,6 @@ sdk.call_native_func(nil, type_def, "isResourceRegistered", ...)  -- System.Bool
 sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 ```
 
-## `via.render.LightmapResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.Lightmapper`
 
 **Methods**
@@ -126795,10 +124847,6 @@ _No fields or methods._
 :via.render.LodMode get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.LodMode)
 ```
-
-## `via.render.LodResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.LodResourceType`
 
@@ -127288,14 +125336,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 sdk.call_native_func(nil, type_def, "set_DebugDrawPrim", ...)  -- System.Void set_DebugDrawPrim(System.Boolean)
 ```
 
-## `via.render.MasterMaterialResourceHolder`
-
-_No fields or methods._
-
-## `via.render.MasterMaterialsResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.MaterialBakerRuntime`
 
 **Fields**
@@ -127656,10 +125696,6 @@ _No fields or methods._
 :via.render.MaterialParam get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.MaterialParam)
 ```
-
-## `via.render.MaterialPointCloudResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.MaterialShadingType`
 
@@ -128831,10 +126867,6 @@ sdk.call_native_func(nil, type_def, "unpackJointValues", ...)  -- System.Void un
 :System.Void stopManualBoundingBox()
 ```
 
-## `via.render.MeshMaterialResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.MeshRebinder`
 
 **Methods**
@@ -129083,10 +127115,6 @@ sdk.call_native_func(nil, type_def, "wait", ...)  -- System.Void wait()
 :System.UInt32 get_TotalIndexCount()
 :System.UInt32 get_TransparentIndexCount()
 ```
-
-## `via.render.MeshResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.MeshShaderTest`
 
@@ -129692,10 +127720,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.MultiSignedDistanceField)
 ```
 
-## `via.render.OpenColorIOConfigResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.OpenColorIOManager`
 
 **Static methods**
@@ -130065,10 +128089,6 @@ sdk.call_native_func(nil, type_def, "set_OutputPassOCIOConfig", ...)  -- System.
 :System.Void set_Item(System.Int32, via.render.PQCurve)
 ```
 
-## `via.render.PSOPatchHolder`
-
-_No fields or methods._
-
 ## `via.render.PartialShallowWater`
 
 **Methods**
@@ -130427,10 +128447,6 @@ _No fields or methods._
 :System.Void set_Resource(via.render.PointCloudResourceHolder)
 :System.Void set_Size(System.Single)
 ```
-
-## `via.render.PointCloudResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.PointLight`
 
@@ -130972,14 +128988,6 @@ sdk.call_native_func(nil, type_def, "updateClearResource", ...)  -- System.Void 
 :System.Void updateResource()
 ```
 
-## `via.render.ProbeVisibilityResourceHolder`
-
-_No fields or methods._
-
-## `via.render.ProbesResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.ProjectionSpotLight`
 
 **Methods**
@@ -131257,10 +129265,6 @@ _No fields or methods._
 :via.render.RayTraceLensFlare.LensType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.RayTraceLensFlare.LensType)
 ```
-
-## `via.render.RayTraceMaterialRedirectResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.RayTracingInstanceDataFlag`
 
@@ -131870,10 +129874,6 @@ sdk.call_native_func(nil, type_def, "set_PreferShadowCast", ...)  -- System.Void
 :via.render.RenderConfig.VRSType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.RenderConfig.VRSType)
 ```
-
-## `via.render.RenderConfigAssetHolder`
-
-_No fields or methods._
 
 ## `via.render.RenderDeviceAPI`
 
@@ -132990,10 +130990,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.RenderTargetOperator)
 ```
 
-## `via.render.RenderTargetTextureResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.RenderTargetTextureResourceHolder[]`
 
 **Methods**
@@ -133586,10 +131582,6 @@ sdk.call_native_func(nil, type_def, "useZCullStore", ...)  -- System.Boolean use
 :System.Void set_Item(System.Int32, via.render.SDFTextureInfo)
 ```
 
-## `via.render.SDFTextureResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.SSAOControl`
 
 **Methods**
@@ -133835,10 +131827,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.SSRControl.SSRResolvePointNum)
 ```
 
-## `via.render.SSSProfileResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.SSSSSControl`
 
 **Methods**
@@ -134083,10 +132071,6 @@ sdk.call_native_func(nil, type_def, "terminate", ...)  -- System.Void terminate(
 :System.Void set_DistanceCullingThreshold(System.Single)
 ```
 
-## `via.render.SceneOptimizerMeshStatistics`
-
-_No fields or methods._
-
 ## `via.render.SceneStructure`
 
 **Methods**
@@ -134097,10 +132081,6 @@ _No fields or methods._
 :System.Void set_Resource(via.render.SceneStructureResourceHolder)
 :System.Void update()
 ```
-
-## `via.render.SceneStructureResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.ScreenSpaceEmitterDispatchLayer`
 
@@ -134246,10 +132226,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.ShaderModifier)
 ```
 
-## `via.render.ShaderResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.ShaderStage`
 
 **Fields**
@@ -134392,10 +132368,6 @@ sdk.call_native_func(nil, type_def, "setUserGlobalParamIncrDirect", ...)  -- Sys
 sdk.call_native_func(nil, type_def, "setUserGlobalParamSpeed", ...)  -- System.Void setUserGlobalParamSpeed(System.UInt32, System.Single)
 sdk.call_native_func(nil, type_def, "set_ResourceHandle", ...)  -- System.Void set_ResourceHandle(via.render.ShaderTimerResourceHolder)
 ```
-
-## `via.render.ShaderTimerResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.ShaderType`
 
@@ -135317,10 +133289,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.ShellFurParam)
 ```
 
-## `via.render.ShellFurResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.ShortcutKeyRequest`
 
 **Fields**
@@ -135756,10 +133724,6 @@ _No fields or methods._
 :System.Single get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Single)
 ```
-
-## `via.render.SparseShadowTreeHolder`
-
-_No fields or methods._
 
 ## `via.render.SparseShadowTreeHolder[]`
 
@@ -136341,10 +134305,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.Stamp)
 ```
 
-## `via.render.StarCatalogueResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.StarrySky`
 
 **Methods**
@@ -136363,10 +134323,6 @@ _No fields or methods._
 :System.Void set_MaxLuminance(System.Single)
 :System.Void set_Texture(via.render.TextureResourceHolder)
 ```
-
-## `via.render.Stars`
-
-_No fields or methods._
 
 ## `via.render.Statistics`
 
@@ -137280,14 +135236,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.SphereCollisionWrapper)
 ```
 
-## `via.render.StrandsBindingResourceHolder`
-
-_No fields or methods._
-
-## `via.render.StrandsResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.Strands[]`
 
 **Methods**
@@ -137345,10 +135293,6 @@ sdk.call_native_func(nil, type_def, "set_RetryRequestCount", ...)  -- System.Voi
 sdk.call_native_func(nil, type_def, "set_StreamingPriorityHigher", ...)  -- System.Void set_StreamingPriorityHigher(System.Boolean)
 sdk.call_native_func(nil, type_def, "set_UsableVRAMSize", ...)  -- System.Void set_UsableVRAMSize(System.UInt64)
 ```
-
-## `via.render.StreamingResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.StreamingResourceManager`
 
@@ -137907,10 +135851,6 @@ sdk.call_native_func(nil, type_def, "initialize", ...)  -- System.Void initializ
 :via.render.TextureFormat get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.TextureFormat)
 ```
-
-## `via.render.TextureResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.TextureResourceHolder[]`
 
@@ -139057,14 +136997,6 @@ sdk.call_native_func(nil, type_def, "set_UpscalingQuality", ...)  -- System.Void
 :via.render.ValidFlag get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.ValidFlag)
 ```
-
-## `via.render.VertexAttributeResourceHolder`
-
-_No fields or methods._
-
-## `via.render.VfxShaderResourceHolder`
-
-_No fields or methods._
 
 ## `via.render.VfxSubsceneResolutionType`
 
@@ -140534,10 +138466,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_Item(System.Int32, System.Boolean)
 ```
 
-## `via.render.WrapDeformerResourceHolder`
-
-_No fields or methods._
-
 ## `via.render.Wrinkle`
 
 **Methods**
@@ -140760,14 +138688,6 @@ sdk.call_native_func(nil, type_def, "getPriorityWithoutThreadID", ...)  -- Syste
 :System.Void set_Item(System.Int32, via.render.compress.PngFormat)
 ```
 
-## `via.render.detail.CopyUtility`
-
-_No fields or methods._
-
-## `via.render.detail.PrimitiveMeshMaterialManager`
-
-_No fields or methods._
-
 ## `via.render.dev.VolumetricMeshDev`
 
 **Methods**
@@ -140874,18 +138794,6 @@ sdk.call_native_func(nil, type_def, "hasInstance", ...)  -- System.Boolean hasIn
 sdk.call_native_func(nil, type_def, "set_FixSSSProfile", ...)  -- System.Void set_FixSSSProfile(System.Boolean)
 ```
 
-## `via.render.instancer.detail`
-
-_No fields or methods._
-
-## `via.render.instancer.detail.IMeshInstancerManager`
-
-_No fields or methods._
-
-## `via.render.layer.BakeInRuntime`
-
-_No fields or methods._
-
 ## `via.render.layer.CaptureGBuffer`
 
 **Methods**
@@ -140930,10 +138838,6 @@ _No fields or methods._
 :via.render.layer.CaptureGBuffer.FACEINDEX get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.layer.CaptureGBuffer.FACEINDEX)
 ```
-
-## `via.render.layer.Common`
-
-_No fields or methods._
 
 ## `via.render.layer.CommonSegment`
 
@@ -141235,14 +139139,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.layer.DeferredLighting.LightingPathDebug)
 ```
 
-## `via.render.layer.DeferredLightingRoot`
-
-_No fields or methods._
-
-## `via.render.layer.End`
-
-_No fields or methods._
-
 ## `via.render.layer.ForwardSolid`
 
 **Methods**
@@ -141525,14 +139421,6 @@ sdk.call_native_func(nil, type_def, "get_ForceVirtualBackBuffer", ...)  -- Syste
 sdk.call_native_func(nil, type_def, "set_ForceVirtualBackBuffer", ...)  -- System.Void set_ForceVirtualBackBuffer(System.Boolean)
 ```
 
-## `via.render.layer.OutputCommon`
-
-_No fields or methods._
-
-## `via.render.layer.OutputOverlay`
-
-_No fields or methods._
-
 ## `via.render.layer.Overlay`
 
 **Methods**
@@ -141746,10 +139634,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.layer.ParticleLighting.Segment)
 ```
 
-## `via.render.layer.ParticleLightingAtlas`
-
-_No fields or methods._
-
 ## `via.render.layer.ParticleLightingAtlas.Segment`
 
 **Fields**
@@ -141789,10 +139673,6 @@ _No fields or methods._
 ```lua
 :via.render.layer.Scene get_Scene()
 ```
-
-## `via.render.layer.PostDeferredLighting`
-
-_No fields or methods._
 
 ## `via.render.layer.PostDeferredLighting.PriorSegment`
 
@@ -141871,14 +139751,6 @@ _No fields or methods._
 ```lua
 :System.Void update()
 ```
-
-## `via.render.layer.PostSceneDependentShadowCast`
-
-_No fields or methods._
-
-## `via.render.layer.PostShadowCast`
-
-_No fields or methods._
 
 ## `via.render.layer.PostShadowCast.PostShadowCastSegment`
 
@@ -141996,10 +139868,6 @@ _No fields or methods._
 :System.Boolean get_Independent()
 ```
 
-## `via.render.layer.PrePostEffect`
-
-_No fields or methods._
-
 ## `via.render.layer.PreZforCull`
 
 **Fields**
@@ -142079,10 +139947,6 @@ _No fields or methods._
 :via.render.layer.PrepareOutput.DISPLAYCOLORSPACE get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.layer.PrepareOutput.DISPLAYCOLORSPACE)
 ```
-
-## `via.render.layer.PrimitiveSort`
-
-_No fields or methods._
 
 ## `via.render.layer.PrimitiveSort.PrimitiveSortSegment`
 
@@ -142181,10 +140045,6 @@ _No fields or methods._
 :System.Void set_ViewID(System.UInt32)
 :System.Void swapDeinterlaceTarget()
 ```
-
-## `via.render.layer.SceneDependentShadowCast`
-
-_No fields or methods._
 
 ## `via.render.layer.ShadowCast`
 
@@ -142513,10 +140373,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.layer.StochasticTransparent.Segment)
 ```
 
-## `via.render.layer.SubScene`
-
-_No fields or methods._
-
 ## `via.render.layer.SubScene.SubSceneSegment`
 
 **Fields**
@@ -142728,10 +140584,6 @@ sdk.call_native_func(nil, type_def, "setHazeResolution", ...)  -- System.Void se
 :System.Void set_Item(System.Int32, via.render.layer.Transparent.UITargetType)
 ```
 
-## `via.render.layer.UnderWater`
-
-_No fields or methods._
-
 ## `via.render.layer.UnderWater.Segment`
 
 **Fields**
@@ -142761,10 +140613,6 @@ _No fields or methods._
 :via.render.layer.UnderWater.Segment get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.layer.UnderWater.Segment)
 ```
-
-## `via.render.layer.Visibility`
-
-_No fields or methods._
 
 ## `via.render.layer.Visibility.VISSEG`
 
@@ -142804,10 +140652,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.render.layer.Visibility.VISSEG)
 ```
 
-## `via.render.primitive`
-
-_No fields or methods._
-
 ## `via.render.primitive.LightingType`
 
 **Fields**
@@ -142839,14 +140683,6 @@ _No fields or methods._
 :via.render.primitive.LightingType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.render.primitive.LightingType)
 ```
-
-## `via.render.render_entity_detail`
-
-_No fields or methods._
-
-## `via.render.streaming_detail`
-
-_No fields or methods._
 
 ## `via.render.streaming_detail.StreamingOption`
 
@@ -142918,10 +140754,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, "getEnableAssertionDialogTimeout", ...)  -- System.Boolean getEnableAssertionDialogTimeout()
 sdk.call_native_func(nil, type_def, "setEnableAssertionDialogTimeout", ...)  -- System.Void setEnableAssertionDialogTimeout(System.Boolean)
 ```
-
-## `via.runtime_assert.detail`
-
-_No fields or methods._
 
 ## `via.scenario.ConditionUserVariable`
 
@@ -143096,14 +140928,6 @@ sdk.call_native_func(nil, type_def, "op_Subtraction", ...)  -- via.sfix op_Subtr
 sdk.call_native_func(nil, type_def, "op_UnaryNegation", ...)  -- via.sfix op_UnaryNegation(via.sfix)
 sdk.call_native_func(nil, type_def, "op_UnaryPlus", ...)  -- via.sfix op_UnaryPlus(via.sfix)
 ```
-
-## `via.simpleJson`
-
-_No fields or methods._
-
-## `via.simpleJson.detail`
-
-_No fields or methods._
 
 ## `via.simplewwise.AudioInputBase`
 
@@ -143742,14 +141566,6 @@ sdk.call_native_func(nil, type_def, "loadCurrentWwiseIds", ...)  -- System.Void 
 :System.String get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.String)
 ```
-
-## `via.simplewwise.BankInfoResourceHolder`
-
-_No fields or methods._
-
-## `via.simplewwise.BankResourceHolder`
-
-_No fields or methods._
 
 ## `via.simplewwise.BankResourceHolder[]`
 
@@ -144575,10 +142391,6 @@ sdk.call_native_func(nil, type_def, "updateState", ...)  -- System.Void updateSt
 :System.Void set_WorldMatrix(via.mat4)
 ```
 
-## `via.simplewwise.GeometryResourceHolder`
-
-_No fields or methods._
-
 ## `via.simplewwise.GeometryResourceWrapper`
 
 **Methods**
@@ -144766,10 +142578,6 @@ _No fields or methods._
 :System.Void set_UseStreamCache(System.Boolean)
 ```
 
-## `via.simplewwise.MemorySettingsResourceHolder`
-
-_No fields or methods._
-
 ## `via.simplewwise.MultiPositionType`
 
 **Fields**
@@ -144909,10 +142717,6 @@ _No fields or methods._
 :via.simplewwise.OutputDevice get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.simplewwise.OutputDevice)
 ```
-
-## `via.simplewwise.PackageResourceHolder`
-
-_No fields or methods._
 
 ## `via.simplewwise.PackageResourceHolder[]`
 
@@ -145205,18 +143009,6 @@ sdk.call_native_func(nil, type_def, "unregisterListener", ...)  -- System.UInt32
 :System.Void drawDebug()
 ```
 
-## `via.simplewwise.SimpleWwiseEnd`
-
-_No fields or methods._
-
-## `via.simplewwise.SimpleWwiseReflectionBehaviorBase`
-
-_No fields or methods._
-
-## `via.simplewwise.SimpleWwiseStart`
-
-_No fields or methods._
-
 ## `via.simplewwise.StreamingGeometryManager`
 
 **Static methods**
@@ -145351,14 +143143,6 @@ sdk.call_native_func(nil, type_def, "unloadRBMGeometry", ...)  -- System.Boolean
 :System.Void set_OwnerComponent(via.Component)
 :System.Void set_WwiseExprGraph(via.simplewwise.WwiseExprGraphResourceHolder)
 ```
-
-## `via.simplewwise.WwiseExprGraphResourceHolder`
-
-_No fields or methods._
-
-## `via.simplewwise.WwiseStreamingGeometryResourceHolder`
-
-_No fields or methods._
 
 ## `via.sound.DevInfo`
 
@@ -145570,14 +143354,6 @@ sdk.call_native_func(nil, type_def, "update", ...)  -- System.Void update()
 :System.Void set_Item(System.Int32, via.sound.SamplesPerFrame)
 ```
 
-## `via.sound.SoundComponent`
-
-_No fields or methods._
-
-## `via.sound.SoundContainableResourceHolder`
-
-_No fields or methods._
-
 ## `via.sound.SoundContainableResourceHolder[]`
 
 **Methods**
@@ -145598,10 +143374,6 @@ _No fields or methods._
 :via.sound.SoundContainableResourceHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.sound.SoundContainableResourceHolder)
 ```
-
-## `via.sound.SoundContainableUserData`
-
-_No fields or methods._
 
 ## `via.sound.SoundContainerList`
 
@@ -145641,10 +143413,6 @@ _No fields or methods._
 :via.sound.SoundContainableResourceHolder get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.sound.SoundContainableResourceHolder)
 ```
-
-## `via.sound.SoundContainerListResourceHolder`
-
-_No fields or methods._
 
 ## `via.sound.SoundCurve`
 
@@ -145920,14 +143688,6 @@ sdk.call_native_func(nil, type_def, "resetSoundIdTable", ...)  -- System.Void re
 :System.Void set_Item(System.Int32, via.sound.SoundIdCategory)
 ```
 
-## `via.sound.SoundStreamingLQGResourceHolder`
-
-_No fields or methods._
-
-## `via.sound.SoundStreamingVoxelResourceHolder`
-
-_No fields or methods._
-
 ## `via.sound.SoundTriggerElement`
 
 **Methods**
@@ -146065,14 +143825,6 @@ _No fields or methods._
 :via.UserData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.UserData)
 ```
-
-## `via.sound.SoundTriggerListHolder`
-
-_No fields or methods._
-
-## `via.sound.SoundUserData`
-
-_No fields or methods._
 
 ## `via.sound.StreamingLQGManager`
 
@@ -146819,10 +144571,6 @@ sdk.call_native_func(nil, type_def, "set_VortexelWindMaxSpeed", ...)  -- System.
 sdk.call_native_func(nil, type_def, "set_VortexelWindResponsiveness", ...)  -- System.Void set_VortexelWindResponsiveness(System.Single)
 ```
 
-## `via.speedtree.SpeedTreeMeshResourceHolder`
-
-_No fields or methods._
-
 ## `via.speedtree.SpeedTreeV8`
 
 **Methods**
@@ -147374,10 +145122,6 @@ sdk.call_native_func(nil, type_def, "isValidTicket", ...)  -- System.Boolean isV
 :via.storage.SaveServiceWriteMode get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.storage.SaveServiceWriteMode)
 ```
-
-## `via.storage.Service`
-
-_No fields or methods._
 
 ## `via.storage.StaticPropertyContainer`
 
@@ -149032,14 +146776,6 @@ sdk.call_native_func(nil, type_def, "uploadTelemetry", ...)  -- System.Boolean u
 :System.Boolean reset(via.userdata.UserVariables)
 ```
 
-## `via.storage.saveService.detail`
-
-_No fields or methods._
-
-## `via.storage.saveService.detail.exportToMemory`
-
-_No fields or methods._
-
 ## `via.storage.saveService.util`
 
 **Fields**
@@ -149247,10 +146983,6 @@ sdk.call_native_func(nil, type_def, "typed_split_by_array", ...)  -- System.Stri
 :via.str.SplitSeparatorType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.str.SplitSeparatorType)
 ```
-
-## `via.str.detail`
-
-_No fields or methods._
 
 ## `via.telemetry.AsyncRequest`
 
@@ -149640,10 +147372,6 @@ sdk.call_native_func(nil, type_def, "set_Hostname", ...)  -- System.Void set_Hos
 :System.Void set_Item(System.Int32, via.timeline.TimelineBlendLayer)
 ```
 
-## `via.timeline.BlendClipPlayerCore`
-
-_No fields or methods._
-
 ## `via.timeline.ClipBoxKeyDataSet`
 
 **Methods**
@@ -149780,10 +147508,6 @@ _No fields or methods._
 :via.timeline.PropertyType get_PropertyType()
 ```
 
-## `via.timeline.ClipResourceHolder`
-
-_No fields or methods._
-
 ## `via.timeline.DialogueTimeline`
 
 **Methods**
@@ -149798,10 +147522,6 @@ _No fields or methods._
 :System.Boolean hasPropertyCurveValue(System.UInt32, System.UInt32)
 :System.Void setDialogueTimelineResource(via.timeline.DialogueTimelineResourceHolder)
 ```
-
-## `via.timeline.DialogueTimelineListResourceHolder`
-
-_No fields or methods._
 
 ## `via.timeline.DialogueTimelinePlayer`
 
@@ -149893,10 +147613,6 @@ _No fields or methods._
 :via.timeline.DialogueTimelinePlayer.ResourceType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.timeline.DialogueTimelinePlayer.ResourceType)
 ```
-
-## `via.timeline.DialogueTimelineResourceHolder`
-
-_No fields or methods._
 
 ## `via.timeline.ExecuteGroup`
 
@@ -150837,10 +148553,6 @@ _No fields or methods._
 :System.Void waitForJob()
 ```
 
-## `via.timeline.TimelineBaseResourceHolder`
-
-_No fields or methods._
-
 ## `via.timeline.TimelineBlend`
 
 **Methods**
@@ -151114,10 +148826,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.timeline.TimelineBlendNode)
 ```
 
-## `via.timeline.TimelineBlendResourceHolder`
-
-_No fields or methods._
-
 ## `via.timeline.TimelineClipInfo`
 
 **Methods**
@@ -151291,18 +148999,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.timeline.TimelineFsm2Layer)
 ```
 
-## `via.timeline.TimelineFsm2PlayTimelineEndArgs`
-
-_No fields or methods._
-
-## `via.timeline.TimelineFsm2ResourceHolder`
-
-_No fields or methods._
-
-## `via.timeline.TimelineFsm2TimelineEndArgs`
-
-_No fields or methods._
-
 ## `via.timeline.TimelineFsm2TimelineStartArgs`
 
 **Methods**
@@ -151442,10 +149138,6 @@ sdk.call_native_func(nil, type_def, "set_MultiThread", ...)  -- System.Void set_
 sdk.call_native_func(nil, type_def, "set_State", ...)  -- System.Void set_State(via.timeline.TimelineState)
 sdk.call_native_func(nil, type_def, "unregisterTimelineFsm2Tbl", ...)  -- System.Void unregisterTimelineFsm2Tbl(via.timeline.TimelineFsm2)
 ```
-
-## `via.timeline.TimelineResourceHolder`
-
-_No fields or methods._
 
 ## `via.timeline.TimelineState`
 
@@ -151612,10 +149304,6 @@ _No fields or methods._
 :System.Void setUserCurveResource(via.timeline.UserCurveResourceHolder)
 ```
 
-## `via.timeline.UserCurveListResourceHolder`
-
-_No fields or methods._
-
 ## `via.timeline.UserCurvePlayer`
 
 **Methods**
@@ -151708,14 +149396,6 @@ _No fields or methods._
 :via.timeline.UserCurvePlayer.ResourceType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.timeline.UserCurvePlayer.ResourceType)
 ```
-
-## `via.timeline.UserCurveResourceHolder`
-
-_No fields or methods._
-
-## `via.timeline.detail`
-
-_No fields or methods._
 
 ## `via.typeinfo`
 
@@ -152227,10 +149907,6 @@ sdk.call_native_func(nil, type_def, "set_DebugTrace", ...)  -- System.Void set_D
 :System.Void set_Item(System.Int32, via.userdata.UserVariablesHub)
 ```
 
-## `via.userdata.UserVariablesResourceHolder`
-
-_No fields or methods._
-
 ## `via.userdata.UserVariablesResourceHolder[]`
 
 **Methods**
@@ -152528,10 +150204,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.userdata.Variable)
 ```
 
-## `via.userdata.detail`
-
-_No fields or methods._
-
 ## `via.userdata.exprgraph.ExprBehaviorNode`
 
 **Methods**
@@ -152639,10 +150311,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, via.userdata.exprgraph.ExprValueType)
 ```
 
-## `via.userdata.exprgraph.IExprGraphData`
-
-_No fields or methods._
-
 ## `via.userdata.exprgraph.UserExprGraphPlayer`
 
 **Methods**
@@ -152654,10 +150322,6 @@ _No fields or methods._
 :System.Void set_OwnerComponent(via.Component)
 :System.Void set_UserExprGraph(via.userdata.exprgraph.UserExprGraphResourceHolder)
 ```
-
-## `via.userdata.exprgraph.UserExprGraphResourceHolder`
-
-_No fields or methods._
 
 ## `via.uvsequence.TextureUsageType`
 
@@ -152693,10 +150357,6 @@ _No fields or methods._
 :via.uvsequence.TextureUsageType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, via.uvsequence.TextureUsageType)
 ```
-
-## `via.uvsequence.UVSequenceResourceHolder`
-
-_No fields or methods._
 
 ## `via.uvsequence.UVSequenceResourceHolder[]`
 
@@ -154322,10 +151982,6 @@ sdk.call_native_func(nil, type_def, "op_Implicit", ...)  -- via.mat4 op_Implicit
 sdk.call_native_func(nil, type_def, "getSdkType", ...)  -- via.vr.VrSdkType getSdkType(via.vr.VrDeviceName)
 ```
 
-## `via.wwiselib.APIs`
-
-_No fields or methods._
-
 ## `via.wwiselib.AudioAPIType`
 
 **Fields**
@@ -154555,7 +152211,3 @@ sdk.call_native_func(nil, type_def, "registerResourceMonitorCallback", ...)  -- 
 sdk.call_native_func(nil, type_def, "calc32", ...)  -- System.UInt32 calc32(System.String)
 sdk.call_native_func(nil, type_def, "calc64", ...)  -- System.UInt64 calc64(System.String)
 ```
-
-## `via.xx_hash.detail`
-
-_No fields or methods._

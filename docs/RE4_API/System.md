@@ -1,6 +1,6 @@
 # `System.*`
 
-423 types.
+355 types.
 
 ## `System.Action`
 
@@ -1451,14 +1451,6 @@ sdk.call_native_func(nil, type_def, "ToIntArrayLength", ...)  -- System.Int32 To
 sdk.call_native_func(nil, type_def, "get_Start", ...)  -- System.Collections.Generic.CopyPosition get_Start()
 ```
 
-## `System.Collections.Generic.EnumerableHelpers`
-
-_No fields or methods._
-
-## `System.Collections.Generic.EnumerableHelpers2`
-
-_No fields or methods._
-
 ## `System.Collections.Generic.HashHelper`
 
 **Fields**
@@ -1838,46 +1830,6 @@ sdk.call_native_func(nil, type_def, "Synchronized", ...)  -- System.Collections.
 :System.Void set_Item(System.Int32, System.Collections.Hashtable.bucket)
 ```
 
-## `System.Collections.ICollection`
-
-_No fields or methods._
-
-## `System.Collections.IComparer`
-
-_No fields or methods._
-
-## `System.Collections.IDictionary`
-
-_No fields or methods._
-
-## `System.Collections.IDictionaryEnumerator`
-
-_No fields or methods._
-
-## `System.Collections.IEnumerable`
-
-_No fields or methods._
-
-## `System.Collections.IEnumerator`
-
-_No fields or methods._
-
-## `System.Collections.IEqualityComparer`
-
-_No fields or methods._
-
-## `System.Collections.IList`
-
-_No fields or methods._
-
-## `System.Collections.IStructuralComparable`
-
-_No fields or methods._
-
-## `System.Collections.IStructuralEquatable`
-
-_No fields or methods._
-
 ## `System.Collections.ObjectModel.EventArgsCache`
 
 **Fields**
@@ -1985,10 +1937,6 @@ sdk.call_native_func(nil, type_def, "Synchronized", ...)  -- System.Collections.
 :System.Int32 get_Count()
 :System.Object get_SyncRoot()
 ```
-
-## `System.Collections.Specialized.INotifyCollectionChanged`
-
-_No fields or methods._
 
 ## `System.Collections.Specialized.NotifyCollectionChangedAction`
 
@@ -2180,10 +2128,6 @@ sdk.call_native_func(nil, type_def, "Synchronized", ...)  -- System.Collections.
 :System.Int32 get_Count()
 :System.Object get_SyncRoot()
 ```
-
-## `System.ComponentModel.INotifyPropertyChanged`
-
-_No fields or methods._
 
 ## `System.ComponentModel.PropertyChangedEventArgs`
 
@@ -3103,10 +3047,6 @@ sdk.call_native_func(nil, type_def, "Assert", ...)  -- System.Void Assert(System
 sdk.call_native_func(nil, type_def, "Assert", ...)  -- System.Void Assert(System.Boolean, System.String, System.String, System.Object[])
 ```
 
-## `System.Diagnostics.DebuggableAttribute`
-
-_No fields or methods._
-
 ## `System.Diagnostics.DebuggableAttribute.DebuggingModes`
 
 **Fields**
@@ -3236,10 +3176,6 @@ sdk.call_native_func(nil, type_def, "get_IsAttached", ...)  -- System.Boolean ge
 :System.Void set_TargetTypeName(System.String)
 :System.Void set_Type(System.String)
 ```
-
-## `System.Diagnostics.DebuggerHiddenAttribute`
-
-_No fields or methods._
 
 ## `System.Diagnostics.Stopwatch`
 
@@ -3495,10 +3431,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void .ctor(System.String, System.Exception)
 ```
 
-## `System.FlagsAttribute`
-
-_No fields or methods._
-
 ## `System.FormatException`
 
 **Methods**
@@ -3648,10 +3580,6 @@ sdk.call_native_func(nil, type_def, "set_DefaultThreadCurrentUICulture", ...)  -
 :System.Void set_Item(System.Int32, System.Globalization.CultureInfo)
 ```
 
-## `System.Globalization.CultureNotFoundException`
-
-_No fields or methods._
-
 ## `System.Globalization.CultureTypes`
 
 **Fields**
@@ -3688,10 +3616,6 @@ _No fields or methods._
 :System.Globalization.CultureTypes get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Globalization.CultureTypes)
 ```
-
-## `System.Globalization.DateTimeFormatInfo`
-
-_No fields or methods._
 
 ## `System.Globalization.DateTimeStyles`
 
@@ -3731,14 +3655,6 @@ _No fields or methods._
 :System.Globalization.DateTimeStyles get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Globalization.DateTimeStyles)
 ```
-
-## `System.Globalization.DaylightTime`
-
-_No fields or methods._
-
-## `System.Globalization.NumberFormatInfo`
-
-_No fields or methods._
 
 ## `System.Globalization.TimeSpanStyles`
 
@@ -3922,38 +3838,6 @@ sdk.call_native_func(nil, type_def, "op_LessThan", ...)  -- System.Boolean op_Le
 :System.Void set_Item(System.Int32, System.Guid[])
 ```
 
-## `System.IAsyncResult`
-
-_No fields or methods._
-
-## `System.ICloneable`
-
-_No fields or methods._
-
-## `System.IComparable`
-
-_No fields or methods._
-
-## `System.IConvertible`
-
-_No fields or methods._
-
-## `System.ICustomFormatter`
-
-_No fields or methods._
-
-## `System.IDisposable`
-
-_No fields or methods._
-
-## `System.IFormatProvider`
-
-_No fields or methods._
-
-## `System.IFormattable`
-
-_No fields or methods._
-
 ## `System.IO.SeekOrigin`
 
 **Fields**
@@ -4003,14 +3887,6 @@ _No fields or methods._
 :System.Void set_ReadTimeout(System.Int32)
 :System.Void set_WriteTimeout(System.Int32)
 ```
-
-## `System.ITupleInternal`
-
-_No fields or methods._
-
-## `System.IValueTupleInternal`
-
-_No fields or methods._
 
 ## `System.IndexOutOfRangeException`
 
@@ -4386,18 +4262,6 @@ sdk.call_native_func(nil, type_def, "NoMatch", ...)  -- System.Exception NoMatch
 sdk.call_native_func(nil, type_def, "NotSupported", ...)  -- System.Exception NotSupported()
 ```
 
-## `System.Linq.Utilities`
-
-_No fields or methods._
-
-## `System.MTAThreadAttribute`
-
-_No fields or methods._
-
-## `System.MarshalByRefObject`
-
-_No fields or methods._
-
 ## `System.Math`
 
 **Fields**
@@ -4559,10 +4423,6 @@ sdk.call_native_func(nil, type_def, "GetEmptyMH", ...)  -- System.ModuleHandle G
 :System.Void .ctor()
 :System.Delegate[] GetInvocationList()
 ```
-
-## `System.NonSerializedAttribute`
-
-_No fields or methods._
 
 ## `System.NotFiniteNumberException`
 
@@ -4732,10 +4592,6 @@ sdk.call_native_func(nil, type_def, "ReferenceEquals", ...)  -- System.Boolean R
 :System.Void .ctor(System.String, System.Exception)
 ```
 
-## `System.ParamArrayAttribute`
-
-_No fields or methods._
-
 ## `System.PlatformNotSupportedException`
 
 **Methods**
@@ -4768,10 +4624,6 @@ _No fields or methods._
 :System.Double NextDouble()
 :System.Double Sample()
 ```
-
-## `System.RankException`
-
-_No fields or methods._
 
 ## `System.Reflection.Assembly`
 
@@ -5036,10 +4888,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void set_Item(System.Int32, System.Reflection.Assembly)
 ```
 
-## `System.Reflection.Binder`
-
-_No fields or methods._
-
 ## `System.Reflection.BindingFlags`
 
 **Fields**
@@ -5169,10 +5017,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Reflection.ConstructorInfo get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Reflection.ConstructorInfo)
 ```
-
-## `System.Reflection.CustomAttributeData`
-
-_No fields or methods._
 
 ## `System.Reflection.CustomAttributeData[]`
 
@@ -5436,18 +5280,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Void set_Item(System.Int32, System.Reflection.GenericParameterAttributes)
 ```
 
-## `System.Reflection.ICustomAttributeProvider`
-
-_No fields or methods._
-
-## `System.Reflection.IReflect`
-
-_No fields or methods._
-
-## `System.Reflection.IReflectableType`
-
-_No fields or methods._
-
 ## `System.Reflection.InterfaceMapping`
 
 **Fields**
@@ -5675,10 +5507,6 @@ sdk.call_native_func(nil, type_def, "op_Inequality", ...)  -- System.Boolean op_
 :System.Reflection.MethodBase get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Reflection.MethodBase)
 ```
-
-## `System.Reflection.MethodBody`
-
-_No fields or methods._
 
 ## `System.Reflection.MethodImplAttributes`
 
@@ -6547,18 +6375,6 @@ sdk.call_native_func(nil, type_def, "GetRuntimeProperty", ...)  -- System.Reflec
 :System.String get_ParameterName()
 ```
 
-## `System.Runtime.CompilerServices.CallerFilePathAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.CallerLineNumberAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.CallerMemberNameAttribute`
-
-_No fields or methods._
-
 ## `System.Runtime.CompilerServices.CompilationRelaxations`
 
 **Fields**
@@ -6605,34 +6421,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, System.Runtime.CompilerServices.CompilationRelaxations)
 ```
 
-## `System.Runtime.CompilerServices.CompilerGeneratedAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.ExtensionAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.ITuple`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.IndexerNameAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.InternalsVisibleToAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.IsReadOnlyAttribute`
-
-_No fields or methods._
-
-## `System.Runtime.CompilerServices.IsVolatile`
-
-_No fields or methods._
-
 ## `System.Runtime.CompilerServices.IteratorStateMachineAttribute`
 
 **Methods**
@@ -6673,10 +6461,6 @@ _No fields or methods._
 :System.Runtime.CompilerServices.MethodCodeType get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Runtime.CompilerServices.MethodCodeType)
 ```
-
-## `System.Runtime.CompilerServices.MethodImplAttribute`
-
-_No fields or methods._
 
 ## `System.Runtime.CompilerServices.MethodImplOptions`
 
@@ -6850,10 +6634,6 @@ sdk.call_native_func(nil, type_def, "RunClassConstructor", ...)  -- System.Void 
 :System.String get_Value()
 ```
 
-## `System.Runtime.InteropServices.InAttribute`
-
-_No fields or methods._
-
 ## `System.Runtime.InteropServices.LayoutKind`
 
 **Fields**
@@ -6894,10 +6674,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, "SizeOf", ...)  -- System.Int32 SizeOf(System.Object)
 sdk.call_native_func(nil, type_def, "SizeOf", ...)  -- System.Int32 SizeOf(System.Type)
 ```
-
-## `System.Runtime.InteropServices.OutAttribute`
-
-_No fields or methods._
 
 ## `System.Runtime.InteropServices.StructLayoutAttribute`
 
@@ -7123,10 +6899,6 @@ sdk.call_native_func(nil, type_def, "TryParse", ...)  -- System.Boolean TryParse
 :System.Void set_Item(System.Int32, System.SByte)
 ```
 
-## `System.STAThreadAttribute`
-
-_No fields or methods._
-
 ## `System.Security.Permissions.SecurityAction`
 
 **Fields**
@@ -7179,14 +6951,6 @@ _No fields or methods._
 :System.Boolean get_SkipVerification()
 :System.Void set_SkipVerification(System.Boolean)
 ```
-
-## `System.Security.UnverifiableCodeAttribute`
-
-_No fields or methods._
-
-## `System.SerializableAttribute`
-
-_No fields or methods._
 
 ## `System.Single`
 
@@ -7295,10 +7059,6 @@ sdk.call_native_func(nil, type_def, "TryParse", ...)  -- System.Boolean TryParse
 :System.Single[] get_Item(System.Int32)
 :System.Void set_Item(System.Int32, System.Single[])
 ```
-
-## `System.StackOverflowException`
-
-_No fields or methods._
 
 ## `System.String`
 
@@ -8174,10 +7934,6 @@ sdk.call_native_func(nil, type_def, "Break", ...)  -- System.Void Break(System.I
 :System.Nullable`1<System.Int64> get_NullableLowestBreakIteration()
 ```
 
-## `System.Threading.Tasks.ParallelOptions`
-
-_No fields or methods._
-
 ## `System.Threading.Thread`
 
 **Fields**
@@ -8232,10 +7988,6 @@ sdk.call_native_func(nil, type_def, "Yield", ...)  -- System.Void Yield()
 sdk.call_native_func(nil, type_def, "get_CurrentThread", ...)  -- System.Threading.Thread get_CurrentThread()
 ```
 
-## `System.Threading.ThreadAbortException`
-
-_No fields or methods._
-
 ## `System.Threading.ThreadStart`
 
 **Methods**
@@ -8243,10 +7995,6 @@ _No fields or methods._
 ```lua
 :System.Void Invoke()
 ```
-
-## `System.Threading.ThreadStartException`
-
-_No fields or methods._
 
 ## `System.Threading.ThreadState`
 
@@ -8265,10 +8013,6 @@ _No fields or methods._
 | `Unstarted` | `System.Threading.ThreadState` | yes | 16 |
 | `WaitSleepJoin` | `System.Threading.ThreadState` | yes | 16 |
 | `value__` | `System.Int32` |  | 16 |
-
-## `System.Threading.ThreadStateException`
-
-_No fields or methods._
 
 ## `System.Threading.ThreadState[]`
 
@@ -8435,10 +8179,6 @@ sdk.call_native_func(nil, type_def, "op_Subtraction", ...)  -- System.TimeSpan o
 sdk.call_native_func(nil, type_def, "op_UnaryNegation", ...)  -- System.TimeSpan op_UnaryNegation(System.TimeSpan)
 sdk.call_native_func(nil, type_def, "op_UnaryPlus", ...)  -- System.TimeSpan op_UnaryPlus(System.TimeSpan)
 ```
-
-## `System.TimeZone`
-
-_No fields or methods._
 
 ## `System.Tuple`
 
@@ -9066,15 +8806,3 @@ sdk.call_native_func(nil, type_def, "Create", ...)  -- System.ValueTuple Create(
 :System.Int32 GetHashCode()
 :System.String ToString()
 ```
-
-## `System.Version`
-
-_No fields or methods._
-
-## `System.Void`
-
-_No fields or methods._
-
-## `System.WeakReference`
-
-_No fields or methods._

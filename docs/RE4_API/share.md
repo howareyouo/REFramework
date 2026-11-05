@@ -1,6 +1,6 @@
 # `share.*`
 
-486 types.
+461 types.
 
 ## `share.AccountPickerResult`
 
@@ -255,10 +255,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 ```
 
-## `share.AppBehaviorBase`
-
-_No fields or methods._
-
 ## `share.AppGraphicsOptionControllerForPC`
 
 **Methods**
@@ -458,14 +454,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "isValid", ...)  -- System.Boolean isValid(share.IAppInterfaceBase)
 sdk.call_native_func(nil, type_def, "isValid", ...)  -- System.Boolean isValid(share.IValidatable)
 ```
-
-## `share.AppObjectBase`
-
-_No fields or methods._
-
-## `share.AppPayloadBase`
-
-_No fields or methods._
 
 ## `share.AppRegionRecognizer`
 
@@ -691,14 +679,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void setup(System.Int32)
 ```
 
-## `share.AppUserdataBase`
-
-_No fields or methods._
-
-## `share.AppZoneBase`
-
-_No fields or methods._
-
 ## `share.ApplicationVersion`
 
 **Fields**
@@ -839,10 +819,6 @@ sdk.call_native_func(nil, type_def, "getVersionString", ...)  -- System.String g
 :System.Void start()
 :System.Void update()
 ```
-
-## `share.BootSettingsUserData`
-
-_No fields or methods._
 
 ## `share.BootSystem`
 
@@ -3357,10 +3333,6 @@ sdk.call_native_func(nil, type_def, "readyStateController", ...)  -- share.GameO
 :System.Void set_NextRoundCount(System.Int32)
 ```
 
-## `share.GameStateArgument`
-
-_No fields or methods._
-
 ## `share.GameStateBase`
 
 **Fields**
@@ -3509,14 +3481,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 sdk.call_native_func(nil, type_def, "getBindableKeyList", ...)  -- System.Collections.Generic.HashSet`1<via.hid.KeyboardKey> getBindableKeyList()
 ```
 
-## `share.IAppInterfaceBase`
-
-_No fields or methods._
-
-## `share.IGameSaveData`
-
-_No fields or methods._
-
 ## `share.IGameSaveData[]`
 
 **Methods**
@@ -3538,18 +3502,6 @@ _No fields or methods._
 :System.Void set_Item(System.Int32, share.IGameSaveData)
 ```
 
-## `share.IGameSaveSlotDetailHolder`
-
-_No fields or methods._
-
-## `share.ISaveLoadEventReciever`
-
-_No fields or methods._
-
-## `share.ISystemSaveData`
-
-_No fields or methods._
-
 ## `share.ISystemSaveData[]`
 
 **Methods**
@@ -3570,14 +3522,6 @@ _No fields or methods._
 :share.ISystemSaveData get_Item(System.Int32)
 :System.Void set_Item(System.Int32, share.ISystemSaveData)
 ```
-
-## `share.ISystemSaveSlotDetailHolder`
-
-_No fields or methods._
-
-## `share.IValidatable`
-
-_No fields or methods._
 
 ## `share.Log`
 
@@ -3866,10 +3810,6 @@ sdk.call_native_func(nil, type_def, "isCoop", ...)  -- System.Boolean isCoop(sha
 :System.Void set_Item(System.Int32, share.MotionFsmActionTiming)
 ```
 
-## `share.MutexObject`
-
-_No fields or methods._
-
 ## `share.ObjectRelationType`
 
 **Fields**
@@ -4023,14 +3963,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :share.PauseManager.ApplyTiming get_Item(System.Int32)
 :System.Void set_Item(System.Int32, share.PauseManager.ApplyTiming)
 ```
-
-## `share.PauseManager.ArgApplyed`
-
-_No fields or methods._
-
-## `share.PauseManager.ArgBeforeApply`
-
-_No fields or methods._
 
 ## `share.PauseManager.CustomPauseInfo`
 
@@ -5219,10 +5151,6 @@ sdk.call_native_func(nil, type_def, ".cctor", ...)  -- System.Void .cctor()
 :System.Void start()
 :System.Void update()
 ```
-
-## `share.QualityPerformanceControllable`
-
-_No fields or methods._
 
 ## `share.RegionType`
 
@@ -6622,10 +6550,6 @@ sdk.call_native_func(nil, type_def, "setupSocialSetting", ...)  -- System.Void s
 sdk.call_native_func(nil, type_def, "updateOnFrameHead", ...)  -- System.Void updateOnFrameHead()
 ```
 
-## `share.StartupGameStateBase`
-
-_No fields or methods._
-
 ## `share.StringExtension`
 
 **Fields**
@@ -6791,10 +6715,6 @@ sdk.call_native_func(nil, type_def, "buildTagNameHash", ...)  -- System.Void bui
 :System.Void set_Item(System.Int32, share.Tag.List)
 ```
 
-## `share.TestShareBehavior`
-
-_No fields or methods._
-
 ## `share.TitleNameType`
 
 **Fields**
@@ -6869,10 +6789,6 @@ sdk.call_native_func(nil, type_def, "setup", ...)  -- System.Void setup()
 | name | type | static | offset |
 | --- | --- | --- | --- |
 | `TypeNames` | `System.String[]` |  | 32 |
-
-## `share.UpdateOrderGroup`
-
-_No fields or methods._
 
 ## `share.User`
 
@@ -7146,10 +7062,6 @@ _No fields or methods._
 :share.User get_Item(System.Int32)
 :System.Void set_Item(System.Int32, share.User)
 ```
-
-## `share.Util`
-
-_No fields or methods._
 
 ## `share.ValidatedBool`
 
@@ -8891,10 +8803,6 @@ sdk.call_native_func(nil, type_def, "merge", ...)  -- System.Single merge(System
 sdk.call_native_func(nil, type_def, "merge", ...)  -- System.Single merge(System.Collections.Generic.List`1<share.hid.KeyAssign.FloatElement>, share.hid.Device)
 ```
 
-## `share.hid.KeyAssign.FloatElement.Parameter`
-
-_No fields or methods._
-
 ## `share.hid.KeyAssign.FloatElement[]`
 
 **Methods**
@@ -9750,10 +9658,6 @@ sdk.call_native_func(nil, type_def, "merge", ...)  -- via.Point merge(System.Col
 sdk.call_native_func(nil, type_def, "merge", ...)  -- via.Point merge(System.Collections.Generic.List`1<share.hid.KeyAssign.PointElement>, share.hid.Device)
 ```
 
-## `share.hid.KeyAssign.PointElement.Parameter`
-
-_No fields or methods._
-
 ## `share.hid.KeyAssign.PointElement[]`
 
 **Methods**
@@ -9791,10 +9695,6 @@ _No fields or methods._
 sdk.call_native_func(nil, type_def, "merge", ...)  -- via.Quaternion merge(System.Collections.Generic.List`1<via.Quaternion>)
 sdk.call_native_func(nil, type_def, "merge", ...)  -- via.Quaternion merge(System.Collections.Generic.List`1<share.hid.KeyAssign.QuaternionElement>, share.hid.Device)
 ```
-
-## `share.hid.KeyAssign.QuaternionElement.Parameter`
-
-_No fields or methods._
 
 ## `share.hid.KeyAssign.QuaternionElement[]`
 

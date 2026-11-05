@@ -1,138 +1,6 @@
 # `(global).*`
 
-251 types.
-
-## ``
-
-_No fields or methods._
-
-## `!!0`
-
-_No fields or methods._
-
-## `!!0[]`
-
-_No fields or methods._
-
-## `!!0[][]`
-
-_No fields or methods._
-
-## `!!1`
-
-_No fields or methods._
-
-## `!!1[]`
-
-_No fields or methods._
-
-## `!!2`
-
-_No fields or methods._
-
-## `!!2[]`
-
-_No fields or methods._
-
-## `!!3`
-
-_No fields or methods._
-
-## `!!3[]`
-
-_No fields or methods._
-
-## `!!4`
-
-_No fields or methods._
-
-## `!!5`
-
-_No fields or methods._
-
-## `!!6`
-
-_No fields or methods._
-
-## `!!7`
-
-_No fields or methods._
-
-## `!0`
-
-_No fields or methods._
-
-## `!0[]`
-
-_No fields or methods._
-
-## `!0[][]`
-
-_No fields or methods._
-
-## `!1`
-
-_No fields or methods._
-
-## `!1[]`
-
-_No fields or methods._
-
-## `!1[][]`
-
-_No fields or methods._
-
-## `!2`
-
-_No fields or methods._
-
-## `!2[]`
-
-_No fields or methods._
-
-## `!3`
-
-_No fields or methods._
-
-## `!3[]`
-
-_No fields or methods._
-
-## `!4`
-
-_No fields or methods._
-
-## `!4[]`
-
-_No fields or methods._
-
-## `!5`
-
-_No fields or methods._
-
-## `!5[]`
-
-_No fields or methods._
-
-## `!6`
-
-_No fields or methods._
-
-## `!6[]`
-
-_No fields or methods._
-
-## `!7`
-
-_No fields or methods._
-
-## `!7[]`
-
-_No fields or methods._
-
-## `!8`
-
-_No fields or methods._
+214 types.
 
 ## `AppSingletonBase`
 
@@ -196,10 +64,6 @@ _No fields or methods._
 :DebugUser get_Item(System.Int32)
 :System.Void set_Item(System.Int32, DebugUser)
 ```
-
-## `GlobalService`
-
-_No fields or methods._
 
 ## `GlobalServiceChainsaw`
 
@@ -568,10 +432,6 @@ sdk.call_native_func(nil, type_def, "isScatterVariable", ...)  -- System.Boolean
 sdk.call_native_func(nil, type_def, "scatterVariable", ...)  -- System.Void scatterVariable()
 ```
 
-## `rds_mint_invisible_interface`
-
-_No fields or methods._
-
 ## `rds_nightskyservice`
 
 **Static methods**
@@ -579,14 +439,6 @@ _No fields or methods._
 ```lua
 sdk.call_native_func(nil, type_def, "sr_function", ...)  -- System.Void sr_function(System.UInt64)
 ```
-
-## `rds_skyservice`
-
-_No fields or methods._
-
-## `rds_xxx`
-
-_No fields or methods._
 
 ## `via_string__via_string_`
 

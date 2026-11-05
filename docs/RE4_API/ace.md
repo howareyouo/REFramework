@@ -1,6 +1,6 @@
 # `ace.*`
 
-30 types.
+29 types.
 
 ## `ace.cWind`
 
@@ -524,10 +524,6 @@ sdk.call_native_func(nil, type_def, "getWindSpeedRange", ...)  -- via.vec2 getWi
 :ace.cWindSystem.COMMAND get_Item(System.Int32)
 :System.Void set_Item(System.Int32, ace.cWindSystem.COMMAND)
 ```
-
-## `ace.user_data.AceUserData`
-
-_No fields or methods._
 
 ## `ace.user_data.EnumMaker`
 
