@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <deque>
+#include <mutex>
 #include <unordered_set>
 #include <spdlog/spdlog.h>
 
@@ -31,6 +32,7 @@ public:
 
 private:
     bool handle_path(const wchar_t* path, size_t hash);
+    void log_file(size_t hash, const wchar_t* path, bool exists_on_disk);
 
     static uint64_t path_to_hash_hook(const wchar_t* path);
 
@@ -50,6 +52,12 @@ private:
     std::unordered_set<size_t> m_files_on_disk{};
     std::unordered_set<size_t> m_seen_files{};
     std::shared_mutex m_files_on_disk_mutex{};
+
+    // Hashes already written to the logs, so each file shows up exactly once
+    // regardless of which thread (or how many threads) touches it.
+    std::mutex m_log_mutex{};
+    std::unordered_set<size_t> m_logged_files{};
+    std::unordered_set<size_t> m_logged_loose_files{};
 
     std::unique_ptr<FunctionHook> m_path_to_hash_hook{nullptr};
 

@@ -359,38 +359,38 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
             }
 
             if (!exists_in_cache) {
-                // TODO: refine this with mixed shared and unique locks
-                // This shouldnt be a huge performance issue for now
-                std::unique_lock _{m_files_on_disk_mutex};
+                {
+                    // TODO: refine this with mixed shared and unique locks
+                    // This shouldnt be a huge performance issue for now
+                    std::unique_lock _{m_files_on_disk_mutex};
 
-                // Purpose of this is to only hit the disk once per unique file
-                if (m_files_on_disk.contains(hash) || safe_exists(path)) {
-                    m_files_on_disk.insert(hash); // Global
-                    if (files_on_disk_local.size() < kLocalCacheMaxSize) {
-                        files_on_disk_local.insert(hash); // Thread local
+                    // Purpose of this is to only hit the disk once per unique file
+                    if (m_files_on_disk.contains(hash) || safe_exists(path)) {
+                        m_files_on_disk.insert(hash); // Global
+                        if (files_on_disk_local.size() < kLocalCacheMaxSize) {
+                            files_on_disk_local.insert(hash); // Thread local
+                        }
+                        exists_on_disk = true;
                     }
-                    exists_on_disk = true;
+
+                    m_seen_files.insert(hash); // Global
+                    if (seen_files_local.size() < kLocalCacheMaxSize) {
+                        seen_files_local.insert(hash); // Thread local
+                    }
+                    ++m_uncached_hits;
                 }
 
-                if (m_log_accessed_files->value()) {
-                    m_logger->info("{}", utility::narrow(path));
-                }
-
-                if (exists_on_disk && m_log_loose_files->value()) {
-                    m_loose_file_logger->info("{}", utility::narrow(path));
-                }
-
-                m_seen_files.insert(hash); // Global
-                if (seen_files_local.size() < kLocalCacheMaxSize) {
-                    seen_files_local.insert(hash); // Thread local
-                }
-                ++m_uncached_hits;
+                // Outside of the lock, and deduplicated on its own, because the
+                // caches above are per-thread and would otherwise let every thread
+                // that touches the same file write another line.
+                log_file(hash, path, exists_on_disk);
             } else {
                 ++m_cache_hits;
             }
         } else {
             exists_on_disk = safe_exists(path);
             ++m_uncached_hits;
+            log_file(hash, path, exists_on_disk);
         }
 
         if (m_show_recent_files && exists_on_disk) {
@@ -411,6 +411,47 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
     }
 
     return false;
+}
+
+// Writes a line to the access/loose-file logs at most once per unique file.
+// The existence caches cannot do this job: they are per-thread, and they are
+// bypassed entirely when the file cache is disabled.
+void LooseFileLoader::log_file(size_t hash, const wchar_t* path, bool exists_on_disk) {
+    const auto log_accessed = m_log_accessed_files->value();
+    const auto log_loose = exists_on_disk && m_log_loose_files->value();
+
+    if (!log_accessed && !log_loose) {
+        return;
+    }
+
+    bool write_accessed{false};
+    bool write_loose{false};
+
+    {
+        std::lock_guard _{m_log_mutex};
+
+        if (log_accessed) {
+            write_accessed = m_logged_files.insert(hash).second;
+        }
+
+        if (log_loose) {
+            write_loose = m_logged_loose_files.insert(hash).second;
+        }
+    }
+
+    if (!write_accessed && !write_loose) {
+        return;
+    }
+
+    const auto narrow_path = utility::narrow(path);
+
+    if (write_accessed) {
+        m_logger->info("{}", narrow_path);
+    }
+
+    if (write_loose) {
+        m_loose_file_logger->info("{}", narrow_path);
+    }
 }
 
 uint64_t LooseFileLoader::path_to_hash_hook(const wchar_t* path) {
