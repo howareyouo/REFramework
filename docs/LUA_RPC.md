@@ -29,9 +29,10 @@ Content-Type: application/json
 最省事是现成客户端：`G:/re4-mod-manager/tools/lua_rpc/lua.py`（协议逻辑与本文一致，显式绕过 `HTTP_PROXY`，`ok=false` 时退出码 1）：
 
 ```bash
-python tools/lua_rpc/lua.py 'sdk.get_tdb_version()' expr
-python tools/lua_rpc/lua.py --file probe.lua        # 多行脚本写文件更省事
-python tools/lua_rpc/lua.py 'return 1' --timeout 15000 --port 13377
+RPC=/g/re4-mod-manager/tools/lua_rpc/lua.py   # 客户端不在本仓库，按你的实际路径改
+python "$RPC" 'sdk.get_tdb_version()' expr
+python "$RPC" --file probe.lua        # 多行脚本写文件更省事
+python "$RPC" 'return 1' --timeout 15000 --port 13377
 ```
 
 没有客户端时直接 curl（Git Bash 会原样传单引号，内层字符串用 `\"`、换行用 `\n`）：
@@ -98,6 +99,4 @@ return "registered"
 - Lua 状态没建好时返回 `lua state is not ready yet`，重试即可。
 - 只绑回环，**无鉴权**：本机任何进程都能在你的游戏里执行 Lua。执行的是和手写 mod 同一个 Lua 状态，副作用都是真的。
 
-`docs/RE4_API/` 是类型表的静态快照（某次 dump 的产物，已按 MOD 作者用不到的内容裁过，不再重新生成），怎么查见它自己的 [README](RE4_API/README.md)。
-
-要自己扫一遍类型表，用 `tools/lua_rpc/re_dump.py [out.json] [batch_size]` 拿 JSON（类型 → 字段、方法签名），自己查；它只管 dump，不产文档。
+`docs/RE4_API/` 是类型表的静态快照，怎么查见它自己的 [README](RE4_API/README.md)。
