@@ -1286,10 +1286,16 @@ sol::object get_native_field_from_field(sol::object obj, ::sdk::RETypeDefinition
 }
 
 sol::object get_native_field(sol::object obj, ::sdk::RETypeDefinition* ty, const char* name) {
+    if (ty == nullptr) {
+        return sol::make_object(obj.lua_state(), sol::nil);
+    }
+
+    // Probe with get_field()/get_fields() or pcall: scripts legitimately read
+    // fields that are optional across game versions, so this stays nil.
     const auto field = ty->get_field(name);
 
     if (field == nullptr) {
-        throw sol::error(fmt::format("{} has no field named '{}'", ty->get_full_name(), name != nullptr ? name : "?"));
+        return sol::make_object(obj.lua_state(), sol::nil);
     }
 
     return get_native_field_from_field(obj, ty, field);
@@ -1370,8 +1376,13 @@ sol::object call_native_func_direct(sol::object obj, ::sdk::REMethodDefinition* 
         return sol::make_object(l, sol::nil);
     }
 
-    if (const auto expected = fn->get_num_params(); expected != va.leftover_count()) {
-        throw sol::error(fmt::format("{}: expected {} argument(s), got {}", fn->get_name(), expected, va.leftover_count()));
+    // is_static() can misreport on some engines/types; when it does, the arity
+    // fits either way and rejecting the call would break working scripts.
+    const auto num_params = fn->get_num_params();
+    const auto num_passed = va.leftover_count();
+
+    if (num_params != num_passed && num_params != num_passed + 1) {
+        throw sol::error(fmt::format("{}: expected {} argument(s), got {}", fn->get_name(), num_params, num_passed));
     }
 
     auto real_obj = get_real_obj(obj);
@@ -1397,8 +1408,10 @@ sol::object call_native_func(sol::object obj, ::sdk::RETypeDefinition* ty, const
     // Convert return values to the correct Lua types.
     auto fn = ty->get_method(name);
 
+    // Callers probe for optional methods with `if result ~= nil then`, so a
+    // missing method stays nil instead of aborting script initialisation.
     if (fn == nullptr) {
-        throw sol::error(fmt::format("{} has no method named '{}'", ty->get_full_name(), name != nullptr ? name : "?"));
+        return sol::make_object(va.lua_state(), sol::nil);
     }
 
     return call_native_func_direct(obj, fn, va);
@@ -1414,7 +1427,7 @@ auto call_object_func(sol::object obj, const char* name, sol::variadic_args va) 
     auto def = utility::re_managed_object::get_type_definition((::REManagedObject*)real_obj);
 
     if (def == nullptr) {
-        throw sol::error(fmt::format("call_object_func('{}'): receiver has no type definition", name != nullptr ? name : "?"));
+        return sol::make_object(obj.lua_state(), sol::nil);
     }
 
     return call_native_func(obj, def, name, va);
