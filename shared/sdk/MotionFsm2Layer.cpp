@@ -318,7 +318,7 @@ void BehaviorTree::set_current_node(sdk::behaviortree::TreeNode* node, uint32_t 
         return;
     }
 
-    method->call(sdk::get_thread_context(), this, node->get_id(), tree_idx, set_node_info);
+    method->call<void>(node->get_id(), tree_idx, set_node_info);
 }
 
 bool TreeObject::is_delayed() const {

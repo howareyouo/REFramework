@@ -581,29 +581,29 @@ void Graphics::fix_ui_element(REComponent* gui_element) {
         return;
     }
 
-    const auto view = get_view_method->call<::REManagedObject*>(sdk::get_thread_context(), gui_component);
+    const auto view = get_view_method->call<::REManagedObject*>();
 
     if (view == nullptr) {
         return;
     }
 
     const auto is_screen_view = get_view_type != nullptr && 
-                                get_view_type->call<int32_t>(sdk::get_thread_context(), view) == (int32_t)via::gui::ViewType::Screen;
+                                get_view_type->call<int32_t>() == (int32_t)via::gui::ViewType::Screen;
 
     if (is_screen_view) {
-        set_res_adjust_scale->call<void>(sdk::get_thread_context(), view, (int32_t)via::gui::ResolutionAdjustScale::FitSmallRatioAxis);
-        set_res_adjust_anchor->call<void>(sdk::get_thread_context(), view, (int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
-        set_resolution_adjust->call<void>(sdk::get_thread_context(), view, true); // Causes the options to be applied/used
+        set_res_adjust_scale->call<void>((int32_t)via::gui::ResolutionAdjustScale::FitSmallRatioAxis);
+        set_res_adjust_anchor->call<void>((int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
+        set_resolution_adjust->call<void>(true); // Causes the options to be applied/used
 
         static const auto get_child = refl.view_get_child;
 
         if (get_child != nullptr && m_ultrawide_constrain_child_ui->value()) {
-            const auto child = get_child->call<::REManagedObject*>(sdk::get_thread_context(), view);
+            const auto child = get_child->call<::REManagedObject*>();
 
             if (child != nullptr) {
-                set_res_adjust_scale->call<void>(sdk::get_thread_context(), child, (int32_t)via::gui::ResolutionAdjustScale::FitSmallRatioAxis);
-                set_res_adjust_anchor->call<void>(sdk::get_thread_context(), child, (int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
-                set_resolution_adjust->call<void>(sdk::get_thread_context(), child, true); // Causes the options to be applied/used
+                set_res_adjust_scale->call<void>((int32_t)via::gui::ResolutionAdjustScale::FitSmallRatioAxis);
+                set_res_adjust_anchor->call<void>((int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
+                set_resolution_adjust->call<void>(true); // Causes the options to be applied/used
             }
         }
     }
@@ -740,11 +740,11 @@ void Graphics::do_scope_tweaks(sdk::renderer::layer::Scene* layer) {
     const auto set_interleave_method = refl.render_output_set_interleave;
 
     if (set_image_quality_method != nullptr) {
-        set_image_quality_method->call(sdk::get_thread_context(), render_output, m_scope_image_quality->value());
+        set_image_quality_method->call<void>(m_scope_image_quality->value());
     }
 
     if (set_interleave_method != nullptr) {
-        set_interleave_method->call(sdk::get_thread_context(), render_output, m_scope_interlaced_rendering->value());
+        set_interleave_method->call<void>(m_scope_interlaced_rendering->value());
     }
 }
 
@@ -811,7 +811,7 @@ void Graphics::do_ultrawide_fix() {
             }
         }
 
-        set_display_type_method->call(sdk::get_thread_context(), main_view, display_type);
+        set_display_type_method->call<void>(display_type);
     }
 }
 
@@ -833,7 +833,7 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
 
     if (set_fov_method != nullptr) {
         for (auto& [camera, fov] : m_fov_map) {
-            set_fov_method->call(sdk::get_thread_context(), camera, fov);
+            set_fov_method->call<void>(fov);
             utility::re_managed_object::release(camera);
         }
         m_fov_map.clear();
@@ -841,7 +841,7 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
 
     if (set_vertical_enable_method != nullptr) {
         for (auto& [camera, enabled] : m_vertical_fov_map) {
-            set_vertical_enable_method->call(sdk::get_thread_context(), camera, enabled);
+            set_vertical_enable_method->call<void>(enabled);
             utility::re_managed_object::release(camera);
         }
         m_vertical_fov_map.clear();
@@ -885,7 +885,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     bool is_vertical_fov_enabled = false;
 
     if (get_vertical_enable_method != nullptr) {
-        was_vertical_fov_enabled = get_vertical_enable_method->call<bool>(sdk::get_thread_context(), camera);
+        was_vertical_fov_enabled = get_vertical_enable_method->call<bool>();
 
         {
             std::scoped_lock _{m_fov_mutex};
@@ -900,7 +900,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     }
 
     if (set_vertical_enable_method != nullptr) {
-        set_vertical_enable_method->call(sdk::get_thread_context(), camera, use_vertical_fov);
+        set_vertical_enable_method->call<void>(use_vertical_fov);
         is_vertical_fov_enabled = use_vertical_fov;
     }
 
@@ -909,7 +909,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     }
 
     // This is usually the horizontal FOV but it could also be vertical.
-    const auto fov = get_fov_method->call<float>(sdk::get_thread_context(), camera);
+    const auto fov = get_fov_method->call<float>();
 
     {
         std::scoped_lock _{m_fov_mutex};
@@ -926,7 +926,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     if (m_ultrawide_custom_fov->value()) {
         // Note: values a certain beyond a certain range might be rejected.
         const auto scaled_fov = std::clamp(fov * m_ultrawide_fov_multiplier->value(), 1.f, 179.f);
-        set_fov_method->call(sdk::get_thread_context(), camera, scaled_fov);
+        set_fov_method->call<void>(scaled_fov);
     }
     // Automatically patch the FOV to make it look as it does at 16:9 (Hor+ scaling, thus fixed Ver FOV)
     else {
@@ -949,7 +949,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
         }
         // The camera aspect ratio represents the aspect ratio the game uses within the black bars
         if (get_aspect_method) {
-            current_aspect_ratio = get_aspect_method->call<float>(sdk::get_thread_context(), camera);
+            current_aspect_ratio = get_aspect_method->call<float>();
         }
         // Depending on the game, the FOV might have already automatically scaled up to "max_supported_aspect_ratio" by the time it reaches here
         const float fov_aspect_ratio = std::clamp(current_aspect_ratio, min_supported_aspect_ratio, max_supported_aspect_ratio);
@@ -960,13 +960,13 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
         else if (target_aspect_ratio >= min_supported_aspect_ratio) {
             const auto vfov = hor_to_ver_fov(fov, fov_aspect_ratio);
             const auto hfov_corrected = ver_to_hor_fov(vfov, target_aspect_ratio);
-            set_fov_method->call(sdk::get_thread_context(), camera, is_vertical_fov_enabled ? vfov : hfov_corrected);
+            set_fov_method->call<void>(is_vertical_fov_enabled ? vfov : hfov_corrected);
         }
         // Account for the letter boxing and expand the vertical aspect ratio
         else {
             const auto vfov = hor_to_ver_fov(fov, target_aspect_ratio);
             const auto hfov_corrected = ver_to_hor_fov(vfov, min_supported_aspect_ratio);
-            set_fov_method->call(sdk::get_thread_context(), camera, is_vertical_fov_enabled ? vfov : hfov_corrected);
+            set_fov_method->call<void>(is_vertical_fov_enabled ? vfov : hfov_corrected);
         }
     }
 }

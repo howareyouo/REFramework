@@ -50,13 +50,13 @@ const std::optional<Vector3f>& camera_up() {
         return cached;
     }
 
-    auto camera_gameobject = get_gameobject_method->call<::REGameObject*>(sdk::get_thread_context(), camera);
+    auto camera_gameobject = get_gameobject_method->call<::REGameObject*>();
 
     if (camera_gameobject == nullptr || camera_gameobject->transform == nullptr) {
         return cached;
     }
 
-    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_gameobject->transform);
+    auto camera_joints = get_joints_method->call<sdk::SystemArray*>();
 
     if (camera_joints == nullptr) {
         return cached;
@@ -127,8 +127,8 @@ std::optional<GizmoMatrices> gizmo_matrices() {
     SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
 
     GizmoMatrices matrices{};
-    get_proj_method->call<void*>(&matrices.proj, sdk::get_thread_context(), camera);
-    get_view_method->call<void*>(&matrices.view, sdk::get_thread_context(), camera);
+    get_proj_method->call<void*>(&matrices.proj);
+    get_view_method->call<void*>(&matrices.view);
 
     return matrices;
 }

@@ -566,8 +566,20 @@ sol::object typeof(sol::this_state s, const char* name) {
     return sol::make_object(s, type_definition->get_runtime_type());
 }
 
-void* get_native_singleton(const char* name) {
-    return (void*)::sdk::get_native_singleton<void>(name);
+sol::object get_native_singleton(sol::this_state s, const char* name) {
+    if (name == nullptr) {
+        return sol::make_object(s, sol::nil);
+    }
+
+    void* singleton = ::sdk::get_native_singleton<void>(name);
+
+    // A null pointer would otherwise reach Lua as an userdata with value 0,
+    // which never compares equal to nil and only blows up much later.
+    if (singleton == nullptr) {
+        return sol::make_object(s, sol::nil);
+    }
+
+    return sol::make_object(s, singleton);
 }
 
 auto get_managed_singleton(sol::this_state s, const char* name) {
@@ -1054,7 +1066,7 @@ sol::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_t
         case "via.GameObjectRef"_fnv: {
             static auto object_ref_type = ::sdk::find_type_definition("via.GameObjectRef");
             static auto get_target_func = object_ref_type->get_method("get_Target");
-            auto obj = get_target_func->call_safe<::REManagedObject*>(sdk::get_thread_context(), data);
+            auto obj = get_target_func->call_safe<::REManagedObject*>();
 
             if (obj == nullptr) {
                 return sol::make_object(l, sol::nil);
@@ -1274,11 +1286,10 @@ sol::object get_native_field_from_field(sol::object obj, ::sdk::RETypeDefinition
 }
 
 sol::object get_native_field(sol::object obj, ::sdk::RETypeDefinition* ty, const char* name) {
-    auto l = obj.lua_state();
     const auto field = ty->get_field(name);
 
     if (field == nullptr) {
-        return sol::make_object(l, sol::nil);
+        throw sol::error(fmt::format("{} has no field named '{}'", ty->get_full_name(), name != nullptr ? name : "?"));
     }
 
     return get_native_field_from_field(obj, ty, field);
@@ -1359,7 +1370,16 @@ sol::object call_native_func_direct(sol::object obj, ::sdk::REMethodDefinition* 
         return sol::make_object(l, sol::nil);
     }
 
+    if (const auto expected = fn->get_num_params(); expected != va.leftover_count()) {
+        throw sol::error(fmt::format("{}: expected {} argument(s), got {}", fn->get_name(), expected, va.leftover_count()));
+    }
+
     auto real_obj = get_real_obj(obj);
+
+    if (real_obj == nullptr && !fn->is_static()) {
+        throw sol::error(fmt::format("{}: receiver is null, but the method is not static", fn->get_name()));
+    }
+
     auto ret_val = fn->invoke(real_obj, build_args(va));
 
     if (ret_val.exception_thrown) {
@@ -1370,14 +1390,17 @@ sol::object call_native_func_direct(sol::object obj, ::sdk::REMethodDefinition* 
 }
 
 sol::object call_native_func(sol::object obj, ::sdk::RETypeDefinition* ty, const char* name, sol::variadic_args va) {
-    auto l = va.lua_state();
-    
+    if (ty == nullptr) {
+        throw sol::error(fmt::format("call_native_func('{}'): type definition is null", name != nullptr ? name : "?"));
+    }
+
     // Convert return values to the correct Lua types.
     auto fn = ty->get_method(name);
 
     if (fn == nullptr) {
-        return sol::make_object(l, sol::nil);
+        throw sol::error(fmt::format("{} has no method named '{}'", ty->get_full_name(), name != nullptr ? name : "?"));
     }
+
     return call_native_func_direct(obj, fn, va);
 }
 
@@ -1385,13 +1408,13 @@ auto call_object_func(sol::object obj, const char* name, sol::variadic_args va) 
     auto real_obj = get_real_obj(obj);
 
     if (real_obj == nullptr) {
-        return sol::make_object(obj.lua_state(), sol::nil);
+        throw sol::error(fmt::format("call_object_func('{}'): receiver is null", name != nullptr ? name : "?"));
     }
 
     auto def = utility::re_managed_object::get_type_definition((::REManagedObject*)real_obj);
 
     if (def == nullptr) {
-        return sol::make_object(obj.lua_state(), sol::nil);
+        throw sol::error(fmt::format("call_object_func('{}'): receiver has no type definition", name != nullptr ? name : "?"));
     }
 
     return call_native_func(obj, def, name, va);
@@ -1889,10 +1912,10 @@ void bindings::open_sdk(ScriptState* s) {
         "get_type_definition", &utility::re_managed_object::get_type_definition,
         "get_field", [s](REManagedObject* obj, const char* name) {
             if (obj == nullptr) {
-                return sol::make_object(s->lua(), sol::nil);
+                throw sol::error(fmt::format("get_field('{}'): receiver is null", name != nullptr ? name : "?"));
             }
 
-            return api::sdk::get_native_field(sol::make_object(s->lua(), obj), utility::re_managed_object::get_type_definition(obj), name); 
+            return api::sdk::get_native_field(sol::make_object(s->lua(), obj), utility::re_managed_object::get_type_definition(obj), name);
         },
         "get_object_size", &utility::re_managed_object::get_size,
         "set_field", [s](REManagedObject* obj, const char* name, sol::object value) {
@@ -1904,7 +1927,7 @@ void bindings::open_sdk(ScriptState* s) {
         },
         "call", [s](REManagedObject* obj, const char* name, sol::variadic_args args) {
             if (obj == nullptr) {
-                return sol::make_object(s->lua(), sol::nil);
+                throw sol::error(fmt::format("call('{}'): receiver is null", name != nullptr ? name : "?"));
             }
 
             return api::sdk::call_object_func(sol::make_object(s->lua(), obj), name, args);

@@ -125,12 +125,8 @@ void FreeCam::on_update_transform(RETransform* transform) {
 
     // Update wanted camera position
     if (!m_lock_camera->value()) {
-        auto timescale = sdk::get_timescale() * sdk::Application::get_global_speed();
+        const auto timescale = sdk::get_timescale() * sdk::Application::get_global_speed();
 
-        if (timescale == 0.0f) {
-            timescale = std::numeric_limits<float>::epsilon();
-        }
-        
         const auto timescale_mult = 1.0f / timescale;
 
         Vector4f dir{};
@@ -161,8 +157,8 @@ void FreeCam::on_update_transform(RETransform* transform) {
             bool is_using_twist_modifier = false;
 
             if (is_down != nullptr) {
-                const auto dpad_up_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::LUp);
-                const auto dpad_down_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::LDown);
+                const auto dpad_up_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::LUp);
+                const auto dpad_down_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::LDown);
 
                 if (dpad_up_is_down) {
                     dir.y = 1.0f;
@@ -170,8 +166,8 @@ void FreeCam::on_update_transform(RETransform* transform) {
                     dir.y = -1.0f;
                 }
 
-                const auto dpad_left_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::LLeft);
-                const auto dpad_right_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::LRight);
+                const auto dpad_left_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::LLeft);
+                const auto dpad_right_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::LRight);
 
                 if (dpad_left_is_down) {
                     dir.x -= 1.0f;
@@ -179,7 +175,7 @@ void FreeCam::on_update_transform(RETransform* transform) {
                     dir.x += 1.0f;
                 }
 
-                const auto l_trigger_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::LTrigBottom);
+                const auto l_trigger_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::LTrigBottom);
 
                 if (l_trigger_is_down) {
                     if (glm::length(axis_r) > 0.0f) {
@@ -188,7 +184,7 @@ void FreeCam::on_update_transform(RETransform* transform) {
                     }
                 }
 
-                const auto r_trigger_is_down = is_down->call_safe<bool>(sdk::get_thread_context(), pad, via::hid::GamePadButton::RTrigBottom);
+                const auto r_trigger_is_down = is_down->call_safe<bool>(via::hid::GamePadButton::RTrigBottom);
 
                 if (r_trigger_is_down) {
                     if (glm::length(axis_r) > 0.0f) {

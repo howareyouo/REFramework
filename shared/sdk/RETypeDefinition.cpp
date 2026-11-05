@@ -199,7 +199,7 @@ std::string RETypeDefinition::get_full_name() const {
 
         static auto get_full_name_method = system_runtime_type->get_method("get_FullName");
 
-        auto full_name_obj = get_full_name_method->call<::SystemString*>(sdk::get_thread_context(), &fake_type);
+        auto full_name_obj = get_full_name_method->call<::SystemString*>();
 
         if (full_name_obj != nullptr) {
             full_name = utility::re_string::get_string(full_name_obj);
@@ -349,12 +349,12 @@ sdk::RETypeDefinition* RETypeDefinition::get_underlying_type() const {
         return nullptr;
     }
 
-    const auto underlying_type = get_underlying_type_method->call<::REManagedObject*>(sdk::get_thread_context(), runtime_type);
+    const auto underlying_type = get_underlying_type_method->call<::REManagedObject*>();
 
     if (underlying_type != nullptr) {
         static const auto get_name_method = system_runtime_type_type->get_method("get_FullName");
 
-        const auto full_name = get_name_method->call<::REManagedObject*>(sdk::get_thread_context(), underlying_type);
+        const auto full_name = get_name_method->call<::REManagedObject*>();
 
         if (full_name != nullptr) {
             const auto managed_str = (SystemString*)((uintptr_t)utility::re_managed_object::get_field_ptr(full_name) - sizeof(::REManagedObject));
@@ -718,7 +718,7 @@ bool RETypeDefinition::is_by_ref() const {
         return false;
     }
 
-    g_by_ref_map[this] = by_ref_method->call<bool>(sdk::get_thread_context(), runtime_type);
+    g_by_ref_map[this] = by_ref_method->call<bool>();
 
     return g_by_ref_map[this];   
 }
@@ -760,7 +760,7 @@ bool RETypeDefinition::is_pointer() const {
         return false;
     }
 
-    g_pointer_map[this] = pointer_method->call<bool>(sdk::get_thread_context(), runtime_type);
+    g_pointer_map[this] = pointer_method->call<bool>();
 
     return g_pointer_map[this];
 }
@@ -795,7 +795,7 @@ bool RETypeDefinition::is_primitive() const {
 
     static auto primitive_method = runtime_typedef->get_method("get_IsPrimitive");
 
-    g_primitive_map[this] = primitive_method->call<bool>(sdk::get_thread_context(), runtime_type);
+    g_primitive_map[this] = primitive_method->call<bool>();
 
     return g_primitive_map[this];
 }
@@ -909,7 +909,7 @@ static std::shared_mutex g_runtime_type_mtx{};
             fake_obj.holder = &holder;
             holder.t = this;
 
-            return get_type_method->call<::REManagedObject*>(sdk::get_thread_context(), &fake_obj);
+            return get_type_method->call<::REManagedObject*>();
         }
 
         return nullptr;
@@ -1034,13 +1034,13 @@ void* RETypeDefinition::create_instance() const {
         const auto old_obj_type = this->get_vm_obj_type();
         set_vm_obj_type(::via::clr::VMObjType::ValType);
 
-        auto result = create_instance_alternative_func->call<REManagedObject*>(sdk::get_thread_context(), typeof);
+        auto result = create_instance_alternative_func->call<REManagedObject*>(typeof);
 
         set_vm_obj_type(old_obj_type);
 
         return result;
     } else {
-        return create_instance_func->call<REManagedObject*>(sdk::get_thread_context(), typeof);
+        return create_instance_func->call<REManagedObject*>(typeof);
     }
 }
 

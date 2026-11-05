@@ -307,7 +307,7 @@ float Application::get_max_fps() {
     }
 
     static auto get_max_fps_method = application_type->get_method("get_MaxFps");
-    return get_max_fps_method->call<float>(sdk::get_thread_context());
+    return get_max_fps_method->call<float>();
 }
 
 void Application::set_max_fps(float max_fps) {
@@ -319,7 +319,7 @@ void Application::set_max_fps(float max_fps) {
     }
 
     static auto set_max_fps_method = application_type->get_method("set_MaxFps");
-    set_max_fps_method->call<void*>(sdk::get_thread_context(), max_fps);
+    set_max_fps_method->call<void>(max_fps);
 }
 
 void Application::set_global_speed(float speed) {
@@ -331,7 +331,7 @@ void Application::set_global_speed(float speed) {
     }
 
     static auto set_global_speed_method = application_type->get_method("set_GlobalSpeed");
-    set_global_speed_method->call<void*>(sdk::get_thread_context(), speed);
+    set_global_speed_method->call<void>(speed);
 }
 
 float Application::get_global_speed() {
@@ -343,6 +343,6 @@ float Application::get_global_speed() {
     }
 
     static auto get_global_speed_method = application_type->get_method("get_GlobalSpeed");
-    return get_global_speed_method->call<float>(sdk::get_thread_context());
+    return get_global_speed_method->call<float>();
 }
 }

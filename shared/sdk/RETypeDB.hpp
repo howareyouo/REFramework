@@ -739,17 +739,28 @@ T call_native_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, A
     return method->call<T>(args...);
 }
 
+// `this` and the managed thread context reach the callee through the register
+// convention that REMethodDefinition::call already sets up, so the argument
+// list must contain the method's own parameters and nothing else. Prepending
+// them (as this helper used to) shifts every real argument into the wrong
+// register: get_GlobalSpeed() returns 0.0f instead of 1.0f, and
+// via.Scene.get_TimeScale() returns 0.0f instead of 1.0f.
 template <typename T, typename... Args>
 T call_native_func_easy(void* obj, sdk::RETypeDefinition* t, std::string_view name, Args... args) {
+    const auto method = t != nullptr ? t->get_method(name) : nullptr;
+
+    if (method == nullptr) {
+        return T{};
+    }
+
     if constexpr (sizeof(T) > sizeof(void*)) {
         T out{};
-        call_native_func<T*>((void*)obj, t, name, &out, sdk::get_thread_context(), obj, args...);
+        method->call<void*>((void*)&out, args...);
 
         return out;
     }
 
-    // todo, fix statics?
-    return call_native_func<T>((void*)obj, t, name, sdk::get_thread_context(), obj, args...);
+    return method->call<T>(args...);
 }
 
 template <typename T, typename... Args> 
@@ -761,17 +772,9 @@ T call_object_func(::REManagedObject* obj, std::string_view name, Args... args) 
 
 template <typename T, typename... Args> 
 T call_object_func_easy(::REManagedObject* obj, std::string_view name, Args... args) {
-    if constexpr (sizeof(T) > sizeof(void*)) {
-        auto def = utility::re_managed_object::get_type_definition(obj);
+    auto def = obj != nullptr ? utility::re_managed_object::get_type_definition(obj) : nullptr;
 
-        T out{};
-        call_native_func<T*>((void*)obj, def, name, &out, sdk::get_thread_context(), obj, args...);
-
-        return out;
-    }
-
-    auto def = utility::re_managed_object::get_type_definition(obj);
-    return call_native_func<T>((void*)obj, def, name, sdk::get_thread_context(), obj, args...);
+    return call_native_func_easy<T>((void*)obj, def, name, args...);
 }
 
 template<typename T>
@@ -858,7 +861,7 @@ T* get_managed_singleton(std::string_view type_name) {
         return nullptr;
     }
 
-    return (T*)get_instance_method->call<T*>(sdk::get_thread_context());
+    return (T*)get_instance_method->call<T*>();
 }
 
 // FNV-1A
@@ -894,7 +897,7 @@ T* get_managed_singleton() {
         return nullptr;
     }
 
-    return get_instance_method->call<T*>(sdk::get_thread_context());
+    return get_instance_method->call<T*>();
 }
 
 template<typename T>

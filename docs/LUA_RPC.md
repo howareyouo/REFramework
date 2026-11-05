@@ -147,6 +147,8 @@ local s = sdk.get_managed_singleton("chainsaw.CharacterManager")
 return s:get_field("SomeField")
 ```
 
+字段名写错会直接抛错（`<类型> has no field named '<名字>'`），不会返回 `nil` 让你在后面某个地方才炸。想试探字段是否存在，先用 `get_fields()` 列表确认，或 `pcall` 包起来。
+
 写字段用 `set_field`（值类型和引用类型规则不同，先读一次确认类型）。
 
 **调用方法**
@@ -158,12 +160,23 @@ local mgr = sdk.get_managed_singleton("chainsaw.CharacterManager")
 return mgr:call("get_PlayerManager")
 ```
 
-要按类型 + 名字调用（常见于原生单例），用 `sdk.call_native_func(对象, 类型, "方法名", 参数...)`；需要线程上下文的原生方法把 `sdk.get_thread_context()` 作为第一个参数传进去：
+要按类型 + 名字调用（常见于原生单例），用 `sdk.call_native_func(对象, 类型, "方法名", 参数...)`。**只传方法自己声明的参数**，`this` 和线程上下文由 REFramework 内部通过寄存器约定设置好，不要再手写进去：
 
 ```lua
 local t = sdk.find_type_definition("via.SceneManager")
 local mgr = sdk.get_native_singleton("via.SceneManager")
-return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene", sdk.get_thread_context()))
+
+-- get_CurrentScene() 声明为静态、0 个参数，所以后面什么都不传
+return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene"))
+```
+
+多传参数不是无害的：`via.SceneManager.get_CurrentScene` 多塞一个 `sdk.get_thread_context()` 会返回 `nil`，`via.Application.get_GlobalSpeed` 会返回 `0.0` 而不是 `1.0`。参数个数不对会直接抛错（`expected N argument(s), got M`），方法名写错也会抛错。
+
+静态方法拿不到单例时（`get_native_singleton` 返回 `nil`）第一个参数可以传 `nil`：
+
+```lua
+local t = sdk.find_type_definition("via.Application")
+return sdk.call_native_func(nil, t, "get_GlobalSpeed")   -- 1.0
 ```
 
 **装一个 hook 观察参数**
@@ -172,13 +185,16 @@ return tostring(sdk.call_native_func(mgr, t, "get_CurrentScene", sdk.get_thread_
 local t = sdk.find_type_definition("chainsaw.CharacterManager")
 local m = t:get_method("get_PlayerManager")
 sdk.hook(m, function(args)
-    -- args[1] = thread context, args[2] = this (静态方法是第一个参数), args[3..] = 实际参数
-    local self = sdk.to_managed_object(args[2])
-    print("called, this =", sdk.to_ptr(args[2]))
+    -- args[1..n] = 方法自己声明的实参（n = 参数个数，静态方法也在这里起算）
+    -- 之后才是隐藏参数：实例方法先 this，再线程上下文；静态方法只有线程上下文。
+    local self = sdk.to_managed_object(args[1])   -- get_PlayerManager 是实例方法，0 个实参
+    print("called, this =", self and sdk.to_ptr(self) or "nil")
 end, function(retval)
     return retval
 end)
 ```
+
+在 `sdk.hook` 的 pre 回调里改 `args[i]` 会真正改掉传给游戏的值；返回 `sdk.PreHookResult.SKIP_ORIGINAL` 可以跳过原函数。
 
 hook 会在下一次安装周期生效；之后每次调用都会走到你的回调，输出会进入日志。回调里**不要**长时间阻塞。
 

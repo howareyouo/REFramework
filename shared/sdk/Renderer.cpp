@@ -366,7 +366,7 @@ void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& o
 }
 
 RenderLayer* RenderLayer::get_parent() {
-    return sdk::call_object_func<RenderLayer*>(this, "get_Parent", sdk::get_thread_context(), this);
+    return sdk::call_object_func<RenderLayer*>(this, "get_Parent");
 }
 
 void RenderLayer::set_parent(RenderLayer* layer) {
@@ -964,7 +964,7 @@ std::optional<uint32_t> Renderer::get_render_frame() const {
         return std::nullopt;
     }
 
-    return m->call<uint32_t>(sdk::get_thread_context(), this);
+    return m->call<uint32_t>();
 }
 
 ConstantBuffer* Renderer::get_constant_buffer(std::string_view name) const {
@@ -1213,7 +1213,7 @@ sdk::renderer::layer::Output* get_output_layer() {
         return (sdk::renderer::layer::Output*)*found;
     }
 
-    return sdk::call_native_func<sdk::renderer::layer::Output*>(nullptr, renderer_t, "getOutputLayer", sdk::get_thread_context(), nullptr);
+    return sdk::call_native_func<sdk::renderer::layer::Output*>(nullptr, renderer_t, "getOutputLayer", nullptr);
 }
 
 std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
@@ -1238,7 +1238,7 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
     static auto get_axisz_method = transform_def->get_method("get_AxisZ");
     static auto world_to_screen = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)");
 
-    auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
+    auto camera_gameobject = get_gameobject_method->call<REGameObject*>();
     auto camera_transform = camera_gameobject->transform;
 
     Matrix4x4f proj{}, view{};
@@ -1248,13 +1248,13 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
     camera_origin.w = 1.0f;
 
     Vector4f camera_forward{};
-    get_axisz_method->call<void*>(&camera_forward, context, camera_transform);
+    get_axisz_method->call<void*>(&camera_forward);
 
     camera_forward.w = 1.0f;
 
-    sdk::call_object_func<void*>(camera, "get_ProjectionMatrix", &proj, context, camera);
-    sdk::call_object_func<void*>(camera, "get_ViewMatrix", &view, context, camera);
-    sdk::call_object_func<void*>(main_view, "get_WindowSize", &screen_size, context, main_view);
+    sdk::call_object_func<void*>(camera, "get_ProjectionMatrix", &proj);
+    sdk::call_object_func<void*>(camera, "get_ViewMatrix", &view);
+    sdk::call_object_func<void*>(main_view, "get_WindowSize", &screen_size);
 
     const Vector4f pos = Vector4f{world_pos, 1.0f};
     Vector4f screen_pos{};
@@ -1844,7 +1844,7 @@ REManagedObject*& layer::Output::get_scene_view() {
 
         // Call get_SceneView so we can get a scene view
         // to scan the object for
-        const auto scene_view = sdk::call_object_func<void*>(top_output_layer, "get_SceneView", sdk::get_thread_context(), top_output_layer);
+        const auto scene_view = sdk::call_object_func<void*>(top_output_layer, "get_SceneView");
         const auto output_target = top_output_layer->get_present_state();
 
         if (scene_view == nullptr) {
@@ -1878,7 +1878,7 @@ uint32_t layer::Scene::get_view_id() const {
         return 0;
     }
 
-    return get_view_id_method->call<uint32_t>(sdk::get_thread_context(), this);
+    return get_view_id_method->call<uint32_t>();
 }
 
 RECamera* layer::Scene::get_camera() const {
@@ -1888,7 +1888,7 @@ RECamera* layer::Scene::get_camera() const {
         return nullptr;
     }
 
-    return get_camera_method->call<RECamera*>(sdk::get_thread_context(), this);
+    return get_camera_method->call<RECamera*>();
 }
 
 RECamera* layer::Scene::get_main_camera_if_possible() const {
@@ -1935,7 +1935,7 @@ REManagedObject* layer::Scene::get_mirror() const {
         return nullptr;
     }
 
-    return get_mirror_method->call<REManagedObject*>(sdk::get_thread_context(), this);
+    return get_mirror_method->call<REManagedObject*>();
 }
 
 bool layer::Scene::is_enabled() const {
@@ -1945,7 +1945,7 @@ bool layer::Scene::is_enabled() const {
         return false;
     }
 
-    return is_enabled_method->call<bool>(sdk::get_thread_context(), this);
+    return is_enabled_method->call<bool>();
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_scene_info() {

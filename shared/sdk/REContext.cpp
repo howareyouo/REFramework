@@ -796,7 +796,6 @@ namespace sdk {
 
             static auto runtime_type_t = sdk::find_type_definition("System.RuntimeType");
             static auto get_TypeHandle = runtime_type_t->get_method("get_TypeHandle");
-            //auto type_handle = get_TypeHandle->call<::REManagedObject*>(sdk::get_thread_context(), runtime_type);
             auto type_handle = (sdk::RETypeDefinition*)get_TypeHandle->invoke(runtime_type).ptr;
 
             return alternative(sdk::get_thread_context(), type_handle, length, 1, false);*/
@@ -835,13 +834,12 @@ namespace sdk {
 
             static auto runtime_type_t = sdk::find_type_definition("System.RuntimeType");
             static auto get_TypeHandle = runtime_type_t->get_method("get_TypeHandle");
-            //auto type_handle = get_TypeHandle->call<::REManagedObject*>(sdk::get_thread_context(), runtime_type);
             auto type_handle = (sdk::RETypeDefinition*)get_TypeHandle->invoke(runtime_type).ptr;
 
             return alternative(sdk::get_thread_context(), type_handle, length, false);
         }
 
-        return create_instance_method->call<sdk::SystemArray*>(sdk::get_thread_context(), runtime_type, length);
+        return create_instance_method->call<sdk::SystemArray*>(runtime_type, length);
     }
 
     sdk::Delegate* VM::create_delegate(sdk::RETypeDefinition* t, uint32_t num_methods) {

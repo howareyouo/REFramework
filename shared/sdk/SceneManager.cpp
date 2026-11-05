@@ -19,14 +19,14 @@ REManagedObject* get_main_view() {
     static auto scene_manager_type = sdk::find_type_definition("via.SceneManager");
     static auto get_main_view_method = scene_manager_type->get_method("get_MainView");
 
-    return get_main_view_method->call<::REManagedObject*>(sdk::get_thread_context(), get_scene_manager());
+    return get_main_view_method->call<::REManagedObject*>();
 }
 
 REManagedObject* get_current_scene() {
     static auto scene_manager_type = sdk::find_type_definition("via.SceneManager");
     static auto get_current_scene_method = scene_manager_type->get_method("get_CurrentScene");
 
-    return get_current_scene_method->call<::REManagedObject*>(sdk::get_thread_context(), get_scene_manager());
+    return get_current_scene_method->call<::REManagedObject*>();
 }
 
 RECamera* get_primary_camera() {
@@ -39,14 +39,14 @@ RECamera* get_primary_camera() {
     static auto scene_view_type = sdk::find_type_definition("via.SceneView");
     static auto get_primary_camera_method = scene_view_type->get_method("get_PrimaryCamera");
 
-    return get_primary_camera_method->call<::RECamera*>(sdk::get_thread_context(), main_view);
+    return get_primary_camera_method->call<::RECamera*>();
 }
 
 void set_timescale(REManagedObject* scene, float timescale) {
     const auto scene_type = utility::re_managed_object::get_type_definition(scene);
     const auto set_timescale_method = scene_type->get_method("set_TimeScale");
 
-    set_timescale_method->call(sdk::get_thread_context(), scene, timescale);
+    set_timescale_method->call<void>(timescale);
 }
 
 void set_timescale(float timescale) {
@@ -61,9 +61,9 @@ void set_timescale(float timescale) {
 
 float get_timescale(REManagedObject* scene) {
     const auto scene_type = utility::re_managed_object::get_type_definition(scene);
-    const auto set_timescale_method = scene_type->get_method("get_TimeScale");
+    const auto get_timescale_method = scene_type->get_method("get_TimeScale");
 
-    return set_timescale_method->call<float>(sdk::get_thread_context(), scene);
+    return get_timescale_method->call<float>();
 }
 
 float get_timescale() {
