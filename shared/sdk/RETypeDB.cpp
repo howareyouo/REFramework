@@ -510,8 +510,11 @@ void* REMethodDefinition::get_function() const {
                         const auto count = g_vtable_method_resolutions.fetch_add(1);
 
                         if (count < 32) {
-                            auto type_name = dt->get_full_name();
-                            spdlog::info("[REMethodDefinition::get_function] {}.{} resolved through the managed vtable (vindex {}, impl {}, fn {:x})", type_name, this->get_name(), vindex, dt->impl_index, (uintptr_t)fn);
+                            const auto type_name = dt->get_full_name();
+                            const auto impl_index = static_cast<uint32_t>(dt->impl_index);
+                            const auto address = reinterpret_cast<uintptr_t>(fn);
+
+                            spdlog::info("[REMethodDefinition::get_function] {}.{} resolved through the managed vtable (vindex {}, impl {}, fn {:x})", type_name, this->get_name(), vindex, impl_index, address);
                         } else {
                             SPDLOG_DEBUG("[REMethodDefinition::get_function] {}.{} resolved through the managed vtable (vindex {}, fn {:x})", dt->get_full_name(), this->get_name(), vindex, (uintptr_t)fn);
                         }
