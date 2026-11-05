@@ -1,6 +1,6 @@
 # Lua RPC — 在运行中的游戏里执行 Lua
 
-REFramework 内置一个只监听 `127.0.0.1` 的 HTTP 端点：`POST /rpc` 在游戏的帧线程上执行一段 Lua，把返回值、`print` 输出和错误以 JSON 返回。默认开启，端口 `13377`，可在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改或关掉。启动日志里没有服务提示行，想确认在跑就直接探一发。
+REFramework 内置一个只监听 `127.0.0.1` 的 HTTP 端点：`POST /rpc` 在游戏的帧线程上执行一段 Lua，把返回值、`print` 输出和错误以 JSON 返回。默认开启，端口 `13377`，可在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改或关掉。启动日志里通常看不到服务提示行：绑定端口时那条 `[ScriptRpc] Listening on http://127.0.0.1:13377/rpc` 是 info 级，而启动收尾已把日志级别降到 warn，info 被吞了；端口绑定失败才有 error 行。想确认在跑就直接探一发。
 
 ## 请求与响应
 
@@ -26,13 +26,12 @@ Content-Type: application/json
 
 ## 怎么调
 
-最省事是现成客户端：`G:/re4-mod-manager/tools/lua_rpc/lua.py`（协议逻辑与本文一致，显式绕过 `HTTP_PROXY`，`ok=false` 时退出码 1）：
+最省事是本仓库自带的参考客户端 [`lua_rpc/lua.py`](lua_rpc/README.md)（纯标准库，协议逻辑与本文一致，显式绕过 `HTTP_PROXY`，`ok=false` 时退出码 1）：
 
 ```bash
-RPC=/g/re4-mod-manager/tools/lua_rpc/lua.py   # 客户端不在本仓库，按你的实际路径改
-python "$RPC" 'sdk.get_tdb_version()' expr
-python "$RPC" --file probe.lua        # 多行脚本写文件更省事
-python "$RPC" 'return 1' --timeout 15000 --port 13377
+python docs/lua_rpc/lua.py 'sdk.get_tdb_version()' expr
+python docs/lua_rpc/lua.py --file probe.lua        # 多行脚本写文件更省事
+python docs/lua_rpc/lua.py 'return 1' --timeout 15000 --port 13377
 ```
 
 没有客户端时直接 curl（Git Bash 会原样传单引号，内层字符串用 `\"`、换行用 `\n`）：
@@ -101,12 +100,12 @@ rg -A30 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md   # 方法�
 ## 返回值与限制
 
 - 表 → JSON：正整数 `1..n` 连续的表是数组，其它表是对象；`nil`/布尔/整数/浮点直出，函数 → `"<function>"`，userdata → `"<类型名: 地址>"`。
-- 序列化上限：深度 6 层、每张表 200 项、整次响应 4000 节点，超出变 `"<truncated>"`。要看全就自己 `select`。
+- 序列化上限：深度 6 层、每张表 200 项、整次响应 4000 节点。超过深度的表变成 `"<table: max depth>"`；单表超过 200 项的部分**静默丢弃**（不报错、不留标记）；只有 4000 节点预算跑完才出现 `"<truncated>"`。要看全就自己 `select`。
 - 指令预算 2000 万条，超出报 `instruction budget exceeded (possible infinite loop)` 并带 `"budget_exceeded": true`。预算只数指令不数时间：`s = s .. "x"` 这类 O(n²) 拼接几十万条指令就能把帧线程占住几秒。
 - 每次调用至少等一帧，重活拆成分帧做。请求体上限 256 KB。
 - 每次只处理一个请求，其余排队（同时挂起上限 64 个）。
-- 错误码：`400` JSON 错 / 缺 `code`，`404` 路径不对，`405` 不是 POST，`429` 队列满，`503` 服务已停，`504` 帧线程没在 `timeout_ms` 内跑完（游戏暂停/加载中/被更长的调用占着；被超时放弃的请求不会执行，已开始的会跑完，等几百毫秒重试）。
-- Lua 状态没建好时返回 `lua state is not ready yet`，重试即可。
+- 错误码：`400` JSON 错 / 缺 `code` / HTTP 层错误（请求行或头解析失败、头部超 16 KB、请求体超 256 KB），`404` 路径不对，`405` 不是 POST，`429` 队列满，`503` 服务已停，`504` 帧线程没在 `timeout_ms` 内跑完（游戏暂停/加载中/被更长的调用占着；被超时放弃的请求不会执行，已开始的会跑完，等几百毫秒重试）。
+- Lua 状态没建好时返回 `lua state is not ready yet (the game is still loading)`，重试即可。
 - 只绑回环，**无鉴权**：本机任何进程都能在你的游戏里执行 Lua。执行的是和手写 mod 同一个 Lua 状态，副作用都是真的。
 
 原生偏移、跨游戏类型差异和 TDB 版本分水岭见 [RE_ENGINE_LUA_NOTES.md](RE_ENGINE_LUA_NOTES.md)。
