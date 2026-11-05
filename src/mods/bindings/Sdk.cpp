@@ -1713,6 +1713,15 @@ void bindings::open_sdk(ScriptState* s) {
         memcpy(&bits, &f, sizeof(bits));
         return (void*)(uintptr_t)bits;
     };
+    // Raw read-only view over an arbitrary native address. The texture resource
+    // lives behind a pure C++ factory type (no RETypeDefinition), so its decode
+    // state (inner +0x58 / status cache +0x74) has no named field to read; this
+    // lets probes read those offsets directly, e.g.
+    //   local addr = holder:read_qword(0x10)
+    //   local inner = sdk.to_memoryview(addr, 0x100):read_qword(0x58)
+    sdk["to_memoryview"] = [](uintptr_t addr, size_t size) {
+        return api::sdk::MemoryView((uint8_t*)addr, size);
+    };
     lua["sdk"] = sdk;
 
     lua.new_usertype<::sdk::RETypeDefinition>("RETypeDefinition",
