@@ -51,9 +51,11 @@ listed per type -- given `arr` of type `T[]`, with `T` the element type:
 ```
 
 Call them on the instance like any other member: `arr:call("get_Item", i)`.
-There is no `#arr` and no `arr[i]`, and no count getter either: the length is
-whatever the code that owns the array decided, and `Get`/`Address` do not
-bounds check.
+Integer indexing works too and is 0-based: `arr[i]` on a `SystemArray` reads
+`get_element(i)`, and on any other managed object it forwards to `get_Item`
+(assignment goes to `set_Item`). There is still no `#arr` and no count getter,
+so the length is whatever the code that owns the array decided, and
+`Get`/`Address` do not bounds check.
 
 
 | root namespace | types | file |
