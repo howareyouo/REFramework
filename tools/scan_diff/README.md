@@ -2,9 +2,9 @@
 
 Differential test for `shared/utility/ScanSelf.*`: decodes a whole PE with both
 bddisasm and the self-made decoder and compares instruction lengths. This is the
-gate any change to the decoder has to pass before it is wired into the build —
-`ScanSelf` is not compiled into `dinput8.dll` yet (see
-`docs/SELFMADE_SCANNER.md`).
+gate any change to the decoder has to pass. `ScanSelf` is now compiled into
+`dinput8.dll` as part of the `bddisasm` target (`shared/utility/bdshim/`), so it
+backs the live `utility::scan` path; see `docs/SELFMADE_SCANNER.md`.
 
 ## Build
 
