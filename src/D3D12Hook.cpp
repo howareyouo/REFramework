@@ -378,19 +378,82 @@ Microsoft::WRL::ComPtr<IDXGISwapChain1> create_dummy_swapchain(IDXGIFactory4* fa
     return nullptr;
 }
 
+// Reads the decorated RTTI name behind a COM object's vtable, empty when the vtable
+// carries no usable complete object locator.
+//
+// utility::rtti::get_type_info() treats whatever sits at vtable[-1] as a locator and
+// dereferences module + pTypeDescriptor unvalidated. DXGI's swapchain vtable does not
+// always hold a locator, and the resulting out-of-image read raises an SEH exception,
+// which is why every startup logged "Failed to get type info: unknown exception" from
+// the caller below. Checking each hop with VirtualQuery instead turns that into an
+// empty name.
+static std::string_view swapchain_rtti_name(const void* obj) {
+    if (!utility::is_readable(obj, sizeof(void*))) {
+        return {};
+    }
+
+    const auto vtable = *(const uint8_t* const*)obj;
+
+    // The locator lives in the slot right before the vtable, so that slot has to be
+    // readable as well.
+    if (vtable == nullptr || !utility::is_readable(vtable - sizeof(void*), sizeof(void*))) {
+        return {};
+    }
+
+    const auto locator = *(const uint8_t* const*)(vtable - sizeof(void*));
+
+    if (locator == nullptr || !utility::is_readable(locator, 0x14)) {
+        return {};
+    }
+
+    // pTypeDescriptor (0xC into the locator) is an RVA into the image the locator
+    // itself lives in, not a pointer.
+    MEMORY_BASIC_INFORMATION locator_region{};
+
+    if (VirtualQuery(locator, &locator_region, sizeof(locator_region)) == 0 || locator_region.AllocationBase == nullptr) {
+        return {};
+    }
+
+    const auto type_descriptor = (const uint8_t*)locator_region.AllocationBase + *(const uint32_t*)(locator + 0xC);
+
+    // type_info holds the decorated name pointer in its second slot on x64.
+    if (!utility::is_readable(type_descriptor, 0x10)) {
+        return {};
+    }
+
+    const auto name = *(const char* const*)(type_descriptor + 8);
+
+    if (!utility::is_readable(name, 256)) {
+        return {};
+    }
+
+    // Decorated MSVC names always open with ".?A" (class) or "._" (other kinds), so
+    // anything else means the RVA pointed at something that is not a type descriptor.
+    if (name[0] != '.' || (name[1] != '?' && name[1] != '_')) {
+        return {};
+    }
+
+    size_t length = 0;
+
+    while (length < 255 && name[length] != '\0') {
+        ++length;
+    }
+
+    return std::string_view{name, length};
+}
+
 // True for a frame generation interposer (Streamline/DLSS3 or FSR3) rather than the
 // swapchain the game actually presents with.
 bool is_frame_generation_swapchain(IDXGISwapChain1* swap_chain) {
     try {
-        const auto ti = utility::rtti::get_type_info(swap_chain);
-
-        // Matching on raw_name() on purpose: MSVC's type_info::name() demangles
+        // Matching on the decorated name on purpose: MSVC's type_info::name() demangles
         // through __unDName, which links in the whole undname table (~43 KB) for
         // strings these two checks only ever substring-match. A decorated name
         // reverses namespace nesting and joins with '@', so the demangled
         // "interposer::DXGISwapChain" reads back as "DXGISwapChain@interposer";
         // requiring both tokens accepts every name the demangled check accepted.
-        const auto raw_name = ti != nullptr && ti->raw_name() != nullptr ? std::string_view{ti->raw_name()} : "unknown";
+        const auto resolved_name = swapchain_rtti_name(swap_chain);
+        const auto raw_name = resolved_name.empty() ? std::string_view{"unknown"} : resolved_name;
 
         spdlog::info("Swapchain raw type info: {}", raw_name);
 
