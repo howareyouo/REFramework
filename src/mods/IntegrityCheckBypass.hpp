@@ -103,31 +103,4 @@ private:
     void disable_update_timers(std::string_view name) const;
 
     std::vector<std::unique_ptr<Patch>> m_patches{};
-
-#pragma region Custom PAK directory loading
-    constexpr static const char* CUSTOM_PAK_DIRECTORY_PATH = "pak_mods";
-    constexpr static const char* PAK_EXTENSION_NAME = ".pak";
-    constexpr static const wchar_t* PAK_EXTENSION_NAME_W = L".pak";
-    constexpr static const wchar_t* SUB_PATCH_SCAN_REGEX = LR"(re_chunk_000\.pak\.sub_000\.pak\.patch_(\d+)\.pak)";
-
-    static void find_try_hook_via_file_load_win32_create_file(uintptr_t pak_load_func_addr);
-    static void via_file_prepare_to_create_file_w_hook_wrappper(safetyhook::Context& context);
-    static void directstorage_open_pak_hook_wrappper(safetyhook::Context& context);
-
-    int cache_and_count_custom_pak_in_directory();
-    std::optional<int> extract_patch_num_from_path(std::wstring &path);
-    void via_file_prepare_to_create_file_w_hook(safetyhook::Context& context);
-    void directstorage_open_pak_hook(safetyhook::Context& context);
-    void correct_pak_load_path(safetyhook::Context& context, int register_index);
-
-    const ModToggle::Ptr m_load_pak_directory{ make_option<ModToggle>("LoadPakDirectory", true) };
-
-    static inline std::vector<safetyhook::MidHook> s_before_create_file_w_hooks{};
-    static inline safetyhook::MidHook s_directstorage_open_pak_hook{};
-    static inline int s_base_directory_patch_count{0};
-
-    std::vector<std::wstring> m_custom_pak_in_directory_paths{};
-    bool m_custom_pak_in_directory_paths_cached{ false };
-    std::wregex m_sub_patch_scan_regex{SUB_PATCH_SCAN_REGEX, std::regex::ECMAScript};
-#pragma endregion 
 };

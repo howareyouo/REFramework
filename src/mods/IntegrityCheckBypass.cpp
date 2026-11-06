@@ -691,12 +691,6 @@ int IntegrityCheckBypass::scan_patch_files_count() {
         highest_patch_num = 0;
     }
 
-    auto integrity_shared_instance = IntegrityCheckBypass::get_shared_instance();
-    auto other_custom_paks_count = integrity_shared_instance->cache_and_count_custom_pak_in_directory();
-
-    s_base_directory_patch_count = highest_patch_num;
-    highest_patch_num += other_custom_paks_count;
-
     s_patch_count_checked = true;
     s_patch_count = highest_patch_num;
 
@@ -975,66 +969,6 @@ void* IntegrityCheckBypass::rtl_exit_user_process_hook(uint32_t code) {
     TerminateProcess(GetCurrentProcess(), code);
     return nullptr;
 }
-
-#pragma region Custom PAK directory loading
-
-#define ENABLE_PAK_DIRECTORY_LOAD (TDB_VER >= 81)
-
-static utility::ExhaustionResult do_exhaustion_scan_create_file_refs(utility::ExhaustionContext &ctx, uintptr_t target_search_func, std::vector<uintptr_t> &before_create_file_ptrs) {
-    if (ctx.instrux.Category == ND_CAT_CALL) {
-        if (ctx.instrux.Instruction == ND_INS_CALLNI) {
-            auto displacement_opt = utility::resolve_displacement(ctx.addr);
-            if (displacement_opt && *(uintptr_t*)(*displacement_opt) == target_search_func) {
-                spdlog::info("[IntegrityCheckBypass]: Found stream open's call to CreateFileW at 0x{:X}, hooking it!", ctx.addr);
-                before_create_file_ptrs.push_back(ctx.addr);
-            }
-        }
-
-        return utility::ExhaustionResult::STEP_OVER;
-    }
-
-    return utility::ExhaustionResult::CONTINUE;
-}
-
-void IntegrityCheckBypass::find_try_hook_via_file_load_win32_create_file(uintptr_t pak_load_func_addr) {
-    spdlog::info("[IntegrityCheckBypass]: Custom pak directory loading is not supported for TDB version {}", TDB_VER);
-}
-
-int IntegrityCheckBypass::cache_and_count_custom_pak_in_directory() {
-    return 0;
-}
-
-std::optional<int> IntegrityCheckBypass::extract_patch_num_from_path(std::wstring &path) {
-    std::wsmatch match;
-    if (std::regex_match(path, match, m_sub_patch_scan_regex)) {
-        try {
-            const int patch_num = std::stoi(match[1].str());
-            return patch_num;
-        } catch (const std::exception& e) {
-            return std::nullopt;
-        }
-    }
-    return std::nullopt;
-}
-
-void IntegrityCheckBypass::via_file_prepare_to_create_file_w_hook_wrappper(safetyhook::Context& context) {
-    auto instance = IntegrityCheckBypass::get_shared_instance();
-    if (instance) {
-        instance->via_file_prepare_to_create_file_w_hook(context);
-    } else {
-        spdlog::error("[IntegrityCheckBypass]: Shared instance is null in via_file_prepare_to_create_file_w_hook_wrapper!");
-    }
-}
-
-void IntegrityCheckBypass::directstorage_open_pak_hook_wrappper(safetyhook::Context& context) {
-    auto instance = IntegrityCheckBypass::get_shared_instance();
-    if (instance) {
-        instance->directstorage_open_pak_hook(context);
-    } else {
-        spdlog::error("[IntegrityCheckBypass]: Shared instance is null in directstorage_open_pak_hook_wrapper!");
-    }
-}
-
 template <typename T>
 T get_register_value(safetyhook::Context& context, int reg) {
     switch (reg) {
@@ -1057,68 +991,6 @@ T get_register_value(safetyhook::Context& context, int reg) {
     default: return (T)0;
     }
 }
-
-template <typename T>
-void set_register_value(safetyhook::Context& context, int reg, T value) {
-    switch (reg) {
-    case NDR_RAX: context.rax = (uint64_t)value; break;
-    case NDR_RCX: context.rcx = (uint64_t)value; break;
-    case NDR_RDX: context.rdx = (uint64_t)value; break;
-    case NDR_RBX: context.rbx = (uint64_t)value; break;
-    case NDR_RSP: context.rsp = (uint64_t)value; break;
-    case NDR_RBP: context.rbp = (uint64_t)value; break;
-    case NDR_RSI: context.rsi = (uint64_t)value; break;
-    case NDR_RDI: context.rdi = (uint64_t)value; break;
-    case NDR_R8:  context.r8 = (uint64_t)value; break;
-    case NDR_R9:  context.r9 = (uint64_t)value; break;
-    case NDR_R10: context.r10 = (uint64_t)value; break;
-    case NDR_R11: context.r11 = (uint64_t)value; break;
-    case NDR_R12: context.r12 = (uint64_t)value; break;
-    case NDR_R13: context.r13 = (uint64_t)value; break;
-    case NDR_R14: context.r14 = (uint64_t)value; break;
-    case NDR_R15: context.r15 = (uint64_t)value; break;
-    }
-}
-
-void IntegrityCheckBypass::correct_pak_load_path(safetyhook::Context& context, int register_index) {
-    if (!m_load_pak_directory || !m_load_pak_directory->value() || m_custom_pak_in_directory_paths.empty()) {
-        return;
-    }
-
-    auto path_ptr = get_register_value<wchar_t*>(context, register_index);
-    if (path_ptr != nullptr) {
-        std::wstring_view path_view(path_ptr);
-        if (path_view.ends_with(PAK_EXTENSION_NAME_W)) {
-            std::wstring filename_copy = std::filesystem::path(path_view).filename().wstring();
-            auto patch_num_opt = extract_patch_num_from_path(filename_copy);
-
-            if (patch_num_opt) {
-                int patch_num = *patch_num_opt;
-                if (patch_num > s_base_directory_patch_count) {
-                    auto custom_directory_pak_index = patch_num - s_base_directory_patch_count - 1;
-                    if (custom_directory_pak_index < m_custom_pak_in_directory_paths.size()) {
-                        auto &pak_path = m_custom_pak_in_directory_paths[custom_directory_pak_index];
-                        spdlog::info("[IntegrityCheckBypass]: Redirecting load of {} to custom pak at path: {}", utility::narrow(filename_copy), utility::narrow(pak_path));
-                    
-                        set_register_value(context, register_index, pak_path.c_str());
-                    } else {
-                        spdlog::error("[IntegrityCheckBypass]: Patch number {} is out of range for PAK directory's PAK! (index {})", patch_num, custom_directory_pak_index);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void IntegrityCheckBypass::directstorage_open_pak_hook(safetyhook::Context& context) {
-    correct_pak_load_path(context, NDR_RDX);
-}
-
-void IntegrityCheckBypass::via_file_prepare_to_create_file_w_hook(safetyhook::Context& context) {
-    correct_pak_load_path(context, NDR_RCX);
-}
-
-#pragma endregion
 
 void IntegrityCheckBypass::on_config_load(const utility::Config& cfg) {
     config_load_options(cfg, m_options);
