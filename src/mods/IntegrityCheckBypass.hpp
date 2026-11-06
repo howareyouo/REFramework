@@ -24,9 +24,6 @@ public:
     void on_draw_ui() override;
     
     static void ignore_application_entries();
-    static void immediate_patch_re8();
-    static void immediate_patch_re4();
-    static void remove_stack_destroyer();
 
     static void setup_pristine_syscall();
     static void fix_virtual_protect();

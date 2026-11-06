@@ -21,7 +21,6 @@ class Mods;
 class REGlobals;
 class RETypes;
 
-#include "D3D11Hook.hpp"
 #include "D3D12Hook.hpp"
 #include "DInputHook.hpp"
 #include "WindowsMessageHook.hpp"
@@ -98,7 +97,7 @@ public:
 
     bool is_valid() const { return m_valid; }
 
-    bool is_dx11() const { return m_is_d3d11; }
+    bool is_dx11() const { return false; }
 
     bool is_dx12() const { return m_is_d3d12; }
 
@@ -125,12 +124,10 @@ public:
 
     void run_imgui_frame(bool from_present);
 
-    void on_frame_d3d11();
-    void on_post_present_d3d11();
     void on_frame_d3d12();
     void on_post_present_d3d12();
 
-    // Common initialization logic shared between on_frame_d3d11 and on_frame_d3d12.
+    // Common initialization logic shared between the per-API frame paths.
     // Returns true if initialization is OK and the frame should proceed.
     bool on_frame_common_init();
     void on_reset();
@@ -158,7 +155,6 @@ public:
     };
     
     auto get_renderer_type() const { return m_renderer_type; }
-    auto& get_d3d11_hook() const { return m_d3d11_hook; }
     auto& get_d3d12_hook() const { return m_d3d12_hook; }
 
     auto get_window() const { return m_wnd; }
@@ -234,15 +230,7 @@ private:
     void draw_ui();
 
 public:
-    bool hook_d3d11();
     bool hook_d3d12();
-
-private:
-    // Shared "try hook → unhook on failure" helper for D3D11/D3D12.
-    template <typename HookType>
-    bool try_hook_renderer(std::unique_ptr<HookType>& hook,
-                           bool& is_current, bool& is_other,
-                           const char* api_name);
 
 private:
     bool initialize();
@@ -258,7 +246,6 @@ private:
     bool m_first_frame{true};
     bool m_first_frame_d3d_initialize{true};
     bool m_is_d3d12{false};
-    bool m_is_d3d11{false};
     bool m_valid{false};
     bool m_initialized{false};
     bool m_created_default_cfg{false};
@@ -306,7 +293,6 @@ private:
     float m_accumulated_mouse_delta[2]{};
     float m_mouse_delta[2]{};
     std::array<uint8_t, 256> m_last_keys{0};
-    std::unique_ptr<D3D11Hook> m_d3d11_hook{};
     std::unique_ptr<D3D12Hook> m_d3d12_hook{};
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
     std::unique_ptr<DInputHook> m_dinput_hook;
@@ -334,7 +320,7 @@ private:
     std::atomic<bool> m_sent_message{false};
     std::atomic<bool> m_message_hook_requested{false};
 
-    RendererType m_renderer_type{RendererType::D3D11};
+    RendererType m_renderer_type{RendererType::D3D12};
 
     template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
 
@@ -375,17 +361,6 @@ private: // Frame sequence
         virtual void post_present() {}
     };
 
-    struct D3D11Frame : FrameRenderer {
-        REFramework& framework;
-
-        explicit D3D11Frame(REFramework& f) : framework{f} {}
-
-        RendererType type() const override;
-        Status check_device() override;
-        void new_frame() override;
-        bool draw() override;
-    };
-
     struct D3D12Frame : FrameRenderer {
         REFramework& framework;
 
@@ -402,31 +377,9 @@ private: // Frame sequence
     void on_frame(FrameRenderer& renderer);
     void on_post_present(FrameRenderer& renderer);
 
-private: // D3D11 Init
-    bool init_d3d11();
-    void deinit_d3d11();
-
 private: // D3D12 Init
     bool init_d3d12();
     void deinit_d3d12();
-
-private: // D3D11 members
-    struct D3D11 {
-        ComPtr<ID3D11Texture2D> blank_rt{};
-		ComPtr<ID3D11Texture2D> rt{};
-        ComPtr<ID3D11RenderTargetView> blank_rt_rtv{};
-		ComPtr<ID3D11RenderTargetView> rt_rtv{};
-		ComPtr<ID3D11ShaderResourceView> rt_srv{};
-        uint32_t rt_width{};
-        uint32_t rt_height{};
-		ComPtr<ID3D11RenderTargetView> bb_rtv{};
-    } m_d3d11{};
-
-public:
-    auto& get_blank_rendertarget_d3d11() { return m_d3d11.blank_rt; }
-    auto& get_rendertarget_d3d11() { return m_d3d11.rt; }
-    auto get_rendertarget_width_d3d11() const { return m_d3d11.rt_width; }
-    auto get_rendertarget_height_d3d11() const { return m_d3d11.rt_height; }
 
 private: // D3D12 members
     struct D3D12 {

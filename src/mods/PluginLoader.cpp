@@ -692,12 +692,7 @@ void PluginLoader::on_frame() {
 void PluginLoader::init_d3d_pointers() {
     reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
     
-    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D11) {
-        auto& d3d11 = g_framework->get_d3d11_hook();
-
-        reframework::g_renderer_data.device = d3d11->get_device();
-        reframework::g_renderer_data.swapchain = d3d11->get_swap_chain();
-    } else if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
+    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
         auto& d3d12 = g_framework->get_d3d12_hook();
 
         reframework::g_renderer_data.device = d3d12->get_device();

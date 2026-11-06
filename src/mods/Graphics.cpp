@@ -475,42 +475,22 @@ void Graphics::on_present() {
     // window resize would produce wrong render scaling or letterboxing for as
     // long as the cache held (a resize is exactly when this value must be
     // correct).
-    if (g_framework->is_dx11()) {
-        const auto& hook = g_framework->get_d3d11_hook();
-        const auto swapchain = hook->get_swap_chain();
+    const auto& hook = g_framework->get_d3d12_hook();
+    const auto swapchain = hook->get_swap_chain();
 
-        if (swapchain == nullptr) {
-            return;
-        }
-
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> backbuffer{};
-        if (FAILED(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer))) || backbuffer == nullptr) {
-            return;
-        }
-
-        D3D11_TEXTURE2D_DESC desc{};
-        backbuffer->GetDesc(&desc);
-
-        m_backbuffer_width.store(desc.Width, std::memory_order_relaxed);
-        m_backbuffer_height.store(desc.Height, std::memory_order_relaxed);
-    } else {
-        const auto& hook = g_framework->get_d3d12_hook();
-        const auto swapchain = hook->get_swap_chain();
-
-        if (swapchain == nullptr) {
-            return;
-        }
-
-        Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer{};
-        if (FAILED(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer))) || backbuffer == nullptr) {
-            return;
-        }
-
-        const auto desc = backbuffer->GetDesc();
-
-        m_backbuffer_width.store((uint32_t)desc.Width, std::memory_order_relaxed);
-        m_backbuffer_height.store((uint32_t)desc.Height, std::memory_order_relaxed);
+    if (swapchain == nullptr) {
+        return;
     }
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer{};
+    if (FAILED(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer))) || backbuffer == nullptr) {
+        return;
+    }
+
+    const auto desc = backbuffer->GetDesc();
+
+    m_backbuffer_width.store((uint32_t)desc.Width, std::memory_order_relaxed);
+    m_backbuffer_height.store((uint32_t)desc.Height, std::memory_order_relaxed);
 }
 
 void Graphics::on_pre_application_entry(void* entry, const char* name, size_t hash) {

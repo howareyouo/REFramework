@@ -14,7 +14,6 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 #include <imnodes.h>
-#include "re2-imgui/imgui_impl_dx11.h"
 #include "re2-imgui/imgui_impl_dx12.h"
 #include "re2-imgui/imgui_impl_win32.h"
 
@@ -85,14 +84,12 @@ void REFramework::hook_monitor() {
 
     const auto now = std::chrono::steady_clock::now();
 
-    auto& d3d11 = get_d3d11_hook();
     auto& d3d12 = get_d3d12_hook();
     const auto renderer_type = get_renderer_type();
 
     // Are the D3D hooks in a usable state?
-    const bool hooks_unusable = d3d11 == nullptr || d3d12 == nullptr
-        || (renderer_type == RendererType::D3D11 && d3d11 != nullptr && !d3d11->is_inside_present())
-        || (renderer_type == RendererType::D3D12 && d3d12 != nullptr && !d3d12->is_inside_present());
+    const bool hooks_unusable = d3d12 == nullptr
+        || (renderer_type == RendererType::D3D12 && !d3d12->is_inside_present());
 
     if (!hooks_unusable) {
         return;
@@ -111,12 +108,8 @@ void REFramework::hook_monitor() {
         if (!m_has_last_chance.load() && now - m_last_chance_time.load() > CHANCE_TIMEOUT) {
             spdlog::info("Sending rehook request for D3D");
 
-            // hook_d3d12 always gets called first.
-            if (m_is_d3d11) {
-                hook_d3d11();
-            } else {
-                hook_d3d12();
-            }
+            // D3D12 is the only renderer backend this build carries.
+            hook_d3d12();
 
             // Pad the timers so we don't immediately rehook.
             const auto future5 = now + PRESENT_TIMEOUT;
@@ -433,12 +426,6 @@ void REFramework::setup_mhwilds_early_init() {
 void REFramework::setup_integrity_bypass() {
     utility::ThreadSuspender suspender{};
     IntegrityCheckBypass::ignore_application_entries();
-
-    IntegrityCheckBypass::immediate_patch_re8();
-
-    IntegrityCheckBypass::immediate_patch_re4();
-
-    IntegrityCheckBypass::remove_stack_destroyer();
     suspender.resume();
 }
 
@@ -609,57 +596,13 @@ void REFramework::start_monitor_thread() {
     });
 }
 
-// Shared "try hook → unhook on failure" logic for both D3D11 and D3D12.
-// Returns true on success, false if the other API is already active or the hook failed.
-template <typename HookType>
-bool REFramework::try_hook_renderer(std::unique_ptr<HookType>& hook,
-                                     bool& is_current, bool& is_other,
-                                     const char* api_name) {
-    if (is_other) {
-        return false;
-    }
-
-    if (hook->hook()) {
-        spdlog::info("Hooked {}", api_name);
-        m_valid = true;
-        is_current = true;
-        return true;
-    }
-
-    if (hook->unhook()) {
-        spdlog::info("{} unhooked!", api_name);
-    } else {
-        spdlog::info("Cannot unhook {}, this might crash.", api_name);
-    }
-
-    m_valid = false;
-    is_current = false;
-    return false;
-}
-
-bool REFramework::hook_d3d11() {
-    m_d3d11_hook.reset();
-    m_d3d11_hook = std::make_unique<D3D11Hook>();
-    m_d3d11_hook->on_present([this](D3D11Hook& hook) { on_frame_d3d11(); });
-    m_d3d11_hook->on_post_present([this](D3D11Hook& hook) { on_post_present_d3d11(); });
-    m_d3d11_hook->on_resize_buffers([this](D3D11Hook& hook) { on_reset(); });
-
-    return try_hook_renderer(m_d3d11_hook, m_is_d3d11, m_is_d3d12, "DirectX 11");
-}
-
 bool REFramework::hook_d3d12() {
-    // Making sure D3D11 is not hooked before doing any D3D12 work:
-    // avoids constructing the D3D12Hook and loading d3d12.dll for nothing.
-    if (m_is_d3d11) {
-        return false;
-    }
-
     // windows 7?
     if (LoadLibraryA("d3d12.dll") == nullptr) {
         spdlog::info("d3d12.dll not found, user is probably running Windows 7.");
-        spdlog::info("Falling back to hooking D3D11.");
+        m_valid = false;
         m_is_d3d12 = false;
-        return hook_d3d11();
+        return false;
     }
 
     m_d3d12_hook.reset();
@@ -669,16 +612,22 @@ bool REFramework::hook_d3d12() {
     m_d3d12_hook->on_resize_buffers([this](D3D12Hook& hook) { on_reset(); });
     m_d3d12_hook->on_resize_target([this](D3D12Hook& hook) { on_reset(); });
 
-    // D3D11 is already hooked, leave it alone.
-    if (m_is_d3d11) {
-        return false;
+    if (m_d3d12_hook->hook()) {
+        spdlog::info("Hooked DirectX 12");
+        m_valid = true;
+        m_is_d3d12 = true;
+        return true;
     }
 
-    if (!try_hook_renderer(m_d3d12_hook, m_is_d3d12, m_is_d3d11, "DirectX 12")) {
-        // The D3D12 hook failed, try D3D11 as fallback.
-        return hook_d3d11();
+    if (m_d3d12_hook->unhook()) {
+        spdlog::info("DirectX 12 unhooked!");
+    } else {
+        spdlog::info("Cannot unhook DirectX 12, this might crash.");
     }
-    return true;
+
+    m_valid = false;
+    m_is_d3d12 = false;
+    return false;
 }
 
 REFramework::~REFramework() {
@@ -695,10 +644,6 @@ REFramework::~REFramework() {
     m_windows_message_hook.reset();
 
     m_d3d_monitor_thread.reset();
-
-    if (m_is_d3d11) {
-        deinit_d3d11();
-    }
 
     if (m_is_d3d12) {
         deinit_d3d12();
@@ -760,7 +705,7 @@ void REFramework::run_imgui_frame(bool from_present) {
     }
 }
 
-// D3D11 Draw funciton
+// Shared bootstrap for the per-API frame paths.
 bool REFramework::on_frame_common_init() {
     bool is_init_ok = m_error.empty() && m_game_data_initialized;
 
@@ -867,56 +812,6 @@ void REFramework::on_post_present(FrameRenderer& renderer) {
     if (m_last_present_time.load() <= now) {
         m_last_present_time.store(now);
     }
-}
-
-// D3D11 Draw funciton
-REFramework::RendererType REFramework::D3D11Frame::type() const {
-    return RendererType::D3D11;
-}
-
-REFramework::FrameRenderer::Status REFramework::D3D11Frame::check_device() {
-    if (framework.m_d3d11_hook->get_device() == nullptr) {
-        spdlog::error("D3D11 device was null when it shouldn't be, returning...");
-        return Status::DeviceLost;
-    }
-
-    return Status::Ok;
-}
-
-void REFramework::D3D11Frame::new_frame() {
-    framework.invalidate_device_objects();
-    ImGui_ImplDX11_NewFrame();
-}
-
-bool REFramework::D3D11Frame::draw() {
-    ComPtr<ID3D11DeviceContext> context{};
-    float clear_color[]{0.0f, 0.0f, 0.0f, 0.0f};
-
-    framework.m_d3d11_hook->get_device()->GetImmediateContext(&context);
-    context->ClearRenderTargetView(framework.m_d3d11.blank_rt_rtv.Get(), clear_color);
-
-    // Set the back buffer to be the render target.
-    context->OMSetRenderTargets(1, framework.m_d3d11.bb_rtv.GetAddressOf(), nullptr);
-
-    // NewFrame() invalidates DrawData until Render(); GetDrawData() can return
-    // null if the frame was not rendered in this pass.
-    if (auto* draw_data = ImGui::GetDrawData()) {
-        ImGui_ImplDX11_RenderDrawData(draw_data);
-    }
-
-    return true;
-}
-
-void REFramework::on_frame_d3d11() {
-    spdlog::debug("on_frame (D3D11)");
-
-    D3D11Frame frame{*this};
-    on_frame(frame);
-}
-
-void REFramework::on_post_present_d3d11() {
-    D3D11Frame frame{*this};
-    on_post_present(frame);
 }
 
 REFramework::RendererType REFramework::D3D12Frame::type() const {
@@ -1062,10 +957,6 @@ void REFramework::on_reset() {
     }
 
     // Crashes if we don't release it at this point.
-    if (m_is_d3d11) {
-        deinit_d3d11();
-    }
-
     if (m_is_d3d12) {
         deinit_d3d12();
     }
@@ -1501,9 +1392,7 @@ void REFramework::invalidate_device_objects() {
         return;
     }
 
-    if (m_renderer_type == RendererType::D3D11) {
-        ImGui_ImplDX11_InvalidateDeviceObjects();
-    } else if (m_renderer_type == RendererType::D3D12) {
+    if (m_renderer_type == RendererType::D3D12) {
         ImGui_ImplDX12_InvalidateDeviceObjects();
     }
 
@@ -1703,158 +1592,77 @@ bool REFramework::initialize() {
         return false;
     }
 
-    if (m_is_d3d11) {
-        spdlog::info("Attempting to initialize DirectX 11");
+    if (!m_is_d3d12) {
+        return false;
+    }
 
-        if (!m_d3d11_hook->is_hooked()) {
-            return false;
-        }
+    spdlog::info("Attempting to initialize DirectX 12");
 
-        auto device = m_d3d11_hook->get_device();
-        auto swap_chain = m_d3d11_hook->get_swap_chain();
+    if (!m_d3d12_hook->is_hooked()) {
+        return false;
+    }
 
-        if (device == nullptr || swap_chain == nullptr) {
-            m_first_initialize = true;
+    auto device = m_d3d12_hook->get_device();
+    auto swap_chain = m_d3d12_hook->get_swap_chain();
 
-            spdlog::info("Device or SwapChain null. DirectX 12 may be in use. Unhooking D3D11...");
+    if (device == nullptr || swap_chain == nullptr) {
+        m_first_initialize = true;
 
-            // We unhook D3D11
-            if (m_d3d11_hook->unhook()) {
-                spdlog::info("D3D11 unhooked!");
-            } else {
-                spdlog::error("Cannot unhook D3D11, this might crash.");
-            }
+        spdlog::info("Device: {:x}", (uintptr_t)device);
+        spdlog::info("SwapChain: {:x}", (uintptr_t)swap_chain);
 
-            m_is_d3d11 = false;
-            m_valid = false;
+        spdlog::info("Device or SwapChain null. Unhooking D3D12...");
 
-            // We hook D3D12
-            if (!hook_d3d12()) {
-                spdlog::error("Failed to hook D3D12 after unhooking D3D11.");
-            }
-            return false;
-        }
+        // We unhook D3D12
+        if (m_d3d12_hook->unhook())
+            spdlog::info("D3D12 unhooked!");
+        else
+            spdlog::error("Cannot unhook D3D12, this might crash.");
 
-        DXGI_SWAP_CHAIN_DESC swap_desc{};
-        swap_chain->GetDesc(&swap_desc);
+        m_valid = false;
+        m_is_d3d12 = false;
 
-        m_wnd = swap_desc.OutputWindow;
+        // No other backend to fall back to; the monitor thread retries the hook.
+        return false;
+    }
 
+    DXGI_SWAP_CHAIN_DESC swap_desc{};
+    swap_chain->GetDesc(&swap_desc);
 
-        spdlog::info("Window Handle: {0:x}", (uintptr_t)m_wnd);
-        spdlog::info("Initializing ImGui");
-
-        IMGUI_CHECKVERSION();
-
-        if (ImGui::GetCurrentContext() == nullptr) {
-            ImGui::CreateContext();
-        }
-
-        ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
-
-        if (ImNodes::GetCurrentContext() == nullptr) {
-            ImNodes::CreateContext();
-        }
-
-        set_imgui_style();
-
-        static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
-        ImGui::GetIO().IniFilename = imgui_ini.c_str();
-
-        // The platform backend asserts on double-init (it leaks its data in
-        // release builds), which re-initialization after a device reset would
-        // otherwise trigger.
-        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
-            ImGui_ImplWin32_Shutdown();
-        }
-
-        spdlog::info("Initializing ImGui Win32");
-
-        if (!ImGui_ImplWin32_Init(m_wnd)) {
-            spdlog::error("Failed to initialize ImGui.");
-            return false;
-        }
-
-        spdlog::info("Creating render target");
-
-        if (!init_d3d11()) {
-            spdlog::error("Failed to init D3D11");
-            return false;
-        }
-    } else if (m_is_d3d12) {
-        spdlog::info("Attempting to initialize DirectX 12");
-
-        if (!m_d3d12_hook->is_hooked()) {
-            return false;
-        }
-
-        auto device = m_d3d12_hook->get_device();
-        auto swap_chain = m_d3d12_hook->get_swap_chain();
-
-        if (device == nullptr || swap_chain == nullptr) {
-            m_first_initialize = true;
-
-            spdlog::info("Device: {:x}", (uintptr_t)device);
-            spdlog::info("SwapChain: {:x}", (uintptr_t)swap_chain);
-
-            spdlog::info("Device or SwapChain null. DirectX 11 may be in use. Unhooking D3D12...");
-
-            // We unhook D3D12
-            if (m_d3d12_hook->unhook())
-                spdlog::info("D3D12 unhooked!");
-            else
-                spdlog::error("Cannot unhook D3D12, this might crash.");
-
-            m_valid = false;
-            m_is_d3d12 = false;
-
-            // We hook D3D11
-            if (!hook_d3d11()) {
-                spdlog::error("Failed to hook D3D11 after unhooking D3D12.");
-            }
-            return false;
-        }
-
-        DXGI_SWAP_CHAIN_DESC swap_desc{};
-        swap_chain->GetDesc(&swap_desc);
-
-        m_wnd = swap_desc.OutputWindow;
+    m_wnd = swap_desc.OutputWindow;
 
 
-        IMGUI_CHECKVERSION();
+    IMGUI_CHECKVERSION();
 
-        if (ImGui::GetCurrentContext() == nullptr) {
-            ImGui::CreateContext();
-        }
+    if (ImGui::GetCurrentContext() == nullptr) {
+        ImGui::CreateContext();
+    }
 
-        ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
+    ImNodes::SetImGuiContext(ImGui::GetCurrentContext());
 
-        if (ImNodes::GetCurrentContext() == nullptr) {
-            ImNodes::CreateContext();
-        }
+    if (ImNodes::GetCurrentContext() == nullptr) {
+        ImNodes::CreateContext();
+    }
 
-        set_imgui_style();
+    set_imgui_style();
 
-        static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
-        ImGui::GetIO().IniFilename = imgui_ini.c_str();
+    static const auto imgui_ini = (get_persistent_dir() / "ref_ui.ini").string();
+    ImGui::GetIO().IniFilename = imgui_ini.c_str();
 
-        // The platform backend asserts on double-init (it leaks its data in
-        // release builds), which re-initialization after a device reset would
-        // otherwise trigger.
-        if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
-            ImGui_ImplWin32_Shutdown();
-        }
+    // The platform backend asserts on double-init (it leaks its data in
+    // release builds), which re-initialization after a device reset would
+    // otherwise trigger.
+    if (ImGui::GetIO().BackendPlatformUserData != nullptr) {
+        ImGui_ImplWin32_Shutdown();
+    }
 
-        if (!ImGui_ImplWin32_Init(m_wnd)) {
-            spdlog::error("Failed to initialize ImGui ImplWin32.");
-            return false;
-        }
+    if (!ImGui_ImplWin32_Init(m_wnd)) {
+        spdlog::error("Failed to initialize ImGui ImplWin32.");
+        return false;
+    }
 
-        if (!init_d3d12()) {
-            spdlog::error("Failed to init D3D12.");
-            return false;
-        }
-    } else {
+    if (!init_d3d12()) {
+        spdlog::error("Failed to init D3D12.");
         return false;
     }
 
@@ -2045,102 +1853,6 @@ void REFramework::call_on_frame() {
         // Run mod frame callbacks.
         m_mods->on_frame();
     }
-}
-
-// DirectX 11 Initialization methods
-
-bool REFramework::init_d3d11() {
-    deinit_d3d11();
-
-    auto swapchain = m_d3d11_hook->get_swap_chain();
-    auto device = m_d3d11_hook->get_device();
-
-    // Get back buffer.
-    spdlog::info("[D3D11] Creating RTV of back buffer...");
-
-    ComPtr<ID3D11Texture2D> backbuffer{};
-
-    if (FAILED(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)))) {
-        spdlog::error("[D3D11] Failed to get back buffer!");
-        return false;
-    }
-
-    // Create a render target view of the back buffer.
-    if (FAILED(device->CreateRenderTargetView(backbuffer.Get(), nullptr, &m_d3d11.bb_rtv))) {
-        spdlog::error("[D3D11] Failed to create back buffer render target view!");
-        return false;
-    }
-
-    // Get backbuffer description.
-    D3D11_TEXTURE2D_DESC backbuffer_desc{};
-
-    backbuffer->GetDesc(&backbuffer_desc);
-    backbuffer_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-
-    spdlog::info("[D3D11] Back buffer format is {}", backbuffer_desc.Format);
-
-    // Create our blank render target.
-    spdlog::info("[D3D11] Creating render targets...");
-    {
-        // Create our blank render target.
-        auto d3d11_rt_desc = backbuffer_desc;
-        d3d11_rt_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // For VR
-
-        if (FAILED(device->CreateTexture2D(&d3d11_rt_desc, nullptr, &m_d3d11.blank_rt))) {
-            spdlog::error("[D3D11] Failed to create render target texture!");
-            return false;
-        }
-
-        // Create our render target
-        if (FAILED(device->CreateTexture2D(&d3d11_rt_desc, nullptr, &m_d3d11.rt))) {
-            spdlog::error("[D3D11] Failed to create render target texture!");
-            return false;
-        }
-    }
-
-    // Create our blank render target view.
-    spdlog::info("[D3D11] Creating rtvs...");
-
-    if (FAILED(device->CreateRenderTargetView(m_d3d11.blank_rt.Get(), nullptr, &m_d3d11.blank_rt_rtv))) {
-        spdlog::error("[D3D11] Failed to create render terget view!");
-        return false;
-    }
-
-
-    // Create our render target view.
-    if (FAILED(device->CreateRenderTargetView(m_d3d11.rt.Get(), nullptr, &m_d3d11.rt_rtv))) {
-        spdlog::error("[D3D11] Failed to create render terget view!");
-        return false;
-    }
-
-    // Create our render target shader resource view.
-    spdlog::info("[D3D11] Creating srvs...");
-
-    if (FAILED(device->CreateShaderResourceView(m_d3d11.rt.Get(), nullptr, &m_d3d11.rt_srv))) {
-        spdlog::error("[D3D11] Failed to create shader resource view!");
-        return false;
-    }
-
-    m_d3d11.rt_width = backbuffer_desc.Width;
-    m_d3d11.rt_height = backbuffer_desc.Height;
-
-    spdlog::info("[D3D11] Initializing ImGui D3D11...");
-
-    ComPtr<ID3D11DeviceContext> context{};
-
-    device->GetImmediateContext(&context);
-
-    if (!ImGui_ImplDX11_Init(device, context.Get())) {
-        spdlog::error("[D3D11] Failed to initialize ImGui.");
-        return false;
-    }
-
-    return true;
-}
-
-void REFramework::deinit_d3d11() {
-    ImGui_ImplDX11_Shutdown();
-    m_d3d11 = {};
 }
 
 // DirectX 12 Initialization methods

@@ -21,9 +21,6 @@ std::optional<std::string> BackBufferRenderer::on_initialize_d3d_thread() {
         ensure_command_contexts();
 
         spdlog::info("BackBufferRenderer D3D12 initialized");
-    } else {
-        // TODO
-        spdlog::info("BackBufferRenderer D3D11 initialized");
     }
 
     // OK
@@ -169,15 +166,9 @@ void BackBufferRenderer::render_d3d12() {
     command_context->execute();
 }
 
-void BackBufferRenderer::render_d3d11() {
-    // TODO
-}
-
 void BackBufferRenderer::on_present() {
     if (g_framework->is_dx12()) {
         render_d3d12();
-    } else {
-        render_d3d11();
     }
 }
 

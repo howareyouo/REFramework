@@ -64,7 +64,6 @@ public:
 
 private:
     void render_d3d12();
-    void render_d3d11();
 
     void ensure_command_contexts();
     bool ensure_swapchain();

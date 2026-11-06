@@ -434,8 +434,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	set(CMKR_TARGET RE4)
 	set(RE4_SOURCES
 		cmake.toml
-		"src/D3D11Hook.cpp"
-		"src/D3D11Hook.hpp"
 		"src/D3D12Hook.cpp"
 		"src/D3D12Hook.hpp"
 		"src/DInputHook.cpp"
@@ -495,8 +493,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/mods/bindings/Json.hpp"
 		"src/mods/bindings/Sdk.cpp"
 		"src/mods/bindings/Sdk.hpp"
-		"src/re2-imgui/imgui_impl_dx11.cpp"
-		"src/re2-imgui/imgui_impl_dx11.h"
 		"src/re2-imgui/imgui_impl_dx12.cpp"
 		"src/re2-imgui/imgui_impl_dx12.h"
 		"src/re2-imgui/imgui_impl_win32.cpp"
@@ -584,7 +580,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		OUTPUT_NAME
 			dinput8
 		LINK_FLAGS
-			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d11.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll /OPT:LBR"
+			"/DELAYLOAD:PDPerfPlugin.dll /DELAYLOAD:d3d12.dll /DELAYLOAD:D3DCOMPILER_47.dll /OPT:LBR"
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE
 			"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
