@@ -324,6 +324,7 @@ struct REParameterDef {
     uint32_t type_id : TYPE_INDEX_BITS;
     uint32_t flags : (32 - TYPE_INDEX_BITS);
 };
+static_assert(sizeof(REParameterDef) == 0xC);
 
 struct REMethodDefinition {
     uint32_t declaring_typeid : TYPE_INDEX_BITS;
