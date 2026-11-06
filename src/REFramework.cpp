@@ -72,11 +72,11 @@ void REFramework::hook_monitor() {
 
     // If another thread is already running hook_monitor, assume everything is
     // fine and just reset the timers so we don't trigger a spurious rehook.
-    if (!m_hook_monitor_mutex.try_lock()) {
+    if (!g_hook_monitor_mutex.try_lock()) {
         reset_chance_times();
         return;
     }
-    std::lock_guard _{ m_hook_monitor_mutex, std::adopt_lock };
+    std::lock_guard _{ g_hook_monitor_mutex, std::adopt_lock };
 
     if (g_framework == nullptr) {
         return;
@@ -578,13 +578,13 @@ void REFramework::wait_for_vm_and_renderer() {
     }
 
     if (valid_render_frame) {
-        std::scoped_lock _{m_hook_monitor_mutex};
+        std::scoped_lock _{g_hook_monitor_mutex};
         hook_d3d12();
     }
 }
 
 void REFramework::start_monitor_thread() {
-    std::scoped_lock _{m_hook_monitor_mutex};
+    std::scoped_lock _{g_hook_monitor_mutex};
 
     m_last_present_time.store(std::chrono::steady_clock::now());
     m_last_message_time.store(std::chrono::steady_clock::now());

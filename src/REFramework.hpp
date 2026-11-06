@@ -171,10 +171,6 @@ public:
 
     void set_draw_ui(bool state, bool should_save = true);
 
-    auto& get_hook_monitor_mutex() {
-        return m_hook_monitor_mutex;
-    }
-
     auto& get_startup_mutex() {
         return m_startup_mutex;
     }
@@ -306,7 +302,6 @@ private:
 
     ConfigStore m_config_store{ (get_persistent_dir() / std::string{ ConfigStore::CONFIG_FILE_NAME }).string() };
 
-    std::shared_mutex m_hook_monitor_mutex{};
     std::recursive_mutex m_startup_mutex{};
     std::unique_ptr<std::jthread> m_d3d_monitor_thread{};
     std::atomic<std::chrono::steady_clock::time_point> m_last_present_time{};
@@ -454,14 +449,18 @@ private:
 
 extern std::unique_ptr<REFramework> g_framework;
 
-// 统一安全的钩子监视器互斥锁访问。
-// 在 g_framework 尚未初始化完成（构造函数尚未返回）时，后面的调用者自旋等待，
-// 避免其他线程（如 D3D11/D3D12 钩子）因空指针解引用导致崩溃。
-inline std::shared_mutex& get_hook_monitor_mutex_safe() {
+// The hook monitor lock has to exist before the framework object does: D3D12's
+// swapchain hooks run during startup and must serialize against hook_d3d12().
+inline std::shared_mutex g_hook_monitor_mutex{};
+
+// D3D12's swapchain hooks touch g_framework itself, so the two that do wait for
+// construction instead of dereferencing a null pointer.
+inline REFramework* wait_for_framework() {
     while (g_framework == nullptr) {
-        std::this_thread::yield(); // 自旋等待启动线程完成
+        std::this_thread::yield();
     }
-    return g_framework->get_hook_monitor_mutex();
+
+    return g_framework.get();
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
