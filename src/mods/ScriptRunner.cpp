@@ -1049,7 +1049,7 @@ void ScriptRunner::on_draw_ui() {
         if (m_rpc_enabled->value()) {
             ImGui::Text("Bind IP: 127.0.0.1, Bind Port:");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(140.0f);
+            ImGui::SetNextItemWidth(150.0f);
             m_rpc_port->draw("Port");
         }
 

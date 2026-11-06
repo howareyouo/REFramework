@@ -218,7 +218,10 @@ public:
 
     bool draw(std::string_view name) override {
         ImGui::PushID(this);
-        auto ret = ImGui::InputInt(name.data(), &m_value);
+        // Five digits fit every value this widget can legitimately hold; longer
+        // input is blocked at the field, while std::clamp still bounds pasted or
+        // loaded values.
+        auto ret = ImGui::InputInt(name.data(), &m_value, 0, 99999);
         m_value = std::clamp<int32_t>(m_value, m_min, m_max);
         ImGui::PopID();
 
