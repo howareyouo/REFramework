@@ -12,8 +12,8 @@
 class ScriptRunner;
 
 // Minimal HTTP endpoint: `POST /rpc` with `{"code": "..."}` runs Lua in the
-// running game and returns the result as JSON. Binds to the configured address,
-// 127.0.0.1 by default.
+// running game and returns the result as JSON. Always binds to 127.0.0.1 so the
+// endpoint is invisible to other machines.
 //
 // The socket thread never touches Lua: it queues the request and drain() runs it
 // from ScriptRunner::on_frame, on the thread that already owns the Lua state.
@@ -25,11 +25,10 @@ public:
     ScriptRpc(const ScriptRpc&) = delete;
     ScriptRpc& operator=(const ScriptRpc&) = delete;
 
-    bool start(const std::string& bind_address, uint16_t port);
+    bool start(uint16_t port);
     void stop();
 
     bool is_running() const { return m_running.load(std::memory_order_acquire); }
-    const std::string& bind_address() const { return m_bind_address; }
     uint16_t port() const { return m_port; }
     uint64_t served_requests() const { return m_served.load(std::memory_order_relaxed); }
     std::string last_error() const;
@@ -65,7 +64,6 @@ private:
     std::atomic<bool> m_running{false};
     std::atomic<uint64_t> m_served{0};
     uintptr_t m_listen_socket{0};
-    std::string m_bind_address{};
     uint16_t m_port{0};
 
     mutable std::mutex m_error_mutex{};

@@ -923,11 +923,10 @@ void ScriptRunner::on_frame() {
     // the scene checks below means a client gets "not ready" instead of the
     // timeout those early returns would otherwise cause.
     if (m_rpc) {
-        const auto wanted_address = m_rpc_bind_address->value();
         const auto wanted_port = (uint16_t)m_rpc_port->value();
 
         if (m_rpc_enabled->value()) {
-            if (m_rpc->is_running() && (m_rpc->port() != wanted_port || m_rpc->bind_address() != wanted_address)) {
+            if (m_rpc->is_running() && m_rpc->port() != wanted_port) {
                 m_rpc->stop();
             }
 
@@ -936,7 +935,7 @@ void ScriptRunner::on_frame() {
 
             if (!m_rpc->is_running() && now - m_rpc_last_start_attempt > std::chrono::seconds(5)) {
                 m_rpc_last_start_attempt = now;
-                m_rpc->start(wanted_address, wanted_port);
+                m_rpc->start(wanted_port);
             }
         } else if (m_rpc->is_running()) {
             m_rpc->stop();
@@ -1044,17 +1043,15 @@ void ScriptRunner::on_draw_ui() {
             reset_scripts();
         }
 
-        ImGui::Separator();
+        ImGui::SameLine();
+        m_rpc_enabled->draw("Lua RPC (127.0.0.1)");
 
-        m_rpc_enabled->draw("Lua RPC");
-
-        ImGui::BeginDisabled(!m_rpc_enabled->value());
-        m_rpc_bind_address->draw("Bind IP");
+        ImGui::Text("Bind IP: 127.0.0.1:");
+        ImGui::SameLine();
         m_rpc_port->draw("Port");
-        ImGui::EndDisabled();
 
         if (m_rpc->is_running()) {
-            ImGui::TextWrapped("POST http://%s:%u/rpc with {\"code\": \"...\"}", m_rpc->bind_address().c_str(), (uint32_t)m_rpc->port());
+            ImGui::TextWrapped("POST http://127.0.0.1:%u/rpc with {\"code\": \"...\"}", (uint32_t)m_rpc->port());
             ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
         } else if (m_rpc_enabled->value()) {
             ImGui::TextWrapped("Not listening.");
@@ -1065,8 +1062,6 @@ void ScriptRunner::on_draw_ui() {
         if (!error.empty()) {
             ImGui::TextWrapped("Last error: %s", error.c_str());
         }
-
-        ImGui::TextWrapped("Runs arbitrary Lua in this process, so keep the bind IP on 127.0.0.1 unless you trust the network. See docs/LUA_RPC.md.");
 
         ImGui::Separator();
         //Garbage collection currently only showing from main lua state, might rework to show total later?

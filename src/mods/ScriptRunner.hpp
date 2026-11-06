@@ -439,13 +439,13 @@ private:
     std::optional<uint8_t> m_last_battle_type{};
 
     // Lua RPC (docs/LUA_RPC.md): lets an external tool run Lua in this process.
-    // On by default because it only listens on 127.0.0.1 until the address is changed.
+    // On by default because it always listens on 127.0.0.1, never on an outside
+    // interface; only the port is configurable.
     std::unique_ptr<ScriptRpc> m_rpc{ std::make_unique<ScriptRpc>() };
     std::chrono::steady_clock::time_point m_rpc_last_start_attempt{};
 
     const ModToggle::Ptr m_log_to_disk{ make_option<ModToggle>("LogToDisk", false) };
     const ModToggle::Ptr m_rpc_enabled{ make_option<ModToggle>("LuaRpcEnabled", true) };
-    const ModInputText::Ptr m_rpc_bind_address{ make_option<ModInputText>("LuaRpcBindAddress", "127.0.0.1") };
     const ModInputInt::Ptr m_rpc_port{ make_option<ModInputInt>("LuaRpcPort", 1024, 65535, 13377) };
     const ModToggle::Ptr m_script_generated_ui_open_state{ make_option<ModToggle>("ScriptGeneratedUIOpenState", false) };
 
