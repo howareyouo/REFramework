@@ -285,13 +285,8 @@ namespace sdk {
         // meaning that we will land in the middle of the invoke table somwhere
         // from there, we will scan backwards for a null pointer,
         // which will be the start of the table
-        std::vector<std::string> invoke_patterns {
-            "40 53 48 83 ec 20 48 8b 41 30 4c 8b d2 48 8b 51 40 48 8b d9 4c 8b 00 48 8b 41 10", // RE2 - MHRise v1
-            "40 53 48 83 ec 20 48 8b 41 10 48 8b da 8b 48 08", // MHRise Sunbreak/newer games?
-            "40 53 48 83 EC ? 48 8B 41 30 4C 8B D2 4C 8B 49 10 48 8B D9 48 8B 51 40 49 8B CA 4C 8B 00 41 FF" // seen in game pass RE2
-        };
 
-        // ok so if these patterns above are failing, we can find the invoke table by looking for these set of instructions:
+        // ok so if the pattern above is failing, we can find the invoke table by looking for these set of instructions:
         // 8D 56 FF                                      lea     edx, [rsi-1]
         // 48 8B CF                                      mov     rcx, rdi
         // E8 67 FD 6C 01                                call    sub_[removed]
@@ -399,14 +394,9 @@ namespace sdk {
 
         std::optional<uintptr_t> method_inside_invoke_tbl{std::nullopt};
 
-        for (const auto& pat : invoke_patterns) {
-            auto ref = utility::scan(mod, pat);
-
-            if (ref) {
-                method_inside_invoke_tbl = ref;
-                break;
-            }
-        }
+        // The RE4 invoke table method. The RE2/MHRise and game-pass variants this
+        // used to try match nothing here.
+        method_inside_invoke_tbl = utility::scan(mod, "40 53 48 83 ec 20 48 8b 41 10 48 8b da 8b 48 08");
 
         if (!method_inside_invoke_tbl) {
             spdlog::info("[VM::update_pointers] Unable to find method inside invoke table. Trying fallback scan...");

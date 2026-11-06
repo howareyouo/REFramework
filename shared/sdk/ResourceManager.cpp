@@ -146,9 +146,7 @@ void ResourceManager::update_pointers() {
             // now find create_userdata, using the previous function as a reference to ignore
             // since they both have the same pattern at the start of the function
             const auto valid_patterns = {
-                "66 83 F8 40 75 ? C6",
-                "66 83 F8 40 75 ? 48",
-                "66 41 83 39 40" // DD2+
+                "66 83 F8 40 75 ? C6"
             };
 
             bool found = false;

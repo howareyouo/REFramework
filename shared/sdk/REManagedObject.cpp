@@ -121,18 +121,12 @@ std::vector<::REManagedObject*> deserialize(const uint8_t* data, size_t size, bo
         decltype(deserialize_func) result{nullptr};
         uintptr_t first{};
 
-        constexpr std::array<std::string_view, 2> possible_patterns{
-            "41 81 ? 52 53 5A 00", // Confirmed RE8+
-            "41 81 7D 00 52 53 5A 00" // RE2 (TDB66) -> DMC5
-        };
+        // The RE4 pattern. The RE2/DMC5 variant this used to fall back to matches
+        // nothing here.
+        const auto first_ref = utility::scan(utility::get_executable(), "41 81 ? 52 53 5A 00");
 
-        for (auto pattern : possible_patterns) {
-            auto address = utility::scan(utility::get_executable(), pattern.data());
-
-            if (address) {
-                first = *address;
-                break;
-            }
+        if (first_ref) {
+            first = *first_ref;
         }
 
         if (first != 0) {
