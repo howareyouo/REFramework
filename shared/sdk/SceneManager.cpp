@@ -16,17 +16,11 @@ void* get_scene_manager() {
 }
 
 REManagedObject* get_main_view() {
-    static auto scene_manager_type = sdk::find_type_definition("via.SceneManager");
-    static auto get_main_view_method = scene_manager_type->get_method("get_MainView");
-
-    return get_main_view_method->call<::REManagedObject*>(sdk::get_thread_context(), get_scene_manager());
+    return sdk::call_method<::REManagedObject*>("via.SceneManager", "get_MainView", sdk::get_thread_context(), get_scene_manager());
 }
 
 REManagedObject* get_current_scene() {
-    static auto scene_manager_type = sdk::find_type_definition("via.SceneManager");
-    static auto get_current_scene_method = scene_manager_type->get_method("get_CurrentScene");
-
-    return get_current_scene_method->call<::REManagedObject*>(sdk::get_thread_context(), get_scene_manager());
+    return sdk::call_method<::REManagedObject*>("via.SceneManager", "get_CurrentScene", sdk::get_thread_context(), get_scene_manager());
 }
 
 RECamera* get_primary_camera() {
@@ -36,10 +30,7 @@ RECamera* get_primary_camera() {
         return nullptr;
     }
 
-    static auto scene_view_type = sdk::find_type_definition("via.SceneView");
-    static auto get_primary_camera_method = scene_view_type->get_method("get_PrimaryCamera");
-
-    return get_primary_camera_method->call<::RECamera*>(sdk::get_thread_context(), main_view);
+    return sdk::call_method<::RECamera*>("via.SceneView", "get_PrimaryCamera", sdk::get_thread_context(), main_view);
 }
 
 void set_timescale(REManagedObject* scene, float timescale) {

@@ -1052,9 +1052,7 @@ sol::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_t
             return sol::make_object<glm::quat>(l, ret_val_q);
         }
         case "via.GameObjectRef"_fnv: {
-            static auto object_ref_type = ::sdk::find_type_definition("via.GameObjectRef");
-            static auto get_target_func = object_ref_type->get_method("get_Target");
-            auto obj = get_target_func->call_safe<::REManagedObject*>(sdk::get_thread_context(), data);
+            auto obj = ::sdk::call_method_safe<::REManagedObject*>("via.GameObjectRef", "get_Target", sdk::get_thread_context(), data);
 
             if (obj == nullptr) {
                 return sol::make_object(l, sol::nil);

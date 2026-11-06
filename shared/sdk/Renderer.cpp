@@ -275,7 +275,8 @@ std::vector<RenderLayer*> RenderLayer::find_layers(::REType* layer_type) {
 }
 
 std::vector<layer::Scene*> RenderLayer::find_all_scene_layers() {
-    static auto scene_type = sdk::find_type_definition("via.render.layer.Scene")->get_type();
+    const auto scene_definition = sdk::find_type_definition("via.render.layer.Scene");
+    const auto scene_type = scene_definition != nullptr ? scene_definition->get_type() : nullptr;
 
     if (scene_type == nullptr) {
         return {};
@@ -332,7 +333,8 @@ std::vector<layer::Scene*> RenderLayer::find_fully_rendered_scene_layers() {
 void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& out) {
     out.clear();
 
-    static auto scene_type = sdk::find_type_definition("via.render.layer.Scene")->get_type();
+    const auto scene_definition = sdk::find_type_definition("via.render.layer.Scene");
+    const auto scene_type = scene_definition != nullptr ? scene_definition->get_type() : nullptr;
 
     if (scene_type == nullptr) {
         return;
@@ -968,9 +970,13 @@ std::optional<uint32_t> Renderer::get_render_frame() const {
 }
 
 ConstantBuffer* Renderer::get_constant_buffer(std::string_view name) const {
-    static auto tdef = sdk::find_type_definition("via.render.Renderer");
-    static auto t = tdef->get_type();
-    const auto field_desc = utility::re_type::get_field_desc(t, name);
+    const auto tdef = sdk::find_type_definition("via.render.Renderer");
+
+    if (tdef == nullptr) {
+        return nullptr;
+    }
+
+    const auto field_desc = utility::re_type::get_field_desc(tdef->get_type(), name);
     return utility::re_managed_object::get_field<ConstantBuffer*>((::REManagedObject*)this, field_desc);
 }
 
@@ -1192,17 +1198,15 @@ sdk::renderer::layer::Output* get_output_layer() {
         return nullptr;
     }
 
-    static auto get_output_layer_method = renderer_t->get_method("getOutputLayer");
-
-    if (get_output_layer_method == nullptr) {
+    if (sdk::find_method_definition("via.render.Renderer", "getOutputLayer") == nullptr) {
         auto root = get_root_layer();
 
         if (root == nullptr) {
             return nullptr;
         }
 
-        static auto output_t = sdk::find_type_definition("via.render.layer.Output");
-        static auto output_retype = output_t != nullptr ? output_t->get_type() : nullptr;
+        const auto output_t = sdk::find_type_definition("via.render.layer.Output");
+        const auto output_retype = output_t != nullptr ? output_t->get_type() : nullptr;
 
         auto [parent, found] = root->find_layer_recursive(output_retype);
 
@@ -1231,14 +1235,12 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
 
     auto context = sdk::get_thread_context();
 
-    static auto transform_def = sdk::find_type_definition("via.Transform");
-    static auto math_t = sdk::find_type_definition("via.math");
+    auto camera_gameobject = sdk::call_method<REGameObject*>("via.Transform", "get_GameObject", context, camera);
 
-    static auto get_gameobject_method = transform_def->get_method("get_GameObject");
-    static auto get_axisz_method = transform_def->get_method("get_AxisZ");
-    static auto world_to_screen = math_t->get_method("worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)");
+    if (camera_gameobject == nullptr) {
+        return std::nullopt;
+    }
 
-    auto camera_gameobject = get_gameobject_method->call<REGameObject*>(context, camera);
     auto camera_transform = camera_gameobject->transform;
 
     Matrix4x4f proj{}, view{};
@@ -1248,7 +1250,7 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
     camera_origin.w = 1.0f;
 
     Vector4f camera_forward{};
-    get_axisz_method->call<void*>(&camera_forward, context, camera_transform);
+    sdk::call_method<void*>("via.Transform", "get_AxisZ", &camera_forward, context, camera_transform);
 
     camera_forward.w = 1.0f;
 
@@ -1266,7 +1268,7 @@ std::optional<Vector2f> world_to_screen(const Vector3f& world_pos) {
         return std::nullopt;
     }
 
-    world_to_screen->call<void*>(&screen_pos, context, &pos, &view, &proj, &screen_size);
+    sdk::call_method<void*>("via.math", "worldPos2ScreenPos(via.vec3, via.mat4, via.mat4, via.Size)", &screen_pos, context, &pos, &view, &proj, &screen_size);
 
     return Vector2f{screen_pos.x, screen_pos.y};
 }
@@ -1809,7 +1811,14 @@ void*& layer::Output::get_present_state() {
 
         if (get_scene_view_fn == nullptr) {
             spdlog::error("[Renderer] Failed to find get_SceneView");
-            return *(void**)((uintptr_t)this + sdk::find_type_definition("via.render.RenderLayer")->get_size());
+            const auto render_layer_t = sdk::find_type_definition("via.render.RenderLayer");
+
+            if (render_layer_t == nullptr) {
+                spdlog::error("[Renderer] Failed to find via.render.RenderLayer");
+                return *(void**)((uintptr_t)this);
+            }
+
+            return *(void**)((uintptr_t)this + render_layer_t->get_size());
         }
 
         // Resolve the jmp to the real function
@@ -1872,23 +1881,11 @@ REManagedObject*& layer::Output::get_scene_view() {
 }
 
 uint32_t layer::Scene::get_view_id() const {
-    static auto get_view_id_method = sdk::find_method_definition("via.render.layer.Scene", "get_ViewID");
-
-    if (get_view_id_method == nullptr) {
-        return 0;
-    }
-
-    return get_view_id_method->call<uint32_t>(sdk::get_thread_context(), this);
+    return sdk::call_method<uint32_t>("via.render.layer.Scene", "get_ViewID", sdk::get_thread_context(), this);
 }
 
 RECamera* layer::Scene::get_camera() const {
-    static auto get_camera_method = sdk::find_method_definition("via.render.layer.Scene", "get_Camera");
-
-    if (get_camera_method == nullptr) {
-        return nullptr;
-    }
-
-    return get_camera_method->call<RECamera*>(sdk::get_thread_context(), this);
+    return sdk::call_method<RECamera*>("via.render.layer.Scene", "get_Camera", sdk::get_thread_context(), this);
 }
 
 RECamera* layer::Scene::get_main_camera_if_possible() const {
@@ -1929,23 +1926,11 @@ RECamera* layer::Scene::get_main_camera_if_possible() const {
 }
 
 REManagedObject* layer::Scene::get_mirror() const {
-    static auto get_mirror_method = sdk::find_method_definition("via.render.layer.Scene", "get_Mirror");
-
-    if (get_mirror_method == nullptr) {
-        return nullptr;
-    }
-
-    return get_mirror_method->call<REManagedObject*>(sdk::get_thread_context(), this);
+    return sdk::call_method<REManagedObject*>("via.render.layer.Scene", "get_Mirror", sdk::get_thread_context(), this);
 }
 
 bool layer::Scene::is_enabled() const {
-    static auto is_enabled_method = sdk::find_method_definition("via.render.layer.Scene", "get_Enable");
-
-    if (is_enabled_method == nullptr) {
-        return false;
-    }
-
-    return is_enabled_method->call<bool>(sdk::get_thread_context(), this);
+    return sdk::call_method<bool>("via.render.layer.Scene", "get_Enable", sdk::get_thread_context(), this);
 }
 
 sdk::renderer::SceneInfo* layer::Scene::get_scene_info() {

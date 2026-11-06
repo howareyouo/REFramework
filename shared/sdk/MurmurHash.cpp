@@ -12,9 +12,7 @@ sdk::RETypeDefinition* type() {
 }
 
 uint32_t calc32(std::wstring_view str) {
-    static auto calc_method = type()->get_method("calc32");
-
-    return calc_method->call<uint32_t>(sdk::get_thread_context(), sdk::VM::create_managed_string(str));
+    return sdk::call_method<uint32_t>("via.murmur_hash", "calc32", sdk::get_thread_context(), sdk::VM::create_managed_string(str));
 }
 
 uint32_t calc32(std::string_view str) {
@@ -22,8 +20,6 @@ uint32_t calc32(std::string_view str) {
 }
 
 uint32_t calc32_as_utf8(std::string_view str) {
-    static auto calc_method = type()->get_method("calc32AsUTF8");
-
-    return calc_method->call<uint32_t>(sdk::get_thread_context(), sdk::VM::create_managed_string(utility::widen(str)), str.length());
+    return sdk::call_method<uint32_t>("via.murmur_hash", "calc32AsUTF8", sdk::get_thread_context(), sdk::VM::create_managed_string(utility::widen(str)), str.length());
 }
 }

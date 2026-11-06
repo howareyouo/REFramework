@@ -783,7 +783,11 @@ void ScriptState::add_delegate_callback(sdk::DelegateInvocation& invo, sol::prot
         storage->owner = shared_from_this();
         storage->callbacks.add(callback);
         
-        static auto system_object_t = sdk::find_type_definition("System.Object");
+        const auto system_object_t = sdk::find_type_definition("System.Object");
+
+        if (system_object_t == nullptr) {
+            return;
+        }
 
         invo.object = (::REManagedObject*)system_object_t->create_instance_full();
         utility::re_managed_object::add_ref(invo.object);

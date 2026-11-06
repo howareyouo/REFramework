@@ -740,8 +740,7 @@ namespace sdk {
             return nullptr;
         }
 
-        static auto system_array_type = sdk::find_type_definition("System.Array");
-        static auto create_instance_method = system_array_type->get_method("CreateInstance");
+        const auto create_instance_method = sdk::find_method_definition("System.Array", "CreateInstance");
 
         if (create_instance_method == nullptr) {
             // This can also be found as the first function call within System.RuntimeType.CreateInstanceForAnotherGenericParameter
@@ -823,9 +822,12 @@ namespace sdk {
                 return nullptr;
             }
 
-            static auto runtime_type_t = sdk::find_type_definition("System.RuntimeType");
-            static auto get_TypeHandle = runtime_type_t->get_method("get_TypeHandle");
-            //auto type_handle = get_TypeHandle->call<::REManagedObject*>(sdk::get_thread_context(), runtime_type);
+            const auto get_TypeHandle = sdk::find_method_definition("System.RuntimeType", "get_TypeHandle");
+
+            if (get_TypeHandle == nullptr) {
+                return nullptr;
+            }
+
             auto type_handle = (sdk::RETypeDefinition*)get_TypeHandle->invoke(runtime_type).ptr;
 
             return alternative(sdk::get_thread_context(), type_handle, length, false);
@@ -839,8 +841,7 @@ namespace sdk {
             return nullptr;
         }
 
-        static const auto delegate_type = sdk::find_type_definition("System.Delegate");
-        static const auto combine_method = delegate_type->get_method("Combine(System.Delegate, System.Delegate)");
+        const auto combine_method = sdk::find_method_definition("System.Delegate", "Combine(System.Delegate, System.Delegate)");
 
         if (combine_method == nullptr) {
             return nullptr;
@@ -886,8 +887,7 @@ namespace sdk {
             return nullptr;
         }
 
-        static auto runtime_type_t = sdk::find_type_definition("System.RuntimeType");
-        static auto get_TypeHandle = runtime_type_t->get_method("get_TypeHandle");
+        const auto get_TypeHandle = sdk::find_method_definition("System.RuntimeType", "get_TypeHandle");
 
         if (get_TypeHandle == nullptr) {
             return nullptr;
@@ -897,214 +897,78 @@ namespace sdk {
         return create_delegate(type_handle, num_methods);
     }
 
-    ::REManagedObject* VM::create_sbyte(int8_t value)  {
-        static auto sbyte_type = ::sdk::find_type_definition("System.SByte");
-        static auto value_field = [&]() {
-            auto f = sbyte_type->get_field("mValue");
-            if (f == nullptr) {
-                f = sbyte_type->get_field("m_value");
-            }
+namespace {
+    // Every boxed primitive (System.SByte, System.Byte, ...) is one field named
+    // mValue — m_value on older databases — inside a fresh instance, so the ten
+    // create_* entry points differ only by the type name and the value type.
+    template <typename T>
+    ::REManagedObject* create_boxed_primitive(std::string_view type_name, T value) {
+        const auto t = sdk::find_type_definition(type_name);
 
-            return f;
-        }();
+        if (t == nullptr) {
+            return nullptr;
+        }
 
-        auto new_obj = sbyte_type->create_instance_full();
+        auto value_field = t->get_field("mValue");
+
+        if (value_field == nullptr) {
+            value_field = t->get_field("m_value");
+        }
+
+        if (value_field == nullptr) {
+            return nullptr;
+        }
+
+        const auto new_obj = t->create_instance_full();
 
         if (new_obj == nullptr) {
             return nullptr;
         }
 
-        value_field->get_data<int8_t>(new_obj) = value;
+        value_field->get_data<T>(new_obj) = value;
+
         return new_obj;
+    }
+    }
+
+    ::REManagedObject* VM::create_sbyte(int8_t value) {
+        return create_boxed_primitive("System.SByte", value);
     }
 
     ::REManagedObject* VM::create_byte(uint8_t value) {
-        static auto byte_type = ::sdk::find_type_definition("System.Byte");
-        static auto value_field = [&]() {
-            auto f = byte_type->get_field("mValue");
-            if (f == nullptr) {
-                f = byte_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-        auto new_obj = byte_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<uint8_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Byte", value);
     }
 
     ::REManagedObject* VM::create_int16(int16_t value) {
-        static auto int16_type = ::sdk::find_type_definition("System.Int16");
-        static auto value_field = [&]() {
-            auto f = int16_type->get_field("mValue");
-            if (f == nullptr) {
-                f = int16_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = int16_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<int16_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Int16", value);
     }
 
     ::REManagedObject* VM::create_uint16(uint16_t value) {
-        static auto uint16_type = ::sdk::find_type_definition("System.UInt16");
-        static auto value_field = [&]() {
-            auto f = uint16_type->get_field("mValue");
-            if (f == nullptr) {
-                f = uint16_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-        
-        auto new_obj = uint16_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<uint16_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.UInt16", value);
     }
 
     ::REManagedObject* VM::create_int32(int32_t value) {
-        static auto int32_type = ::sdk::find_type_definition("System.Int32");
-        static auto value_field = [&]() {
-            auto f = int32_type->get_field("mValue");
-            if (f == nullptr) {
-                f = int32_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = int32_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<int32_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Int32", value);
     }
 
     ::REManagedObject* VM::create_uint32(uint32_t value) {
-        static auto uint32_type = ::sdk::find_type_definition("System.UInt32");
-        static auto value_field = [&]() {
-            auto f = uint32_type->get_field("mValue");
-            if (f == nullptr) {
-                f = uint32_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = uint32_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<uint32_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.UInt32", value);
     }
 
     ::REManagedObject* VM::create_int64(int64_t value) {
-        static auto int64_type = ::sdk::find_type_definition("System.Int64");
-        static auto value_field = [&]() {
-            auto f = int64_type->get_field("mValue");
-            if (f == nullptr) {
-                f = int64_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = int64_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<int64_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Int64", value);
     }
 
     ::REManagedObject* VM::create_uint64(uint64_t value) {
-        static auto uint64_type = ::sdk::find_type_definition("System.UInt64");
-        static auto value_field = [&]() {
-            auto f = uint64_type->get_field("mValue");
-            if (f == nullptr) {
-                f = uint64_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = uint64_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<uint64_t>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.UInt64", value);
     }
 
-
     ::REManagedObject* VM::create_single(float value) {
-        static auto float_type = ::sdk::find_type_definition("System.Single");
-        static auto value_field = [&]() {
-            auto f = float_type->get_field("mValue");
-            if (f == nullptr) {
-                f = float_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = float_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<float>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Single", value);
     }
 
     ::REManagedObject* VM::create_double(double value) {
-        static auto double_type = ::sdk::find_type_definition("System.Double");
-        static auto value_field = [&]() {
-            auto f = double_type->get_field("mValue");
-            if (f == nullptr) {
-                f = double_type->get_field("m_value");
-            }
-
-            return f;
-        }();
-
-        auto new_obj = double_type->create_instance_full();
-
-        if (new_obj == nullptr) {
-            return nullptr;
-        }
-
-        value_field->get_data<double>(new_obj) = value;
-        return new_obj;
+        return create_boxed_primitive("System.Double", value);
     }
 
     sdk::InvokeMethod* get_invoke_table() {

@@ -40,23 +40,19 @@ const std::optional<Vector3f>& camera_up() {
     cached_frame = frame;
     cached = std::nullopt;
 
-    static auto transform_def = sdk::find_type_definition("via.Transform");
-    static auto get_gameobject_method = transform_def->get_method("get_GameObject");
-    static auto get_joints_method = transform_def->get_method("get_Joints");
-
     auto camera = sdk::get_primary_camera();
 
     if (camera == nullptr) {
         return cached;
     }
 
-    auto camera_gameobject = get_gameobject_method->call<::REGameObject*>(sdk::get_thread_context(), camera);
+    auto camera_gameobject = sdk::call_method<::REGameObject*>("via.Transform", "get_GameObject", sdk::get_thread_context(), camera);
 
     if (camera_gameobject == nullptr || camera_gameobject->transform == nullptr) {
         return cached;
     }
 
-    auto camera_joints = get_joints_method->call<sdk::SystemArray*>(sdk::get_thread_context(), camera_gameobject->transform);
+    auto camera_joints = sdk::call_method<sdk::SystemArray*>("via.Transform", "get_Joints", sdk::get_thread_context(), camera_gameobject->transform);
 
     if (camera_joints == nullptr) {
         return cached;

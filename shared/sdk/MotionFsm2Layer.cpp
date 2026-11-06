@@ -323,9 +323,13 @@ void BehaviorTree::set_current_node(sdk::behaviortree::TreeNode* node, uint32_t 
 
 bool TreeObject::is_delayed() const {
     static auto bhvt_manager = sdk::get_native_singleton("via.behaviortree.BehaviorTreeManager");
-    static auto bhvt_manager_t = sdk::find_type_definition("via.behaviortree.BehaviorTreeManager");
-    static auto bhvt_manager_retype = bhvt_manager_t->get_type();
-    static auto is_delay_setup_objects_prop = utility::re_type::get_field_desc(bhvt_manager_retype, "DelaySetupObjects");
+    const auto bhvt_manager_t = sdk::find_type_definition("via.behaviortree.BehaviorTreeManager");
+
+    if (bhvt_manager_t == nullptr) {
+        return false;
+    }
+
+    const auto is_delay_setup_objects_prop = utility::re_type::get_field_desc(bhvt_manager_t->get_type(), "DelaySetupObjects");
 
     const auto is_delay_setup_objects = utility::re_managed_object::get_field<bool>((::REManagedObject*)bhvt_manager, is_delay_setup_objects_prop);
 

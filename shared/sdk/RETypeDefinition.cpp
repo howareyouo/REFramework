@@ -143,7 +143,10 @@ std::string RETypeDefinition::get_full_name() const {
     std::string full_name{};
 
     // because using normal find_type will loop back to this function and cause a deadlock
-    static auto system_runtime_type = sdk::RETypeDB::get()->find_type_by_fqn(0x99ff88e6);
+    static const auto system_runtime_type = []() {
+        const auto tdb = sdk::RETypeDB::get();
+        return tdb != nullptr ? tdb->find_type_by_fqn(0x99ff88e6) : nullptr;
+    }();
 
     if (this->declaring_typeid > 0 && this->declaring_typeid != this->get_index()) {
         std::unordered_set<const sdk::RETypeDefinition*> seen_classes{};
@@ -197,7 +200,11 @@ std::string RETypeDefinition::get_full_name() const {
         FakeRuntimeType fake_type{};
         fake_type.t = this;
 
-        static auto get_full_name_method = system_runtime_type->get_method("get_FullName");
+        const auto get_full_name_method = system_runtime_type != nullptr ? system_runtime_type->get_method("get_FullName") : nullptr;
+
+        if (get_full_name_method == nullptr) {
+            return;
+        }
 
         auto full_name_obj = get_full_name_method->call<::SystemString*>(sdk::get_thread_context(), &fake_type);
 

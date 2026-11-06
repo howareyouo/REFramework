@@ -37,6 +37,15 @@ sdk::REMethodDefinition* get_object_method(::REManagedObject* obj, std::string_v
 
 sdk::RETypeDefinition* find_type_definition(std::string_view type_name);
 sdk::RETypeDefinition* find_type_definition_by_fqn(uint32_t fqn);
+
+// The method equivalent of find_type_definition, and the only supported way to
+// ask for a method by name.
+//
+// Returns nullptr when the database is unavailable (a version mismatch, no VM),
+// when the type is missing, or when the type has no such method. The answer is
+// memoized per database instance, so this is safe to call on a hot path and
+// callers must not cache the result themselves: a function-local static would
+// outlive the database it was resolved from.
 sdk::REMethodDefinition* find_method_definition(std::string_view type_name, std::string_view method_name);
 
 void* find_native_method(sdk::RETypeDefinition* t, std::string_view method_name);
@@ -746,6 +755,37 @@ T call_native_func(void* obj, sdk::RETypeDefinition* t, std::string_view name, A
     }
 
     return method->call<T>(args...);
+}
+
+// Resolve a method by name and call it, returning a default-constructed T when
+// the method cannot be resolved. The counterparts of call_native_func for callers
+// that only have the type's name: they keep the "is the database up yet?" check in
+// one place instead of a function-local static at every call site. _safe is the
+// call_safe variant, for the call sites that need the exception guard.
+template <typename T = void*, typename... Args>
+T call_method(std::string_view type_name, std::string_view method_name, Args... args) {
+    const auto method = find_method_definition(type_name, method_name);
+
+    if (method != nullptr) {
+        return method->call<T>(args...);
+    }
+
+    if constexpr (!std::is_same_v<T, void>) {
+        return T{};
+    }
+}
+
+template <typename T = void*, typename... Args>
+T call_method_safe(std::string_view type_name, std::string_view method_name, Args... args) {
+    const auto method = find_method_definition(type_name, method_name);
+
+    if (method != nullptr) {
+        return method->call_safe<T>(args...);
+    }
+
+    if constexpr (!std::is_same_v<T, void>) {
+        return T{};
+    }
 }
 
 template <typename T, typename... Args>

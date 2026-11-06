@@ -1,4 +1,6 @@
 #include <atomic>
+#include <shared_mutex>
+#include <unordered_map>
 #include <windows.h>
 
 #include <spdlog/spdlog.h>
@@ -205,14 +207,61 @@ sdk::RETypeDefinition* find_type_definition_by_fqn(uint32_t fqn) {
     return tdb->find_type_by_fqn(fqn);
 }
 
-sdk::REMethodDefinition* find_method_definition(std::string_view type_name, std::string_view method_name) {
-    auto t = find_type_definition(type_name);
+// Memoized method resolution.
+//
+// Callers used to cache this themselves with a function-local static, which
+// meant a lookup that ran while the type database was unavailable (a version
+// mismatch, a re-created VM) was cached as null forever and then dereferenced.
+// The cache lives here instead, is keyed on the database instance so a changed
+// database rebuilds it, and a miss is cached as a miss rather than re-scanned.
+static std::shared_mutex g_method_mtx{};
 
-    if (t == nullptr) {
+struct MethodCache {
+    const RETypeDB* owner{nullptr};
+    std::unordered_map<std::string, std::unordered_map<std::string, sdk::REMethodDefinition*, TransparentStringHash, std::equal_to<>>, TransparentStringHash, std::equal_to<>> types{};
+};
+
+static MethodCache g_method_cache{};
+
+sdk::REMethodDefinition* find_method_definition(std::string_view type_name, std::string_view method_name) {
+    const auto tdb = RETypeDB::get();
+
+    if (tdb == nullptr) {
         return nullptr;
     }
 
-    return t->get_method(method_name);
+    {
+        std::shared_lock _{g_method_mtx};
+
+        if (g_method_cache.owner == tdb) {
+            if (const auto type_it = g_method_cache.types.find(type_name); type_it != g_method_cache.types.end()) {
+                if (const auto method_it = type_it->second.find(method_name); method_it != type_it->second.end()) {
+                    return method_it->second;
+                }
+            }
+        }
+    }
+
+    std::unique_lock _{g_method_mtx};
+
+    if (g_method_cache.owner != tdb) {
+        g_method_cache.owner = tdb;
+        g_method_cache.types.clear();
+    }
+
+    // Another thread may have resolved this while we upgraded the lock.
+    auto& methods = g_method_cache.types[std::string{type_name}];
+
+    if (const auto it = methods.find(method_name); it != methods.end()) {
+        return it->second;
+    }
+
+    const auto type = find_type_definition(type_name);
+    const auto method = type != nullptr ? type->get_method(method_name) : nullptr;
+
+    methods.emplace(method_name, method);
+
+    return method;
 }
 
 void* find_native_method(sdk::RETypeDefinition* t, std::string_view method_name) {
