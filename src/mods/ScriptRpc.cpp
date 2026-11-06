@@ -655,6 +655,16 @@ int ScriptRpc::handle(const std::string& method, const std::string& target, cons
     return job->status;
 }
 
+namespace {
+
+// Undo run_lua's thread-local hook state if an exception escapes it; leaving the
+// hook installed would corrupt the next request's accounting.
+struct BudgetReset {
+    ~BudgetReset() { g_active_budget = nullptr; }
+};
+
+}
+
 void ScriptRpc::execute(ScriptRunner& runner, Job& job) {
     struct Unlocker {
         ScriptRunner& runner;
@@ -666,9 +676,22 @@ void ScriptRpc::execute(ScriptRunner& runner, Job& job) {
 
     const auto& state = runner.get_state();
 
-    json response = state == nullptr
-        ? json{{"ok", false}, {"error", "lua state is not ready yet (the game is still loading)"}}
-        : run_lua(*state, job.code, job.expression);
+    json response{};
+
+    // execute() runs on the game's frame thread; an exception here would unwind
+    // through the main loop and take the game down. Catch everything and turn it
+    // into a 500 the client can read instead.
+    try {
+        BudgetReset budget_reset{};
+
+        response = state == nullptr
+            ? json{{"ok", false}, {"error", "lua state is not ready yet (the game is still loading)"}}
+            : run_lua(*state, job.code, job.expression);
+    } catch (const std::exception& e) {
+        response = json{{"ok", false}, {"error", std::string{"rpc internal error: "} + e.what()}};
+    } catch (...) {
+        response = json{{"ok", false}, {"error", "rpc internal error: unknown C++ exception"}};
+    }
 
     job.status = 200;
     job.body = response.dump(-1, ' ', false, json::error_handler_t::replace);
@@ -721,7 +744,14 @@ void ScriptRpc::drain(ScriptRunner& runner) {
             }
         }
 
-        execute(runner, *job);
+        try {
+            execute(runner, *job);
+        } catch (...) {
+            // execute catches its own failures; this second net keeps a throw
+            // from skipping done/notify, which would hang the waiting client.
+            job->status = 500;
+            job->body = json{{"ok", false}, {"error", "rpc internal error"}}.dump(-1, ' ', false, json::error_handler_t::replace);
+        }
 
         {
             std::scoped_lock lock{job->mutex};
