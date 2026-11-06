@@ -393,10 +393,12 @@ public:
     bool draw(std::string_view name) override {
         // InputText needs a mutable buffer, so mirror the stored value into one
         // every frame; ImGui writes edits back into it while the field is active.
+        // Written without std::min: windows.h's min macro survives NOMINMAX-less
+        // includers and would break the call as soon as this header is pulled in.
         std::array<char, MAX_LENGTH> buffer{};
-        const auto length = std::min(m_value.size(), buffer.size() - 1);
-        std::copy_n(m_value.begin(), length, buffer.begin());
-        buffer[length] = '\0';
+        const auto copy_length = m_value.size() < buffer.size() ? m_value.size() : buffer.size() - 1;
+        std::copy_n(m_value.begin(), copy_length, buffer.begin());
+        buffer[copy_length] = '\0';
 
         ImGui::PushID(this);
         auto ret = ImGui::InputText(name.data(), buffer.data(), buffer.size());
