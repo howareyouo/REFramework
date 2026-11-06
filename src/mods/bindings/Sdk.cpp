@@ -1791,7 +1791,18 @@ void bindings::open_sdk(ScriptState* s) {
             auto obj = type_def_obj->create_instance_full();
             return api::sdk::create_global_object(s, obj);
         },
-        "get_types_inheriting_from_this", &::sdk::RETypeDefinition::get_types_inherting_from_this
+        "get_types_inheriting_from_this", &::sdk::RETypeDefinition::get_types_inherting_from_this,
+        "get_index", &::sdk::RETypeDefinition::get_index,
+        "get_flags", &::sdk::RETypeDefinition::get_flags,
+        "get_name_hierarchy", &::sdk::RETypeDefinition::get_name_hierarchy,
+        "get_fieldptr_offset", &::sdk::RETypeDefinition::get_fieldptr_offset,
+        "has_fieldptr_offset", &::sdk::RETypeDefinition::has_fieldptr_offset,
+        "get_declaring_type", &::sdk::RETypeDefinition::get_declaring_type,
+        "get_underlying_type", &::sdk::RETypeDefinition::get_underlying_type,
+        "get_managed_vt", &::sdk::RETypeDefinition::get_managed_vt,
+        // Returned as an integer: via::clr::VMObjType is not registered as a Lua type.
+        "get_vm_obj_type", [](::sdk::RETypeDefinition* def) { return (int)def->get_vm_obj_type(); },
+        "should_pass_by_pointer", &::sdk::RETypeDefinition::should_pass_by_pointer
     );
 
     auto method_call = [](sdk::REMethodDefinition* def, sol::object obj, sol::variadic_args va) {
@@ -1820,6 +1831,11 @@ void bindings::open_sdk(ScriptState* s) {
         "get_param_types", &sdk::REMethodDefinition::get_param_types,
         "get_param_names", &sdk::REMethodDefinition::get_param_names,
         "is_static", &sdk::REMethodDefinition::is_static,
+        "get_index", &sdk::REMethodDefinition::get_index,
+        "get_virtual_index", &sdk::REMethodDefinition::get_virtual_index,
+        "get_flags", &sdk::REMethodDefinition::get_flags,
+        "get_impl_flags", &sdk::REMethodDefinition::get_impl_flags,
+        "get_param_typeids", &sdk::REMethodDefinition::get_param_typeids,
         "call", method_call
     );
     
