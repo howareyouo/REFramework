@@ -1044,10 +1044,10 @@ void ScriptRunner::on_draw_ui() {
         }
 
         ImGui::SameLine();
-        m_rpc_enabled->draw("Lua RPC (127.0.0.1)");
+        m_rpc_enabled->draw("Lua RPC");
 
         if (m_rpc_enabled->value()) {
-            ImGui::Text("Bind IP: 127.0.0.1:");
+            ImGui::Text("Bind IP: 127.0.0.1, Bind Port:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(100.0f);
             m_rpc_port->draw("Port");
