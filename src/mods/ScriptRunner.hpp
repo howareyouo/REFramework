@@ -448,7 +448,7 @@ private:
 
     const ModToggle::Ptr m_log_to_disk{ make_option<ModToggle>("LogToDisk", false) };
     const ModToggle::Ptr m_rpc_enabled{ make_option<ModToggle>("LuaRpcEnabled", true) };
-    const ModSlider::Ptr m_rpc_port{ make_option<ModSlider>("LuaRpcPort", 1024.0f, 65535.0f, 13377.0f) };
+    const ModInputInt::Ptr m_rpc_port{ make_option<ModInputInt>("LuaRpcPort", 1024, 65535, 13377) };
     const ModToggle::Ptr m_script_generated_ui_open_state{ make_option<ModToggle>("ScriptGeneratedUIOpenState", false) };
 
     const ModCombo::Ptr m_gc_handler {

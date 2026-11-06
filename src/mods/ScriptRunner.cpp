@@ -924,7 +924,7 @@ void ScriptRunner::on_frame() {
     // the scene checks below means a client gets "not ready" instead of the
     // timeout those early returns would otherwise cause.
     if (m_rpc) {
-        const auto wanted_port = (uint16_t)std::clamp((int)m_rpc_port->value(), 1024, 65535);
+        const auto wanted_port = (uint16_t)m_rpc_port->value();
 
         if (m_rpc_enabled->value()) {
             if (m_rpc->is_running() && m_rpc->port() != wanted_port) {

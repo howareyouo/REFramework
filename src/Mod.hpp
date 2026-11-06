@@ -196,6 +196,46 @@ public:
     }
 };
 
+// Typed integer field (ImGui::InputInt) clamped to a range, instead of the
+// dragged SliderInt/SliderFloat that turns whole numbers into fractions.
+class ModInputInt : public ModValue<int32_t> {
+public:
+    using Ptr = std::unique_ptr<ModInputInt>;
+
+    static auto create(std::string_view config_name, int32_t mn, int32_t mx, int32_t default_value = 0) {
+        return std::make_unique<ModInputInt>(config_name, mn, mx, default_value);
+    }
+
+    ModInputInt(std::string_view config_name, int32_t mn, int32_t mx, int32_t default_value = 0)
+        : ModValue{ config_name, std::clamp<int32_t>(default_value, mn, mx) },
+        m_min{ mn },
+        m_max{ mx }
+    {
+    }
+
+    bool draw(std::string_view name) override {
+        ImGui::PushID(this);
+        auto ret = ImGui::InputInt(name.data(), &m_value);
+        m_value = std::clamp<int32_t>(m_value, m_min, m_max);
+        ImGui::PopID();
+
+        return ret;
+    }
+
+    void draw_value(std::string_view name) override {
+        ImGui::Text("%s: %i [%i, %i]", name.data(), m_value, m_min, m_max);
+    }
+
+    void config_load(const utility::Config& cfg) override {
+        ModValue<int32_t>::config_load(cfg);
+        m_value = std::clamp<int32_t>(m_value, m_min, m_max);
+    }
+
+protected:
+    int32_t m_min{ 0 };
+    int32_t m_max{ 1 };
+};
+
 class ModCombo : public ModValue<int32_t> {
 public:
     using Ptr = std::unique_ptr<ModCombo>;
