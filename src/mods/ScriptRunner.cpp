@@ -51,7 +51,6 @@ void error(const char* str) {
 
 void debug(const char* str) {
     OutputDebugString(str);
-    fprintf(stderr, "%s\n", str);
     spdlog::debug(str);
 }
 }
@@ -924,10 +923,11 @@ void ScriptRunner::on_frame() {
     // the scene checks below means a client gets "not ready" instead of the
     // timeout those early returns would otherwise cause.
     if (m_rpc) {
+        const auto wanted_address = m_rpc_bind_address->value();
         const auto wanted_port = (uint16_t)m_rpc_port->value();
 
         if (m_rpc_enabled->value()) {
-            if (m_rpc->is_running() && m_rpc->port() != wanted_port) {
+            if (m_rpc->is_running() && (m_rpc->port() != wanted_port || m_rpc->bind_address() != wanted_address)) {
                 m_rpc->stop();
             }
 
@@ -936,7 +936,7 @@ void ScriptRunner::on_frame() {
 
             if (!m_rpc->is_running() && now - m_rpc_last_start_attempt > std::chrono::seconds(5)) {
                 m_rpc_last_start_attempt = now;
-                m_rpc->start(wanted_port);
+                m_rpc->start(wanted_address, wanted_port);
             }
         } else if (m_rpc->is_running()) {
             m_rpc->stop();
@@ -1040,64 +1040,35 @@ void ScriptRunner::on_draw_ui() {
             return;
         }
 
-        if (ImGui::Button("Run script")) {
-            OPENFILENAME ofn{};
-            char file[260]{};
-
-            ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = g_framework->get_window();
-            ofn.lpstrFile = file;
-            ofn.nMaxFile = sizeof(file);
-            ofn.lpstrFilter = "Lua script files (*.lua)\0*.lua\0";
-            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-
-            if (GetOpenFileName(&ofn) != FALSE) {
-                std::scoped_lock _{ m_access_mutex };
-                m_main_state->run_script(file);
-                m_loaded_scripts.emplace_back(std::filesystem::path{file}.filename().string());
-            }
-        }
-
-        ImGui::SameLine();
-
         if (ImGui::Button("Reset scripts")) {
             reset_scripts();
         }
 
-        ImGui::SameLine();
+        ImGui::Separator();
 
-        if (ImGui::Button("Spawn Debug Console")) {
-            if (!m_console_spawned) {
-                AllocConsole();
-                freopen("CONIN$", "r", stdin);
-                freopen("CONOUT$", "w", stdout);
-                freopen("CONOUT$", "w", stderr);
+        m_rpc_enabled->draw("Lua RPC");
 
-                m_console_spawned = true;
-            }
+        ImGui::BeginDisabled(!m_rpc_enabled->value());
+        m_rpc_bind_address->draw("Bind IP");
+        m_rpc_port->draw("Port");
+        ImGui::EndDisabled();
+
+        if (m_rpc->is_running()) {
+            ImGui::TextWrapped("POST http://%s:%u/rpc with {\"code\": \"...\"}", m_rpc->bind_address().c_str(), (uint32_t)m_rpc->port());
+            ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
+        } else if (m_rpc_enabled->value()) {
+            ImGui::TextWrapped("Not listening.");
         }
 
-        if (ImGui::TreeNode("Lua RPC")) {
-            m_rpc_enabled->draw("Enabled (127.0.0.1 only)");
-            m_rpc_port->draw("Port");
+        const auto error = m_rpc->last_error();
 
-            if (m_rpc->is_running()) {
-                ImGui::TextWrapped("POST http://127.0.0.1:%u/rpc with {\"code\": \"...\"}", (uint32_t)m_rpc->port());
-                ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
-            } else {
-                ImGui::TextWrapped("Not listening.");
-            }
-
-            const auto error = m_rpc->last_error();
-
-            if (!error.empty()) {
-                ImGui::TextWrapped("Last error: %s", error.c_str());
-            }
-
-            ImGui::TextWrapped("Runs Lua in this process. See docs/LUA_RPC.md.");
-
-            ImGui::TreePop();
+        if (!error.empty()) {
+            ImGui::TextWrapped("Last error: %s", error.c_str());
         }
+
+        ImGui::TextWrapped("Runs arbitrary Lua in this process, so keep the bind IP on 127.0.0.1 unless you trust the network. See docs/LUA_RPC.md.");
+
+        ImGui::Separator();
         //Garbage collection currently only showing from main lua state, might rework to show total later?
         if (ImGui::TreeNode("Garbage Collection Stats")) {
             std::scoped_lock _{ m_access_mutex };
@@ -1296,10 +1267,6 @@ void ScriptRunner::on_gui_draw_element(REComponent* gui_element, void* primitive
 void ScriptRunner::spew_error(const std::string& p) {
     OutputDebugString(p.c_str());
 
-    if (m_console_spawned) {
-        fprintf(stderr, "%s\n", p.c_str());
-    }
-
     if (m_log_to_disk->value()) {
         spdlog::error(p);
     }
@@ -1351,7 +1318,6 @@ void ScriptRunner::reset_scripts() {
         mod->on_lua_state_created(m_main_state->lua());
     }
 
-    m_loaded_scripts.clear();
     m_known_scripts.clear();
 
     std::string module_path{};
@@ -1387,7 +1353,6 @@ void ScriptRunner::reset_scripts() {
 
             if (m_loaded_scripts_map[filename] == true) {
                 m_main_state->run_script(path.string());
-                m_loaded_scripts.emplace_back(filename);
             }
 
             m_known_scripts.emplace_back(std::move(filename));
@@ -1395,5 +1360,4 @@ void ScriptRunner::reset_scripts() {
     }
 
     std::sort(m_known_scripts.begin(), m_known_scripts.end());
-    std::sort(m_loaded_scripts.begin(), m_loaded_scripts.end());
 }

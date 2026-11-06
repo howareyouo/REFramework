@@ -477,12 +477,27 @@ ScriptRpc::~ScriptRpc() {
     stop();
 }
 
-bool ScriptRpc::start(uint16_t port) {
+bool ScriptRpc::start(const std::string& bind_address, uint16_t port) {
     if (m_running.load(std::memory_order_acquire)) {
         return true;
     }
 
     if (!ensure_winsock()) {
+        return false;
+    }
+
+    in_addr parsed_address{};
+
+    // An unparseable address (including an empty field) fails here and shows up
+    // as the UI's "Last error" instead of silently listening somewhere the user
+    // did not ask for.
+    if (inet_pton(AF_INET, bind_address.c_str(), &parsed_address) != 1) {
+        {
+            std::scoped_lock lock{m_error_mutex};
+            m_last_error = "invalid bind address '" + bind_address + "'";
+            spdlog::error("[ScriptRpc] {}", m_last_error);
+        }
+
         return false;
     }
 
@@ -495,13 +510,13 @@ bool ScriptRpc::start(uint16_t port) {
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // loopback only, never the LAN
+    address.sin_addr = parsed_address;
 
     if (::bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == SOCKET_ERROR ||
         ::listen(listener, 8) == SOCKET_ERROR) {
         {
             std::scoped_lock lock{m_error_mutex};
-            m_last_error = "bind/listen on 127.0.0.1:" + std::to_string(port) + " failed with " +
+            m_last_error = "bind/listen on " + bind_address + ":" + std::to_string(port) + " failed with " +
                            std::to_string(WSAGetLastError());
             spdlog::error("[ScriptRpc] {}", m_last_error);
         }
@@ -510,12 +525,13 @@ bool ScriptRpc::start(uint16_t port) {
         return false;
     }
 
+    m_bind_address = bind_address;
     m_port = port;
     m_listen_socket = (uintptr_t)listener;
     m_running.store(true, std::memory_order_release);
     m_thread = std::jthread{[this](std::stop_token stop_token) { accept_loop(stop_token); }};
 
-    spdlog::info("[ScriptRpc] Listening on http://127.0.0.1:{}/rpc", port);
+    spdlog::info("[ScriptRpc] Listening on http://{}:{}/rpc", bind_address, port);
     return true;
 }
 

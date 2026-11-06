@@ -422,9 +422,7 @@ private:
     std::recursive_mutex m_access_mutex{};
     std::atomic<uint32_t> m_lock_depth{0};
 
-    // A list of Lua files that have been explicitly loaded either through the user manually loading the script, or
-    // because the script was in the autorun directory.
-    std::vector<std::string> m_loaded_scripts{};
+    // A list of Lua files in the autorun directory, so the user can toggle which ones load.
     std::vector<std::string> m_known_scripts{};
     std::unordered_map<std::string, bool> m_loaded_scripts_map{};
     std::vector<lua_State*> m_states_to_delete{};
@@ -436,18 +434,18 @@ private:
     bool m_checked_scene_once{false};
     bool m_scene_okay{false};
     bool m_has_any_transform_updates{false};
-    bool m_console_spawned{false};
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
     std::optional<uint8_t> m_last_battle_type{};
 
     // Lua RPC (docs/LUA_RPC.md): lets an external tool run Lua in this process.
-    // On by default because it only listens on 127.0.0.1.
+    // On by default because it only listens on 127.0.0.1 until the address is changed.
     std::unique_ptr<ScriptRpc> m_rpc{ std::make_unique<ScriptRpc>() };
     std::chrono::steady_clock::time_point m_rpc_last_start_attempt{};
 
     const ModToggle::Ptr m_log_to_disk{ make_option<ModToggle>("LogToDisk", false) };
     const ModToggle::Ptr m_rpc_enabled{ make_option<ModToggle>("LuaRpcEnabled", true) };
+    const ModInputText::Ptr m_rpc_bind_address{ make_option<ModInputText>("LuaRpcBindAddress", "127.0.0.1") };
     const ModInputInt::Ptr m_rpc_port{ make_option<ModInputInt>("LuaRpcPort", 1024, 65535, 13377) };
     const ModToggle::Ptr m_script_generated_ui_open_state{ make_option<ModToggle>("ScriptGeneratedUIOpenState", false) };
 

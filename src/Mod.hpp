@@ -4,10 +4,13 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
-#include <vector>
-#include <unordered_map>
+#include <algorithm>
+#include <array>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include <imgui.h>
 #include <sol/sol.hpp>
@@ -368,6 +371,47 @@ protected:
     int index;
     std::vector<const char*> m_options{};
     std::vector<std::string> m_options_stdstr{};
+};
+
+// Free-form text field (ImGui::InputText), for values that are typed rather than
+// picked, e.g. a bind address.
+class ModInputText : public ModValue<std::string> {
+public:
+    using Ptr = std::unique_ptr<ModInputText>;
+
+    static constexpr std::size_t MAX_LENGTH{ 64 };
+
+    static auto create(std::string_view config_name, std::string default_value = {}) {
+        return std::make_unique<ModInputText>(config_name, std::move(default_value));
+    }
+
+    ModInputText(std::string_view config_name, std::string default_value)
+        : ModValue{ config_name, std::move(default_value) }
+    {
+    }
+
+    bool draw(std::string_view name) override {
+        // InputText needs a mutable buffer, so mirror the stored value into one
+        // every frame; ImGui writes edits back into it while the field is active.
+        std::array<char, MAX_LENGTH> buffer{};
+        const auto length = std::min(m_value.size(), buffer.size() - 1);
+        std::copy_n(m_value.begin(), length, buffer.begin());
+        buffer[length] = '\0';
+
+        ImGui::PushID(this);
+        auto ret = ImGui::InputText(name.data(), buffer.data(), buffer.size());
+        ImGui::PopID();
+
+        if (ret) {
+            m_value = buffer.data();
+        }
+
+        return ret;
+    }
+
+    void draw_value(std::string_view name) override {
+        ImGui::Text("%s: %s", name.data(), m_value.c_str());
+    }
 };
 
 class ModKey: public ModInt32 {

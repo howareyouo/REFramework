@@ -1,6 +1,6 @@
 # Lua RPC — 在运行中的游戏里执行 Lua
 
-REFramework 内置一个只监听 `127.0.0.1` 的 HTTP 端点：`POST /rpc` 在游戏的帧线程上执行一段 Lua, 把返回值、`print` 输出和错误以 JSON 返回. 默认开启, 端口 `13377`, 可在游戏内 REFramework 菜单 → `ScriptRunner` → `Lua RPC` 里改或关掉. 启动日志里那条 `[ScriptRpc] Listening on http://127.0.0.1:13377/rpc` 是 info 级, 而启动收尾已把日志级别降到 warn, info 被吞了; 端口绑定失败才有 error 行. 想确认在跑就直接探一发.
+REFramework 内置一个 HTTP 端点：`POST /rpc` 在游戏的帧线程上执行一段 Lua, 把返回值、`print` 输出和错误以 JSON 返回. 默认开启, 默认绑 `127.0.0.1:13377`. 游戏内 REFramework 菜单 → `ScriptRunner` 里那个 `Lua RPC` 复选框决定开关.
 
 ## 请求与响应
 
@@ -106,6 +106,6 @@ rg -A30 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md   # 方法�
 - 每次只处理一个请求, 其余排队（同时挂起上限 64 个）.
 - 错误码：`400` JSON 错 / 缺 `code` / HTTP 层错误（请求行或头解析失败、头部超 16 KB、请求体超 256 KB）, `404` 路径不对, `405` 不是 POST, `429` 队列满, `503` 服务已停, `504` 帧线程没在 `timeout_ms` 内跑完（游戏暂停/加载中/被更长的调用占着; 被超时放弃的请求不会执行, 已开始的会跑完, 等几百毫秒重试）.
 - Lua 状态没建好时返回 `lua state is not ready yet (the game is still loading)`, 重试即可.
-- 只绑回环, **无鉴权**：本机任何进程都能在你的游戏里执行 Lua. 执行的是和手写 mod 同一个 Lua 状态, 副作用都是真的.
+- **无鉴权**：默认只绑回环（`127.0.0.1`）, 本机任何进程都能在你的游戏里执行 Lua. 把 `Bind IP` 改成 `0.0.0.0` 或本机网卡地址就等于把这能力开放给局域网, 谁能连上谁就能执行. 执行的是和手写 mod 同一个 Lua 状态, 副作用都是真的. 地址填错（不是 IPv4 字面量）会显示 `Last error: invalid bind address ...` 并不监听.
 
 原生偏移、跨游戏类型差异和 TDB 版本分水岭见 [RE_ENGINE_LUA_NOTES.md](RE_ENGINE_LUA_NOTES.md).
