@@ -414,7 +414,15 @@ using REField_ = sdk::tdb71::REField;
 struct REFieldImpl : public sdk::tdb71::REFieldImpl {};
 struct RETypeImpl : public sdk::tdb71::RETypeImpl {};
 struct REPropertyImpl : public sdk::tdb71::REPropertyImpl {};
-struct REProperty : public sdk::tdb71::REProperty {};
+struct REProperty : public sdk::tdb71::REProperty {
+    // The getter/setter are absolute indices into the TDB method array, not offsets
+    // relative to the declaring type (verified against chainsaw.CharacterManager:
+    // all 30 properties resolved to get_<name>, 26 of them to set_<name>).
+    const char* get_name() const;
+    uint32_t get_flags() const;
+    sdk::REMethodDefinition* get_getter() const;
+    sdk::REMethodDefinition* get_setter() const;
+};
 struct REParameterDef : public sdk::tdb71::REParameterDef {};
 struct GenericListData : public sdk::tdb71::GenericListData {};
 using ParamList = sdk::tdb71::ParamList;

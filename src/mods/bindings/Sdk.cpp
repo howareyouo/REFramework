@@ -1756,6 +1756,15 @@ void bindings::open_sdk(ScriptState* s) {
 
             return fields;
         },
+        "get_properties", [](sdk::RETypeDefinition* def) -> std::vector<sdk::REProperty*> {
+            std::vector<sdk::REProperty*> properties{};
+
+            for (auto& prop : def->get_properties()) {
+                properties.push_back(&prop);
+            }
+
+            return properties;
+        },
         "get_full_name", &sdk::RETypeDefinition::get_full_name,
         "get_name", &sdk::RETypeDefinition::get_name,
         "get_namespace", &sdk::RETypeDefinition::get_namespace,
@@ -1837,6 +1846,13 @@ void bindings::open_sdk(ScriptState* s) {
         "get_impl_flags", &sdk::REMethodDefinition::get_impl_flags,
         "get_param_typeids", &sdk::REMethodDefinition::get_param_typeids,
         "call", method_call
+    );
+
+    lua.new_usertype<sdk::REProperty>("REProperty",
+        "get_name", &sdk::REProperty::get_name,
+        "get_flags", &sdk::REProperty::get_flags,
+        "get_getter", &sdk::REProperty::get_getter,
+        "get_setter", &sdk::REProperty::get_setter
     );
     
     lua.new_usertype<sdk::REField>("REField",

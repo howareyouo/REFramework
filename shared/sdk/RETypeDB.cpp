@@ -271,6 +271,56 @@ sdk::REProperty* RETypeDB::get_property(uint32_t index) const {
     return &(*this->properties)[index];
 }
 
+static const sdk::REPropertyImpl* get_property_impl(const sdk::REProperty* prop) {
+    auto tdb = RETypeDB::get();
+
+    if (tdb == nullptr || prop->impl_id >= tdb->numPropertyImpl) {
+        return nullptr;
+    }
+
+    return &(*tdb->propertiesImpl)[prop->impl_id];
+}
+
+uint32_t sdk::REProperty::get_flags() const {
+    const auto impl = get_property_impl(this);
+
+    if (impl == nullptr) {
+        return 0;
+    }
+
+    return impl->flags;
+}
+
+const char* sdk::REProperty::get_name() const {
+    const auto impl = get_property_impl(this);
+
+    if (impl == nullptr || impl->name_offset < 0) {
+        return nullptr;
+    }
+
+    return RETypeDB::get()->get_string((uint32_t)impl->name_offset);
+}
+
+sdk::REMethodDefinition* sdk::REProperty::get_getter() const {
+    auto tdb = RETypeDB::get();
+
+    if (tdb == nullptr || this->getter == 0 || this->getter >= tdb->numMethods) {
+        return nullptr;
+    }
+
+    return &(*tdb->methods)[this->getter];
+}
+
+sdk::REMethodDefinition* sdk::REProperty::get_setter() const {
+    auto tdb = RETypeDB::get();
+
+    if (tdb == nullptr || this->setter == 0 || this->setter >= tdb->numMethods) {
+        return nullptr;
+    }
+
+    return &(*tdb->methods)[this->setter];
+}
+
 const char* RETypeDB::get_string(uint32_t offset) const {
     offset &= get_string_pool_bitmask();
 
