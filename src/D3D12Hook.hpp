@@ -1,7 +1,7 @@
 #pragma once
 
-#include <iostream>
 #include <functional>
+#include <memory>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi")

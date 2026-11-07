@@ -1,6 +1,6 @@
 #include "../REFramework.hpp"
 
-#include <format>
+#include <cstdio>
 
 #include <utility/String.hpp>
 
@@ -113,7 +113,9 @@ std::string REFrameworkConfig::get_menu_key_name() const {
         return utility::narrow(name);
     }
 
-    return std::format("VK {:#x}", key);
+    char fallback[16]{};
+    snprintf(fallback, sizeof(fallback), "VK 0x%x", static_cast<unsigned>(key));
+    return fallback;
 }
 
 void REFrameworkConfig::on_config_load(const utility::Config& cfg) {

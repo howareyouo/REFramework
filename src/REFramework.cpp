@@ -1,7 +1,6 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
-#include <format>
 #include <fstream>
 
 #include <windows.h>
@@ -1466,8 +1465,8 @@ void REFramework::draw_ui() {
     }
     ImGui::PushFont(font_to_use, m_font_size);
     // 标题栏显示当前菜单键，改键后自动跟随；### 让窗口 ID 固定，改名不会重置窗口位置/大小
-    const auto title = std::format("REFramework [{}]###REFramework",
-        REFrameworkConfig::get()->get_menu_key_name());
+    const auto title = std::string{ "REFramework [" } + REFrameworkConfig::get()->get_menu_key_name()
+        + "]###REFramework";
 
     bool is_open = true;
     ImGui::Begin(title.c_str(), &is_open);

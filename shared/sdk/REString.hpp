@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string_view>
-#include <locale>
 
 #include <utility/String.hpp>
 #include <sdk/Memory.hpp>
