@@ -1062,18 +1062,18 @@ void ScriptRunner::on_draw_ui() {
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Port");
             }
+
+            if (m_rpc->is_running()) {
+                ImGui::SameLine();
+                ImGui::Text("reqs: %llu", (unsigned long long)m_rpc->served_requests());
+            }
         }
 
-        if (m_rpc->is_running()) {
-            ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
-        } else if (m_rpc_enabled->value()) {
-            ImGui::TextWrapped("Not listening.");
-        }
-
-        const auto error = m_rpc->last_error();
-
-        if (!error.empty()) {
-            ImGui::TextWrapped("Last error: %s", error.c_str());
+        if (!m_rpc->is_running() && m_rpc_enabled->value()) {
+            const auto rpc_error = m_rpc->last_error();
+            if (!rpc_error.empty()) {
+                ImGui::TextWrapped("Not listening: %s", rpc_error.c_str());
+            }
         }
 
         ImGui::Separator();
