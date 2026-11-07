@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
 
 #include <windows.h>
@@ -1464,15 +1465,12 @@ void REFramework::draw_ui() {
         }
     }
     ImGui::PushFont(font_to_use, m_font_size);
-    // 默认标题
-    // static const auto REF_NAME = std::format("REFramework [{}+{}-{:.8}]", REF_TAG, REF_COMMITS_PAST_TAG, REF_COMMIT_HASH);
-    // 如果想用简单标题，可以改为：
-    static const std::string REF_NAME = "REFramework";
-    // 或者显示游戏名称：
-    // static const auto REF_NAME = std::format("REFramework ({})", REFramework::get_game_name());
+    // 标题栏显示当前菜单键，改键后自动跟随；### 让窗口 ID 固定，改名不会重置窗口位置/大小
+    const auto title = std::format("REFramework [{}]###REFramework",
+        REFrameworkConfig::get()->get_menu_key_name());
+
     bool is_open = true;
-    ImGui::Begin(REF_NAME.c_str(), &is_open);
-    ImGui::Text("Menu Key: Insert");
+    ImGui::Begin(title.c_str(), &is_open);
 
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_draw_ui();

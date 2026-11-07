@@ -1,5 +1,9 @@
 #include "../REFramework.hpp"
 
+#include <format>
+
+#include <utility/String.hpp>
+
 #include "REFrameworkConfig.hpp"
 
 std::shared_ptr<REFrameworkConfig>& REFrameworkConfig::get() {
@@ -80,6 +84,36 @@ void REFrameworkConfig::on_frame() {
     if (m_show_cursor_key->is_key_down_once()) {
         m_always_show_cursor->toggle();
     }
+}
+
+std::string REFrameworkConfig::get_menu_key_name() const {
+    const auto key = m_menu_key->value();
+
+    switch (key) {
+    case VK_LBUTTON:  return "Left Mouse";
+    case VK_RBUTTON:  return "Right Mouse";
+    case VK_MBUTTON:  return "Middle Mouse";
+    case VK_XBUTTON1: return "Mouse 4";
+    case VK_XBUTTON2: return "Mouse 5";
+    default: break;
+    }
+
+    if (key <= 0 || key > 255) {
+        return "Not bound";
+    }
+
+    // MAPVK_VK_TO_VSC_EX 对扩展键（Insert/Delete/方向键等）返回 0xE0 前缀，
+    // GetKeyNameText 需要该位才能取到正确的名字。
+    const auto scancode = MapVirtualKeyW(static_cast<UINT>(key), MAPVK_VK_TO_VSC_EX);
+    const auto l_param = static_cast<LPARAM>(
+        ((scancode & 0xFF) << 16) | ((scancode & 0xFF00) != 0 ? (1 << 24) : 0));
+
+    wchar_t name[64]{};
+    if (GetKeyNameTextW(static_cast<LONG>(l_param), name, static_cast<int>(std::size(name))) > 0) {
+        return utility::narrow(name);
+    }
+
+    return std::format("VK {:#x}", key);
 }
 
 void REFrameworkConfig::on_config_load(const utility::Config& cfg) {

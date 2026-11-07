@@ -37,6 +37,9 @@ public:
         return m_input_passthrough->value();
     }
 
+    // 菜单键的可读名称，用于窗口标题栏（如 "Insert"）。
+    std::string get_menu_key_name() const;
+
 private:
     ModKey::Ptr m_menu_key{ make_option<ModKey>("MenuKey_V2", VK_INSERT) };
     ModToggle::Ptr m_menu_open{ make_option<ModToggle>("MenuOpen", true) };
