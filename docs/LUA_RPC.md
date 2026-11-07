@@ -87,15 +87,15 @@ return "registered"
 
 回调里不要长时间阻塞; hook 在下一个安装周期生效.
 
-## 离线查表：`docs/RE4_API/`
+## 离线查表：`docs/RE4_TDB/`
 
-`docs/RE4_API/` 是用这套 RPC 全量 dump 的类型表（13 页约 15 MB, `chainsaw` 18769 类型）, 不启动游戏也能查成员名和签名：
+`docs/RE4_TDB/` 是用这套 RPC 全量 dump 的类型数据库（tdb）快照（13 页约 15 MB, `chainsaw` 18769 类型）, 不启动游戏也能查成员名和签名：
 
 ```bash
-rg -A30 '^## `chainsaw\.CharacterManager`$' docs/RE4_API/chainsaw.md   # 方法行写作 `:返回类型 名字(参数)`
+rg -A30 '^## `chainsaw\.CharacterManager`$' docs/RE4_TDB/chainsaw.md   # 方法行写作 `:返回类型 名字(参数)`
 ```
 
-格式与省略项（backing field、`.ctor`、字段偏移、泛型实例、全部 `T[]`）见 [README](RE4_API/README.md). 文件里**没有 tdb 版本戳**, 打补丁即静默过期; 有游戏在跑时以 RPC 为准.
+格式与省略项（backing field、`.ctor`、字段偏移、泛型实例、全部 `T[]`）见 [README](RE4_TDB/README.md). 文件里**没有 tdb 版本戳**, 打补丁即静默过期; 有游戏在跑时以 RPC 为准.
 
 ## 返回值与限制
 

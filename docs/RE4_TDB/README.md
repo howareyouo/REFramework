@@ -1,4 +1,8 @@
-# RE Engine API index
+# RE4 type database (tdb) snapshot
+
+A dump of the type database the game exposes at runtime: every type with its fields, method signatures and enum value names. Not an API reference for `sdk.*` / `reframework.*`, and it carries no field offsets or method implementations.
+
+Dumped 2026-11-05; no tdb version stamp is recorded, so a game patch silently invalidates it. With the game running, trust Lua RPC over these files.
 
 Generated from a running game over Lua RPC (see [`docs/LUA_RPC.md`](../LUA_RPC.md)). Names are dotted, so every type is one grep away: `rg -A30 '^## `chainsaw\.CharacterManager`$' chainsaw.md`.
 
