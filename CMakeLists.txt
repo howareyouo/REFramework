@@ -59,13 +59,20 @@ set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE) # Freetype
 set(ASMJIT_NO_LOGGING ON)    # drops Logger/Formatter (required by ASMJIT_NO_TEXT)
 set(ASMJIT_NO_TEXT ON)       # drops the instruction name tables
 set(ASMJIT_NO_VALIDATION ON) # drops the operand validator (emit results are never checked)
+set(ASMJIT_NO_BUILDER ON)    # drops Builder, unreachable through x86::Assembler
+set(ASMJIT_NO_COMPILER ON)   # drops Compiler and its register allocator
 
 # Zydis is fetched by safetyhook (see SAFETYHOOK_FETCH_ZYDIS above). Nothing in this
 # project uses the encoder - safetyhook only decodes - but Zydis refuses to configure
 # when KNC is disabled while the encoder is enabled, so the two go off together. The
 # encoder only saves compile time there; the KNC instruction tables save actual bytes.
+# The AVX-512 tables cost the same kind of bytes (ISTR_DEFINITIONS_EVEX is 65 KiB on its
+# own), and the only thing fed to the decoder is the prologue of RE Engine functions,
+# which are built for AVX2 at most. Dropping the table makes an EVEX opcode undecodable
+# instead of misdecoded, so a hook at such a site would fail loudly rather than silently.
 set(ZYDIS_FEATURE_ENCODER OFF CACHE BOOL "" FORCE)
 set(ZYDIS_FEATURE_KNC OFF CACHE BOOL "" FORCE)
+set(ZYDIS_FEATURE_AVX512 OFF CACHE BOOL "" FORCE)
 
 if ("${CMAKE_BUILD_TYPE}" MATCHES "Release")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MT")
