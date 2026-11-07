@@ -1056,7 +1056,7 @@ void ScriptRunner::on_draw_ui() {
 
         if (m_rpc_enabled->value()) {
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(150.0f);
+            ImGui::SetNextItemWidth(ImGui::CalcTextSize("00000").x + ImGui::GetStyle().FramePadding.x * 2.0f);
             m_rpc_port->draw("Port");
         }
 
