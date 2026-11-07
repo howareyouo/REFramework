@@ -1074,7 +1074,7 @@ void ScriptRunner::on_draw_ui() {
 
         ImGui::Separator();
         //Garbage collection currently only showing from main lua state, might rework to show total later?
-        if (ImGui::TreeNode("Garbage Collection Stats")) {
+        if (ImGui::TreeNode("Garbage Collection")) {
             std::scoped_lock _{ m_access_mutex };
 
             auto g = G(m_main_state->lua().lua_state());
@@ -1082,43 +1082,37 @@ void ScriptRunner::on_draw_ui() {
 
             ImGui::Text("Megabytes in use: %.2f", (float)bytes_in_use / 1024.0f / 1024.0f);
 
-            ImGui::TreePop();
-        }
-
-        if (m_gc_handler->draw("Garbage Collection Handler")) {
-            std::scoped_lock _{ m_access_mutex };
-            m_main_state->gc_data_changed(make_gc_data());
-        }
-
-        if (m_gc_mode->draw("Garbage Collection Mode")) {
-            std::scoped_lock _{ m_access_mutex };
-            m_main_state->gc_data_changed(make_gc_data());
-        }
-
-        if ((uint32_t)m_gc_mode->value() == (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
-            if (m_gc_minor_multiplier->draw("Minor GC Multiplier")) {
-                std::scoped_lock _{ m_access_mutex };
+            if (m_gc_handler->draw("Handler")) {
                 m_main_state->gc_data_changed(make_gc_data());
             }
 
-            if (m_gc_major_multiplier->draw("Major GC Multiplier")) {
-                std::scoped_lock _{ m_access_mutex };
-                m_main_state->gc_data_changed(make_gc_data());
-            }
-        }
-
-        if (m_gc_handler->value() == (int32_t)ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED) {
-            if (m_gc_type->draw("Garbage Collection Type")) {
-                std::scoped_lock _{ m_access_mutex };
+            if (m_gc_mode->draw("Mode")) {
                 m_main_state->gc_data_changed(make_gc_data());
             }
 
-            if ((uint32_t)m_gc_mode->value() != (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
-                if (m_gc_budget->draw("Garbage Collection Budget")) {
-                    std::scoped_lock _{ m_access_mutex };
+            if ((uint32_t)m_gc_mode->value() == (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
+                if (m_gc_minor_multiplier->draw("Minor GC Multiplier")) {
+                    m_main_state->gc_data_changed(make_gc_data());
+                }
+
+                if (m_gc_major_multiplier->draw("Major GC Multiplier")) {
                     m_main_state->gc_data_changed(make_gc_data());
                 }
             }
+
+            if (m_gc_handler->value() == (int32_t)ScriptState::GarbageCollectionHandler::REFRAMEWORK_MANAGED) {
+                if (m_gc_type->draw("Type")) {
+                    m_main_state->gc_data_changed(make_gc_data());
+                }
+
+                if ((uint32_t)m_gc_mode->value() != (uint32_t)ScriptState::GarbageCollectionMode::GENERATIONAL) {
+                    if (m_gc_budget->draw("Budget")) {
+                        m_main_state->gc_data_changed(make_gc_data());
+                    }
+                }
+            }
+
+            ImGui::TreePop();
         }
 
         m_log_to_disk->draw("Log Lua Errors to Disk");
