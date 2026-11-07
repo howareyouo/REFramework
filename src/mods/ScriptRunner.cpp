@@ -1046,15 +1046,21 @@ void ScriptRunner::on_draw_ui() {
         ImGui::SameLine();
         m_rpc_enabled->draw("Lua RPC");
 
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(
+                "HTTP endpoint for running Lua in the game.\n"
+                "POST http://127.0.0.1:%u/rpc with {\"code\": \"...\"} (\"mode\": \"chunk\"|\"expr\", \"timeout_ms\": 100-30000).\n"
+                "Binds to 127.0.0.1 only. See docs/LUA_RPC.md.",
+                (uint32_t)m_rpc_port->value());
+        }
+
         if (m_rpc_enabled->value()) {
-            ImGui::Text("Bind IP: 127.0.0.1, Bind Port:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(150.0f);
             m_rpc_port->draw("Port");
         }
 
         if (m_rpc->is_running()) {
-            ImGui::TextWrapped("POST http://127.0.0.1:%u/rpc with {\"code\": \"...\"}", (uint32_t)m_rpc->port());
             ImGui::Text("Requests served: %llu", (unsigned long long)m_rpc->served_requests());
         } else if (m_rpc_enabled->value()) {
             ImGui::TextWrapped("Not listening.");
