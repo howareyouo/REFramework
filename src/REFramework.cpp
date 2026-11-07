@@ -1472,7 +1472,7 @@ void REFramework::draw_ui() {
     // static const auto REF_NAME = std::format("REFramework ({})", REFramework::get_game_name());
     bool is_open = true;
     ImGui::Begin(REF_NAME.c_str(), &is_open);
-    ImGui::Text("Default Menu Key: Insert");
+    ImGui::Text("Menu Key: Insert");
 
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_draw_ui();
