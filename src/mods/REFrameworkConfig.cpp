@@ -47,6 +47,18 @@ void REFrameworkConfig::on_draw_ui() {
     changed |= m_remember_menu_state->draw("Remember Menu Open/Closed State");
     changed |= m_always_show_cursor->draw("Draw Cursor With Menu Open");
 
+    changed |= m_ui_transparent->draw("Transparency");
+    ImGui::SameLine();
+    ImGui::Text("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Makes the UI transparent when not focused.");
+
+    changed |= m_input_passthrough->draw("Input Passthrough");
+    ImGui::SameLine();
+    ImGui::Text("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Allows mouse and keyboard inputs to register to the game while the UI is focused.");
+
     if (m_font_file->draw("Font")) {
         g_framework->set_font(m_font_file->value());
         changed = true;

@@ -259,8 +259,6 @@ private:
     bool m_is_ui_focused{false};
     bool m_cursor_state{false};
     bool m_cursor_state_changed{true};
-    bool m_ui_option_transparent{true};
-    bool m_ui_passthrough{false};
     
     ImVec2 m_last_window_pos{};
     ImVec2 m_last_window_size{};

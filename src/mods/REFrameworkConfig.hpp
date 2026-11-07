@@ -29,12 +29,22 @@ public:
         return m_always_show_cursor->value();
     }
 
+    bool is_ui_transparent() const {
+        return m_ui_transparent->value();
+    }
+
+    bool is_input_passthrough() const {
+        return m_input_passthrough->value();
+    }
+
 private:
     ModKey::Ptr m_menu_key{ make_option<ModKey>("MenuKey_V2", VK_INSERT) };
     ModToggle::Ptr m_menu_open{ make_option<ModToggle>("MenuOpen", true) };
     ModToggle::Ptr m_remember_menu_state{ make_option<ModToggle>("RememberMenuState", false) };
     ModToggle::Ptr m_always_show_cursor{ make_option<ModToggle>("DrawCursorWithMenuOpen", false) };
     ModKey::Ptr m_show_cursor_key{ make_option<ModKey>("ShowCursorKey") };
+    ModToggle::Ptr m_ui_transparent{ make_option<ModToggle>("UITransparency", true) };
+    ModToggle::Ptr m_input_passthrough{ make_option<ModToggle>("InputPassthrough", false) };
     ModInt32::Ptr m_font_size{make_option<ModInt32>("FontSize", 16)};
     std::vector<std::string> fonts{};
     // Created in on_initialize once the font directory has been scanned; it

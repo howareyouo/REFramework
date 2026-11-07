@@ -1144,7 +1144,7 @@ bool REFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_pa
     {
         // If the user is interacting with the UI we block the message from going to the game.
         const auto& io = ImGui::GetIO();
-        if (m_draw_ui && !m_ui_passthrough &&
+        if (m_draw_ui && !REFrameworkConfig::get()->is_input_passthrough() &&
             should_block_message(message, w_param, is_mouse_moving)) {
             return false;
         }
@@ -1422,7 +1422,7 @@ void REFramework::draw_ui() {
     // UI Specific code:
     m_is_ui_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 
-    if (m_ui_option_transparent) {
+    if (REFrameworkConfig::get()->is_ui_transparent()) {
         auto& style = ImGui::GetStyle();
         if (m_is_ui_focused) {
             style.Alpha = 1.0f;
@@ -1473,16 +1473,6 @@ void REFramework::draw_ui() {
     bool is_open = true;
     ImGui::Begin(REF_NAME.c_str(), &is_open);
     ImGui::Text("Default Menu Key: Insert");
-    ImGui::Checkbox("Transparency", &m_ui_option_transparent);
-    ImGui::SameLine();
-    ImGui::Text("(?)");
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Makes the UI transparent when not focused.");
-    ImGui::Checkbox("Input Passthrough", &m_ui_passthrough);
-    ImGui::SameLine();
-    ImGui::Text("(?)");
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Allows mouse and keyboard inputs to register to the game while the UI is focused.");
 
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_draw_ui();
