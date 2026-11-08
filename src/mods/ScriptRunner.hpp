@@ -9,7 +9,9 @@
 
 #include <Windows.h>
 
-#include <sol/sol.hpp>
+#include <lua.hpp>
+
+#include "bindings/LuaStack.hpp"
 
 #include "sdk/RETypeDB.hpp"
 #include "utility/FunctionHook.hpp"
@@ -95,10 +97,10 @@ concept CachedUserType = std::is_base_of_v<sdk::RETypeDefinition, T>
 }
 
 template<detail::ManagedObjectBased T>
-int sol_lua_push(sol::types<T*>, lua_State* l, T* obj);
+int lua_stack_push(lua_stack::pointer_tag<T>, lua_State* l, T* obj);
 
 template<detail::CachedUserType T>
-int sol_lua_push(sol::types<T*>, lua_State* l, T* obj);
+int lua_stack_push(lua_stack::pointer_tag<T>, lua_State* l, T* obj);
 
 class ScriptState : public std::enable_shared_from_this<ScriptState> {
 public:
@@ -126,6 +128,17 @@ public:
         STOP = 1
     };
 
+    // The re.on_* entry points. A lua_CFunction cannot capture, so these are
+    // static and reach the state they belong to through the call's lua_State.
+    static void re_on_pre_application_entry(lua_State* L, const char* name, lua_stack::protected_function fn);
+    static void re_on_application_entry(lua_State* L, const char* name, lua_stack::protected_function fn);
+    static void re_on_pre_gui_draw_element(lua_State* L, lua_stack::protected_function fn);
+    static void re_on_gui_draw_element(lua_State* L, lua_stack::protected_function fn);
+    static void re_on_draw_ui(lua_State* L, lua_stack::protected_function fn);
+    static void re_on_frame(lua_State* L, lua_stack::protected_function fn);
+    static void re_on_script_reset(lua_State* L, lua_stack::protected_function fn);
+    static void re_on_config_save(lua_State* L, lua_stack::protected_function fn);
+
     struct GarbageCollectionData {
         GarbageCollectionHandler gc_handler{GarbageCollectionHandler::REFRAMEWORK_MANAGED};
         GarbageCollectionType gc_type{GarbageCollectionType::FULL};
@@ -140,8 +153,8 @@ public:
     ~ScriptState();
 
     void run_script(const std::string& p);
-    sol::protected_function_result handle_protected_result(sol::protected_function_result result); // because protected_functions don't throw
-    bool should_remove_hook(const sol::protected_function_result& result); // true if the callback returned CallbackNextAction.STOP
+    lua_stack::protected_function_result handle_protected_result(lua_stack::protected_function_result result); // because protected_functions don't throw
+    bool should_remove_hook(const lua_stack::protected_function_result& result); // true if the callback returned CallbackNextAction.STOP
 
     void on_frame();
     void on_draw_ui();
@@ -159,9 +172,9 @@ public:
     auto scoped_lock() { return std::scoped_lock{m_execution_mutex}; }
 
     // add_hook enqueues the hook definition to be installed the next time install_hooks is called.
-    void add_hook(sdk::REMethodDefinition* fn, sol::protected_function pre_cb, sol::protected_function post_cb, sol::object ignore_jmp_obj);
-    void add_vtable(::REManagedObject* obj, sdk::REMethodDefinition* fn, sol::protected_function pre_cb, sol::protected_function post_cb);
-    void add_update_transform(RETransform* transform, sol::protected_function fn);
+    void add_hook(sdk::REMethodDefinition* fn, lua_stack::protected_function pre_cb, lua_stack::protected_function post_cb, lua_stack::object ignore_jmp_obj);
+    void add_vtable(::REManagedObject* obj, sdk::REMethodDefinition* fn, lua_stack::protected_function pre_cb, lua_stack::protected_function post_cb);
+    void add_update_transform(RETransform* transform, lua_stack::protected_function fn);
 
     // install_hooks goes through the queue of added hooks and actually creates them. The queue is emptied as a result.
     void install_hooks();
@@ -174,7 +187,7 @@ public:
             it = m_hook_storage.emplace(thread_hash, std::vector<TablePool::TableGuard>{}).first;
         }
 
-        it->second.push_back(m_table_pool.acquire(m_lua));
+        it->second.push_back(m_table_pool.acquire(m_lua.lua_state()));
         m_current_hook_storage = it->second.back();
     }
 
@@ -186,10 +199,10 @@ public:
             }
         }
 
-        m_current_hook_storage = sol::nil;
+        m_current_hook_storage = lua_stack::lua_nil;
     }
 
-    sol::reference get_hook_storage() {
+    lua_stack::reference get_hook_storage() {
         return m_current_hook_storage;
     }
     
@@ -197,7 +210,7 @@ public:
     public:
         class TableGuard {
         public:
-            TableGuard(TablePool& pool, sol::table& table) 
+            TableGuard(TablePool& pool, lua_stack::table& table) 
                 : m_pool{pool},
                 m_table{table} 
             {
@@ -208,14 +221,14 @@ public:
                 : m_pool{other.m_pool},
                 m_table{other.m_table}
             {
-                other.m_table = sol::nil;
+                other.m_table = lua_stack::lua_nil;
                 other.m_moved = true;
             }
             
             TableGuard& operator=(TableGuard&& other) noexcept {
                 m_pool = other.m_pool;
                 m_table = other.m_table;
-                other.m_table = sol::nil;
+                other.m_table = lua_stack::lua_nil;
                 other.m_moved = true;
                 return *this;
             }
@@ -231,18 +244,18 @@ public:
                 m_pool.m_tables.push_back(m_table);
             }
             
-            operator sol::table&() { return m_table; }
-            sol::table get() { return m_table; }
+            operator lua_stack::table&() { return m_table; }
+            lua_stack::table get() { return m_table; }
 
         private:
             TablePool& m_pool;
-            sol::table m_table;
+            lua_stack::table m_table;
             bool m_moved{false};
         };
 
-        TableGuard acquire(sol::state_view lua) {
+        TableGuard acquire(lua_State* L) {
             if (m_tables.empty()) {
-                m_tables.push_back(lua.create_table());
+                m_tables.push_back(lua_stack::create_table(L));
             }
 
             // LIFO: the most recently released table is reused first, so the
@@ -257,17 +270,17 @@ public:
         }
 
     private:
-        std::vector<sol::table> m_tables{};
+        std::vector<lua_stack::table> m_tables{};
     };
 
     TablePool& get_table_pool() {
         return m_table_pool;
     }
 
-    void add_delegate_callback(sdk::DelegateInvocation& invo, sol::protected_function callback);
+    void add_delegate_callback(sdk::DelegateInvocation& invo, lua_stack::protected_function callback);
 
 private:
-    sol::reference get_hook_storage_internal(size_t thread_hash) {
+    lua_stack::reference get_hook_storage_internal(size_t thread_hash) {
         //return m_current_hook_storage;
 
         auto it = m_hook_storage.find(thread_hash);
@@ -277,10 +290,10 @@ private:
             }
         }
 
-        return sol::nil;
+        return lua_stack::lua_nil;
     }
 
-    sol::state m_lua{};
+    lua_stack::state m_lua{};
     TablePool m_table_pool{};
 
     GarbageCollectionData m_gc_data{};
@@ -288,38 +301,38 @@ private:
     std::recursive_mutex m_execution_mutex{};
 
     // FNV-1A
-    std::unordered_multimap<size_t, sol::protected_function> m_pre_application_entry_fns{};
-    std::unordered_multimap<size_t, sol::protected_function> m_application_entry_fns{};
+    std::unordered_multimap<size_t, lua_stack::protected_function> m_pre_application_entry_fns{};
+    std::unordered_multimap<size_t, lua_stack::protected_function> m_application_entry_fns{};
 
-    std::unordered_map<RETransform*, sol::protected_function> m_on_update_transform_fns{};
+    std::unordered_map<RETransform*, lua_stack::protected_function> m_on_update_transform_fns{};
 
-    SafeCallbackVector<sol::protected_function> m_pre_gui_draw_element_fns{};
-    SafeCallbackVector<sol::protected_function> m_gui_draw_element_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_draw_ui_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_frame_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_script_reset_fns{};
-    SafeCallbackVector<sol::protected_function> m_on_config_save_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_pre_gui_draw_element_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_gui_draw_element_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_on_draw_ui_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_on_frame_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_on_script_reset_fns{};
+    SafeCallbackVector<lua_stack::protected_function> m_on_config_save_fns{};
 
     struct HookDef {
         ::REManagedObject* obj{nullptr};
         sdk::REMethodDefinition* fn;
-        sol::protected_function pre_cb;
-        sol::protected_function post_cb;
-        sol::object ignore_jmp_obj;
+        lua_stack::protected_function pre_cb;
+        lua_stack::protected_function post_cb;
+        lua_stack::object ignore_jmp_obj;
     };
 
     std::deque<HookDef> m_hooks_to_add{};
     std::unordered_map<sdk::REMethodDefinition*, std::vector<HookManager::HookId>> m_hooks{};
 
-    // Vector is fine here: only table handles are copied out (into sol::reference),
+    // Vector is fine here: only table handles are copied out (into lua_stack::reference),
     // no pointers to the TableGuard elements themselves escape. TableGuard is nothrow-movable.
-    // Using sol::reference instead of sol::table to keep a guaranteed reference to the table.
+    // Using lua_stack::reference instead of lua_stack::table to keep a guaranteed reference to the table.
     std::unordered_map<size_t, std::vector<TablePool::TableGuard>> m_hook_storage{};
-    sol::reference m_current_hook_storage{};
+    lua_stack::reference m_current_hook_storage{};
 
     struct DelegateStorage {
         std::weak_ptr<ScriptState> owner{}; // Weak pointer to the ScriptState that owns this delegate storage because the ScriptState may be deleted. 
-        SafeCallbackVector<sol::protected_function> callbacks{};
+        SafeCallbackVector<lua_stack::protected_function> callbacks{};
 
     };
 

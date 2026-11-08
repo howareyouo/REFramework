@@ -391,15 +391,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 endif()
-# Target: sol2
-if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
-	add_library(sol2 INTERFACE)
-
-	target_include_directories(sol2 INTERFACE
-		"dependencies/sol2/single/include"
-	)
-
-endif()
 # Target: nlohmann_json
 if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	add_library(nlohmann_json INTERFACE)
@@ -569,7 +560,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		nlohmann_json
 		spdlog
 		lua
-		sol2
 		imgui
 		imguizmo
 		imnodes
@@ -881,7 +871,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 
 	target_link_libraries(example_plugin PUBLIC
 		lua
-		sol2
 		imgui
 	)
 

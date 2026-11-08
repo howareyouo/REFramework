@@ -22,7 +22,7 @@ public:
 
     std::string_view get_name() const override { return "Graphics"; };
 
-    void on_lua_state_created(sol::state& lua) override;
+    void on_lua_state_created(lua_State* lua) override;
     void on_config_load(const utility::Config& cfg) override;
     void on_config_save(utility::Config& cfg) override;
 

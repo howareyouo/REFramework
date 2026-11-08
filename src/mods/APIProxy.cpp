@@ -193,7 +193,7 @@ bool APIProxy::add_on_lua_state_created(REFLuaStateCreatedCb cb) {
     auto& state = ScriptRunner::get()->get_state();
 
     if (state != nullptr && state->lua().lua_state() != nullptr) {
-        cb(state->lua());
+        cb(state->lua().lua_state());
     }
 
     return true;
@@ -243,12 +243,12 @@ bool APIProxy::add_on_pre_gui_draw_element(REFOnPreGuiDrawElementCb cb) {
     return add_cb(m_api_cb_mtx, m_on_pre_gui_draw_element_cbs, cb);
 }
 
-void APIProxy::on_lua_state_created(sol::state& state) {
-    invoke_cbs(m_api_cb_mtx, m_on_lua_state_created_cbs, "on_lua_state_created", state.lua_state());
+void APIProxy::on_lua_state_created(lua_State* state) {
+    invoke_cbs(m_api_cb_mtx, m_on_lua_state_created_cbs, "on_lua_state_created", state);
 }
 
-void APIProxy::on_lua_state_destroyed(sol::state& state) {
-    invoke_cbs(m_api_cb_mtx, m_on_lua_state_destroyed_cbs, "on_lua_state_destroyed", state.lua_state());
+void APIProxy::on_lua_state_destroyed(lua_State* state) {
+    invoke_cbs(m_api_cb_mtx, m_on_lua_state_destroyed_cbs, "on_lua_state_destroyed", state);
 }
 
 void APIProxy::on_present() {

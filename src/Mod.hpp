@@ -13,7 +13,7 @@
 #include <vector>
 
 #include <imgui.h>
-#include <sol/sol.hpp>
+#include <lua.hpp>
 
 #include <sdk/ReClass.hpp>
 #include <sdk/Renderer.hpp>
@@ -553,8 +553,8 @@ public:
     // Returns an error string if it fails
     virtual std::optional<std::string> on_initialize() { return std::nullopt; };
     virtual std::optional<std::string> on_initialize_d3d_thread() { return std::nullopt; };
-    virtual void on_lua_state_created(sol::state& lua) {};
-    virtual void on_lua_state_destroyed(sol::state& lua) {};
+    virtual void on_lua_state_created(lua_State* lua) {};
+    virtual void on_lua_state_destroyed(lua_State* lua) {};
 
     // This gets called after updating stuff like keyboard/mouse input to imgui
     // can be used to override these inputs e.g. with a custom input system

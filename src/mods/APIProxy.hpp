@@ -17,8 +17,8 @@ public:
     void on_present() override;
     void on_frame() override;
     void on_draw_ui() override;
-    void on_lua_state_created(sol::state& state) override;
-    void on_lua_state_destroyed(sol::state& state) override;
+    void on_lua_state_created(lua_State* state) override;
+    void on_lua_state_destroyed(lua_State* state) override;
     void on_pre_application_entry(void* entry, const char* name, size_t hash) override;
     void on_application_entry(void* entry, const char* name, size_t hash) override;
     void on_device_reset() override;

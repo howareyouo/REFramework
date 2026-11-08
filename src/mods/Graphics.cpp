@@ -8,6 +8,7 @@
 #include <sdk/REGameObject.hpp>
 
 #include "Graphics.hpp"
+#include "bindings/LuaHand.hpp"
 
 
 #include "sdk/regenny/re4/via/Window.hpp"
@@ -283,12 +284,55 @@ std::optional<std::string> Graphics::on_initialize() {
     return Mod::on_initialize(); // OK
 }
 
-void Graphics::on_lua_state_created(sol::state& lua) {
-    lua.new_usertype<Graphics>("REFGraphics",
-        "get", []() -> Graphics* { return Graphics::get().get(); },
-        "is_ultrawide_fix_enabled", &Graphics::is_ultrawide_fix_enabled
-    );
+namespace {
+constexpr const char* GRAPHICS_MT = "REFramework.REFGraphics";
 
+LUA_HAND_FUNC(l_graphics_get) {
+    const auto graphics = Graphics::get().get();
+
+    if (graphics == nullptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    *static_cast<Graphics**>(lua_newuserdatauv(L, sizeof(Graphics*), 0)) = graphics;
+    luaL_setmetatable(L, GRAPHICS_MT);
+
+    return 1;
+}
+LUA_HAND_CATCH(L)
+
+LUA_HAND_FUNC(l_graphics_is_ultrawide_fix_enabled) {
+    const auto self = *static_cast<Graphics**>(luaL_checkudata(L, 1, GRAPHICS_MT));
+
+    lua_pushboolean(L, self->is_ultrawide_fix_enabled());
+    return 1;
+}
+LUA_HAND_CATCH(L)
+
+constexpr luaL_Reg GRAPHICS_FUNCS[] = {
+    {"get", l_graphics_get},
+    {nullptr, nullptr},
+};
+} // namespace
+
+void Graphics::on_lua_state_created(lua_State* L) {
+    luaL_newmetatable(L, GRAPHICS_MT);
+
+    lua_pushcfunction(L, l_graphics_is_ultrawide_fix_enabled);
+    lua_setfield(L, -2, "is_ultrawide_fix_enabled");
+
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushliteral(L, "REFGraphics");
+    lua_setfield(L, -2, "__name");
+
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+    luaL_setfuncs(L, GRAPHICS_FUNCS, 0);
+    lua_setglobal(L, "REFGraphics");
 }
 
 void Graphics::on_config_load(const utility::Config& cfg) {
