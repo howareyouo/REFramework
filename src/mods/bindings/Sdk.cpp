@@ -607,7 +607,20 @@ lua_stack::object create_managed_string(lua_State* s, const char* text) {
     return lua_stack::make_object(s, (::REManagedObject*)new_str);
 }
 
-lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, uint32_t length) {
+// Length is read as int64_t, not uint32_t: a negative Lua number wrapped to
+// ~4e9 and the VM attempted a multi-GB allocation that hung the process.
+lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, int64_t length) {
+    constexpr int64_t max_length = 0x1000000; // 16.7M elements
+
+    if (length < 0) {
+        throw lua_stack::error("create_managed_array: length cannot be negative");
+    }
+
+    if (length > max_length) {
+        throw lua_stack::error("create_managed_array: length " + std::to_string(length)
+            + " exceeds the maximum of " + std::to_string(max_length));
+    }
+
     ::REManagedObject* t{nullptr};
 
     if (t_obj.is<::REManagedObject*>()) {
@@ -628,7 +641,7 @@ lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, ui
         throw lua_stack::error("Type passed to create_managed_array resolved to null.");
     }
 
-    auto out = ::sdk::VM::create_managed_array(t, length);
+    auto out = ::sdk::VM::create_managed_array(t, (uint32_t)length);
 
     if (out == nullptr) {
         return lua_stack::make_object(s, lua_stack::lua_nil);
@@ -1320,6 +1333,11 @@ std::vector<void*>& build_args(lua_stack::variadic_args va) {
         if (lua_isboolean(l, i)) {
             auto b = lua_toboolean(l, i);
             args.push_back((void*)(intptr_t)b);
+        } else if (lua_type(l, i) == LUA_TSTRING) {
+            // Raw type: lua_isnumber accepts a numeric string, so checking the
+            // numbers first turned "42" into a double instead of a managed string.
+            auto s = lua_tostring(l, i);
+            args.push_back(::sdk::VM::create_managed_string(utility::widen(s)));
         } else if (lua_isinteger(l, i)) {
             auto n = (intptr_t)lua_tointeger(l, i);
             args.push_back((void*)n);
@@ -1327,9 +1345,6 @@ std::vector<void*>& build_args(lua_stack::variadic_args va) {
             auto f = lua_tonumber(l, i);
             auto n = *(intptr_t*)&f;
             args.push_back((void*)n);
-        } else if (lua_isstring(l, i)) {
-            auto s = lua_tostring(l, i);
-            args.push_back(::sdk::VM::create_managed_string(utility::widen(s)));
         } else if (arg.is<Vector2f>()) {
             auto& v = arg.as<Vector2f&>();
             args.push_back((void*)&vec_storage.emplace_back(v.x, v.y, 0.0f, 0.0f));
@@ -1437,6 +1452,10 @@ void hook_vtable(lua_State* s, ::REManagedObject* obj, ::sdk::REMethodDefinition
 namespace api::re_managed_object {
 lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args args);
 void new_index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args args);
+// Reads a SystemArray slot key, refusing anything that is not a number inside
+// the array: sol2's implicit conversions otherwise let a fractional or
+// out-of-bounds key reach get_element/set_element.
+int32_t checked_array_index(lua_State* s, int index, ::sdk::SystemArray* arr);
 }
 
 namespace api::re_managed_object {
@@ -1494,6 +1513,24 @@ lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::vari
     return lua_stack::make_object(s, lua_stack::lua_nil);
 }
 
+int32_t checked_array_index(lua_State* s, int index, ::sdk::SystemArray* arr) {
+    if (lua_type(s, index) != LUA_TNUMBER) {
+        throw lua_stack::error("Array index must be a number");
+    }
+
+    const auto d = lua_tonumber(s, index);
+
+    if (d != (double)(int64_t)d) {
+        throw lua_stack::error("Array index must be an integer");
+    }
+
+    if (d < 0.0 || d >= (double)arr->get_size()) {
+        throw lua_stack::error("Array index out of range: " + std::to_string((int64_t)d));
+    }
+
+    return (int32_t)d;
+}
+
 void new_index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args args) {
     auto obj = lua_obj.as<REManagedObject*>();
     if (obj == nullptr) {
@@ -1539,6 +1576,41 @@ void new_index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args
         ::api::sdk::call_native_func_direct(lua_obj, fn, args);
         return;
     }
+
+    // System.Int32 -> object
+    if (auto set_method = type_def->get_method("Set"); set_method != nullptr) {
+        static auto system_int32 = sdk::find_type_definition("System.Int32");
+        const auto params = set_method->get_param_types();
+
+        if (params.size() == 2 && params[0] == system_int32) {
+            if (type_def->is_array()) {
+                checked_array_index(s, index.stack_index(), static_cast<::sdk::SystemArray*>(obj));
+
+                // Reject type-confused raw writes (a string into a value element
+                // would store the managed string's pointer bits). Dispatch on the
+                // real Lua type: is<const char*>/is<double> are true for both.
+                const auto elem_type = params[1];
+
+                if (elem_type != nullptr) {
+                    const auto lua_t = lua_type(s, assign.stack_index());
+                    const auto is_string = lua_t == LUA_TSTRING;
+                    const auto is_number = lua_t == LUA_TNUMBER || lua_t == LUA_TBOOLEAN;
+
+                    if (elem_type->is_value_type() && is_string) {
+                        throw lua_stack::error("Cannot assign a string to a " + elem_type->get_full_name() + " element");
+                    }
+
+                    if (!elem_type->is_value_type() && is_number) {
+                        throw lua_stack::error("Cannot assign a number to a " + elem_type->get_full_name() + " element");
+                    }
+                }
+            }
+
+            ::api::sdk::call_native_func_direct(lua_obj, set_method, args);
+            return;
+        }
+    }
+
     throw lua_stack::error("Attempted to new_index invalid REManagedObject field: " + name);
 }
 
@@ -1792,8 +1864,17 @@ LUA_HAND_FUNC(sdk_hand_system_array_index)
         return luaL_error(L, "SystemArray is nil");
     }
 
-    if (lh::is_index(L, 2)) {
-        return lh::put(L, arr->get_element(lh::index_int(L, 2)));
+    if (lua_type(L, 2) == LUA_TNUMBER) {
+        // Fractional and out-of-range keys read as nil instead of reaching
+        // get_element, which would truncate or walk past the array.
+        const auto d = lua_tonumber(L, 2);
+
+        if (d != (double)(int64_t)d || d < 0.0 || d >= (double)arr->get_size()) {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        return lh::put(L, arr->get_element((int32_t)d));
     }
 
     return sdk_hand_managed_object_index(L);
@@ -1806,12 +1887,14 @@ LUA_HAND_FUNC(sdk_hand_system_array_new_index)
         return luaL_error(L, "SystemArray is nil");
     }
 
-    if (lh::is_index(L, 2) && lh::is<::REManagedObject*>(L, 3)) {
-        arr->set_element(lh::index_int(L, 2), lh::get<::REManagedObject*>(L, 3));
+    if (lua_type(L, 2) == LUA_TNUMBER && lh::is<::REManagedObject*>(L, 3)) {
+        arr->set_element(::api::re_managed_object::checked_array_index(L, 2, arr), lh::get<::REManagedObject*>(L, 3));
         return 0;
     }
 
-    ::api::re_managed_object::new_index(L, lh::get_object(L, 1), lh::get_rest(L, 3));
+    // The key belongs in the variadic args: new_index reads args[0] as the key
+    // and args[1] as the value, so the tail must start at the key, not past it.
+    ::api::re_managed_object::new_index(L, lh::get_object(L, 1), lh::get_rest(L, 2));
     return 0;
 LUA_HAND_CATCH(L)
 

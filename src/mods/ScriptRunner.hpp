@@ -322,7 +322,22 @@ private:
     };
 
     std::deque<HookDef> m_hooks_to_add{};
-    std::unordered_map<sdk::REMethodDefinition*, std::vector<HookManager::HookId>> m_hooks{};
+
+    // Lua callbacks of an installed hook. Shared with the hook's lambdas so the
+    // destructor can drop the Lua references under m_execution_mutex, then
+    // remove the hooks without holding it.
+    struct HookCallbacks {
+        lua_stack::protected_function pre_cb;
+        lua_stack::protected_function post_cb;
+        bool released{false}; // guarded by m_execution_mutex
+    };
+
+    struct InstalledHook {
+        HookManager::HookId id{};
+        std::shared_ptr<HookCallbacks> callbacks{};
+    };
+
+    std::unordered_map<sdk::REMethodDefinition*, std::vector<InstalledHook>> m_hooks{};
 
     // Vector is fine here: only table handles are copied out (into lua_stack::reference),
     // no pointers to the TableGuard elements themselves escape. TableGuard is nothrow-movable.

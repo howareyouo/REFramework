@@ -1430,10 +1430,32 @@ ScriptState::~ScriptState() {
         }
     }
 
-    std::scoped_lock _{m_execution_mutex};
-    for (auto&& [fn, hook_ids] : m_hooks) {
-        for (auto&& id : hook_ids) {
-            g_hookman.remove(fn, id);
+    // remove() waits for in-flight callbacks, and our callbacks wait for
+    // m_execution_mutex, so don't hold it while removing. Drop the Lua references
+    // under the lock instead: callbacks that get the lock afterwards see
+    // `released` and return without touching Lua, and remove() then only destroys
+    // empty holders.
+    decltype(m_hooks) hooks{};
+
+    {
+        std::scoped_lock _{m_execution_mutex};
+
+        for (auto&& [fn, installed] : m_hooks) {
+            for (auto&& hook : installed) {
+                hook.callbacks->pre_cb = lua_stack::protected_function{};
+                hook.callbacks->post_cb = lua_stack::protected_function{};
+                hook.callbacks->released = true;
+            }
+        }
+
+        hooks = std::move(m_hooks);
+    }
+
+    // Once every remove() returns, none of this state's callbacks can be running
+    // or start again.
+    for (auto&& [fn, installed] : hooks) {
+        for (auto&& hook : installed) {
+            g_hookman.remove(fn, hook.id);
         }
     }
 }
@@ -1690,13 +1712,12 @@ void ScriptState::install_hooks() {
     for (; !m_hooks_to_add.empty(); m_hooks_to_add.pop_front()) {
         auto hookdef = m_hooks_to_add.front();
         auto fn = hookdef.fn;
-        auto pre_cb = hookdef.pre_cb;
-        auto post_cb = hookdef.post_cb;
+        auto callbacks = std::make_shared<HookCallbacks>(HookCallbacks{hookdef.pre_cb, hookdef.post_cb});
         auto ignore_jmp_object = hookdef.ignore_jmp_obj;
         const auto hookman_data = HookManager::EitherOr{hookdef.obj, hookdef.fn, ignore_jmp_object.is<bool>() ? ignore_jmp_object.as<bool>() : false};
         auto id = g_hookman.add_either_or(
             hookman_data,
-            [pre_cb, state = this, runner = ScriptRunner::get().get()](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
+            [callbacks, state = this, runner = ScriptRunner::get().get()](auto& args, auto& arg_tys, uintptr_t ret_addr) -> HookManager::PreHookResult {
                 using PreHookResult = HookManager::PreHookResult;
 
                 // Scripts are unloaded during online matches, so skip the lock and Lua entirely.
@@ -1706,6 +1727,13 @@ void ScriptState::install_hooks() {
 
                 auto _ = state->scoped_lock();
                 auto result = PreHookResult::CALL_ORIGINAL;
+
+                // The state is being destroyed; its Lua references are gone.
+                if (callbacks->released) {
+                    return result;
+                }
+
+                auto& pre_cb = callbacks->pre_cb;
 
                 try {
                     state->push_hook_storage(cached_thread_hash());
@@ -1748,18 +1776,26 @@ void ScriptState::install_hooks() {
 
                 return result;
             },
-            [post_cb, state = this, runner = ScriptRunner::get().get()](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
+            [callbacks, state = this, runner = ScriptRunner::get().get()](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
                 // Matches the pre-hook: nothing to pop when scripts are disabled mid-match.
                 if (runner->is_online_match()) {
                     return;
                 }
 
                 auto _ = state->scoped_lock();
+
+                // The state is being destroyed; its Lua references are gone.
+                if (callbacks->released) {
+                    return;
+                }
+
                 const auto thash = cached_thread_hash();
                 utility::ScopeGuard sg{[state, thash] { state->pop_hook_storage(thash); }};
 
                 try {
                     state->m_current_hook_storage = state->get_hook_storage_internal(thash);
+
+                    auto& post_cb = callbacks->post_cb;
 
                     if (post_cb.is_nil()) {
                         return;
@@ -1779,7 +1815,7 @@ void ScriptState::install_hooks() {
                 }
             }
         );
-        m_hooks[fn].emplace_back(id);
+        m_hooks[fn].push_back({id, std::move(callbacks)});
     }
 }
 
@@ -2353,7 +2389,10 @@ void ScriptRunner::reset_scripts() {
     package_path = package_path + ";" + autorun_path.string() + "/?/init.lua";
     package_path = package_path + ";" + autorun_path.string() + "/?.dll";
 
-    lua_stack::global_table(m_main_state->lua().lua_state(), "package").set("path", package_path);
+    // The registry copy, not the package table: run_script re-applies
+    // package.path from it before every script, which would otherwise drop the
+    // autorun directory again.
+    lua_stack::registry_set(m_main_state->lua().lua_state(), "package_path", package_path);
 
     for (auto&& entry : std::filesystem::directory_iterator{autorun_path}) {
         auto&& path = entry.path();
