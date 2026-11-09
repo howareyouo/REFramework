@@ -16,7 +16,7 @@
 // Raw lua_State helpers for the hand-written binding tables. The per-type stack
 // primitives come from lua_stack (LuaStack.hpp), so a single binding no longer
 // instantiates the argument marshalling chain for its own signature.
-namespace lua_hand {
+namespace lh {
 // Lua strings can arrive as nil; ImGui expects non-null throughout.
 inline const char* str(lua_State* L, int index) {
     return lua_isnoneornil(L, index) ? "" : luaL_checkstring(L, index);
@@ -166,7 +166,7 @@ inline void put_seq(lua_State* L, const std::vector<T>& values) {
     lua_createtable(L, static_cast<int>(values.size()), 0);
 
     for (size_t i = 0; i < values.size(); ++i) {
-        lua_hand::put(L, values[i]);
+        lh::put(L, values[i]);
         lua_rawseti(L, -2, static_cast<lua_Integer>(i + 1));
     }
 }
@@ -340,12 +340,12 @@ inline int call_method(lua_State* L, T* self, std::index_sequence<I...>) {
     } else if constexpr (std::is_lvalue_reference_v<typename traits::ret>) {
         // A reference return is put as what it refers to -- the engine's
         // arrays hand back a slot to be written through, not a copy.
-        return lua_hand::put(L, (self->*F)(get_param<std::tuple_element_t<I, args>>(L, 2 + slots_before<args, I>::value)...));
+        return lh::put(L, (self->*F)(get_param<std::tuple_element_t<I, args>>(L, 2 + slots_before<args, I>::value)...));
     } else {
         // `put` takes its value by reference, so an rvalue is bound to a local
         // first -- binding a T to a T&& overload is not a conversion MSVC makes.
         auto value = (self->*F)(get_param<std::tuple_element_t<I, args>>(L, 2 + slots_before<args, I>::value)...);
-        return lua_hand::put(L, value);
+        return lh::put(L, value);
     }
 }
 
@@ -358,10 +358,10 @@ inline int call_free(lua_State* L, std::index_sequence<I...>) {
         F(get_param<std::tuple_element_t<I, args>>(L, 1 + slots_before<args, I>::value)...);
         return 0;
     } else if constexpr (std::is_lvalue_reference_v<typename traits::ret>) {
-        return lua_hand::put(L, F(get_param<std::tuple_element_t<I, args>>(L, 1 + slots_before<args, I>::value)...));
+        return lh::put(L, F(get_param<std::tuple_element_t<I, args>>(L, 1 + slots_before<args, I>::value)...));
     } else {
         auto value = F(get_param<std::tuple_element_t<I, args>>(L, 1 + slots_before<args, I>::value)...);
-        return lua_hand::put(L, value);
+        return lh::put(L, value);
     }
 }
 
@@ -432,7 +432,7 @@ struct member_reader {
                 return luaL_error(L, "attempt to call a method on a nil usertype object");
             }
 
-            return lua_hand::put(L, self->*M);
+            return lh::put(L, self->*M);
         } catch (const std::exception& e) {
             return luaL_error(L, "%s", e.what());
         } catch (...) {
@@ -1046,14 +1046,14 @@ inline void install_borrowed(lua_State* L, const char* name, const methods& m) {
 
     lua_remove(L, m.index());
 }
-} // namespace lua_hand
+} // namespace lh
 
 // Every C++ exception escaping a thunk becomes a Lua error, matching how sol2
 // translated a throwing binding.
-#define LUA_HAND_FUNC(name)                                                                                            \
+#define LH_BIND(name)                                                                                                  \
     static int name(lua_State* L) {                                                                                    \
         try {
-#define LUA_HAND_CATCH(L)                                                                                              \
+#define LH_BIND_END(L)                                                                                                 \
         }                                                                                                              \
         catch (const std::exception& e) {                                                                              \
             return luaL_error(L, "%s", e.what());                                                                      \

@@ -10,7 +10,7 @@ against the sol2 baseline.
 
 The counts are token occurrences (`grep -o`), measured on the tree at commit
 `8d613a3e`. `ScriptRpc.cpp`, `ImGui.cpp`, `Json.cpp` and `FS.cpp` contain zero
-`sol::` tokens; everything below is `LuaHand.hpp`, `Sdk.cpp`,
+`sol::` tokens; everything below is `LuaBind.hpp`, `Sdk.cpp`,
 `ScriptRunner.cpp` and `ScriptRunner.hpp`.
 
 ## The primitives, one line each
@@ -38,7 +38,7 @@ The counts are token occurrences (`grep -o`), measured on the tree at commit
 
 ## Pattern map
 
-### LuaHand.hpp — 50 occurrences
+### LuaBind.hpp — 50 occurrences
 
 | Pattern | Count | Replacement |
 | --- | --- | --- |
@@ -124,7 +124,7 @@ move by a byte.
   - `"caught (...) exception"` — `math_raise_no_position`, raised with `lua_error`
     so no position prefix is added (ScriptRunner.cpp, pinned by probe 05).
   - `"sol: cannot set (new_index) into this object: no defined new_index operation on usertype"` —
-    `lua_hand::new_index_error`, duplicated as `lua_stack::new_index_error`.
+    `lh::new_index_error`, duplicated as `lua_stack::new_index_error`.
   - `"sol: no matching function call takes this number of arguments and the specified types"` —
     the math constructors (`vec2_new` and friends).
   - `"sol: cannot call '__pairs/pairs' on type '<name>': it is not recognized as a container"` —
@@ -133,7 +133,7 @@ move by a byte.
   - `"sol: <status> error: <lua message>"` — `script_default_on_error`; the
     status names are sol2's (`"runtime"` is the one script errors carry).
   - `"unknown C++ exception"` and `"expected <type>, got <lua type>"` —
-    `LUA_HAND_CATCH` and `lh::get_arg`, unchanged by this migration.
+    `LH_BIND_END` and `lh::get_arg`, unchanged by this migration.
   - `"attempt to call a method on a nil usertype object"` — `lh::method_thunk`.
 - **Metatable names** — the registry keys in the inventory below. The check
   chain compares rawequal against `luaL_getmetatable` of these exact strings,
@@ -278,7 +278,7 @@ string functions build the forms: `value_metatable<T>()` = `"sol." + name`,
    observed behavior is identical.
 9. **No C++-exception catch arms in the protected call.** sol2's `invoke`
    caught C++ exceptions escaping through `lua_pcall`; in this codebase every
-   binding thunk converts its own exceptions with `LUA_HAND_CATCH`, so a
+   binding thunk converts its own exceptions with `LH_BIND_END`, so a
    `lua_pcall` cannot throw across it. The pcall status is the only error
    channel, which `script_default_on_error` formats exactly as sol2 did.
 10. **Ref counting is not in this header.** `put<T*>` and

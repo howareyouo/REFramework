@@ -73,12 +73,12 @@ class REObjectInfo;
 //   - an owned value carries a __gc that runs the destructor, a borrowed
 //     pointer never does.
 //
-// The userdata protocol is shared with lua_hand (LuaHand.hpp): the
+// The userdata protocol is shared with lh (LuaBind.hpp): the
 // "class_check"/"class_cast" lightuserdata entries its install() stores are
 // read here exactly as sol2 read them, so both layers answer inheritance
 // questions about the same metatables.
 namespace lua_stack {
-// The error type a binding throws to fail a call. lua_hand's thunks translate
+// The error type a binding throws to fail a call. lh's thunks translate
 // what() into the Lua error, the way sol2 translated its own exceptions.
 class error : public std::runtime_error {
 public:
@@ -167,7 +167,7 @@ template <typename T>
 struct has_usertype_name<T, std::void_t<decltype(usertype_name<T>::value)>> : std::true_type {};
 
 // Whether the type is a std::vector. sol2 pushed a vector return as a flat
-// sequence table (the form lua_hand::put_seq builds), not as a usertype, so
+// sequence table (the form lh::put_seq builds), not as a usertype, so
 // put() needs no usertype name for it.
 template <typename T>
 struct is_std_vector : std::false_type {};
@@ -454,7 +454,7 @@ inline int raise_not_a_container(lua_State* L) {
 }
 
 // The write refusal of a plain usertype. Byte-identical to the message sol2
-// raised, which lua_hand::new_index_error already pins; kept here so this
+// raised, which lh::new_index_error already pins; kept here so this
 // header stands alone.
 inline int new_index_error(lua_State* L) {
     return luaL_error(L, "sol: cannot set (new_index) into this object: no defined new_index operation on usertype");
@@ -529,7 +529,7 @@ inline int unique_value_gc(lua_State* L) {
     return 0;
 }
 
-// The inheritance protocol lua_hand::set_bases stores: raw function pointers
+// The inheritance protocol lh::set_bases stores: raw function pointers
 // kept as lightuserdata under these two metatable fields, called with the
 // qualified name of the type the question is about.
 using inheritance_check = bool (*)(const std::string_view&);

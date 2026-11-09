@@ -12,10 +12,9 @@
 #include "../ScriptRunner.hpp"
 
 #include "FS.hpp"
-#include "LuaHand.hpp"
+#include "LuaBind.hpp"
 
 namespace fs = std::filesystem;
-namespace lh = lua_hand;
 
 namespace api::fs {
 namespace detail {
@@ -179,7 +178,7 @@ void copy_table(lua_State* L, int dst, int src) {
 
 using namespace detail;
 
-LUA_HAND_FUNC(l_glob) {
+LH_BIND(l_glob) {
     // A non-string argument is treated as an absent one, which is what the
     // typed sol2 parameters did for nil.
     const char* filter = lh::opt_str(L, 1, nullptr);
@@ -217,9 +216,9 @@ LUA_HAND_FUNC(l_glob) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_write) {
+LH_BIND(l_write) {
     size_t length = 0;
     const auto data = luaL_checklstring(L, 2, &length);
     const auto path = correct_subpath(luaL_checkstring(L, 1), false);
@@ -232,9 +231,9 @@ LUA_HAND_FUNC(l_write) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_read) {
+LH_BIND(l_read) {
     const auto path = correct_subpath(luaL_checkstring(L, 1), false);
 
     if (!::fs::exists(path)) {
@@ -254,37 +253,37 @@ LUA_HAND_FUNC(l_read) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_io_open) {
+LH_BIND(l_io_open) {
     forward_file(L, OLD_IO_OPEN);
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_io_lines) {
+LH_BIND(l_io_lines) {
     forward_file_or_nil(L, OLD_IO_LINES, "io.lines");
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_io_input) {
+LH_BIND(l_io_input) {
     forward_file_or_nil(L, OLD_IO_INPUT, "io.input");
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_io_output) {
+LH_BIND(l_io_output) {
     forward_file_or_nil(L, OLD_IO_OUTPUT, "io.output");
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_require) {
+LH_BIND(l_require) {
     const std::string_view filepath{luaL_checkstring(L, 1)};
 
     if (filepath.find("..") != std::string_view::npos) {
@@ -318,9 +317,9 @@ LUA_HAND_FUNC(l_require) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_loadlib) {
+LH_BIND(l_loadlib) {
     const std::string_view filepath{luaL_checkstring(L, 1)};
     const auto path = correct_subpath(std::string{filepath}, true);
 
@@ -340,7 +339,7 @@ LUA_HAND_FUNC(l_loadlib) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 } // namespace api::fs
 
 static const luaL_Reg FS_FUNCS[]{

@@ -11,9 +11,7 @@
 #include "utility/ImGui.hpp"
 
 #include "ImGui.hpp"
-#include "LuaHand.hpp"
-
-namespace lh = lua_hand;
+#include "LuaBind.hpp"
 
 static constexpr const char* DRAW_LIST_MT = "REFramework.ImDrawList";
 static constexpr const char* SORT_SPECS_MT = "REFramework.ImGuiTableSortSpecs";
@@ -100,31 +98,31 @@ static int put_changed(lua_State* L, bool changed) {
     return 1;
 }
 
-LUA_HAND_FUNC(l_button) {
+LH_BIND(l_button) {
     lua_pushboolean(L, ImGui::Button(lh::str(L, 1), imvec2(L, 2)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_small_button) {
+LH_BIND(l_small_button) {
     lua_pushboolean(L, ImGui::SmallButton(lh::str(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_invisible_button) {
+LH_BIND(l_invisible_button) {
     lua_pushboolean(L, ImGui::InvisibleButton(lh::str(L, 1), imvec2(L, 2), (ImGuiButtonFlags)lh::opt_int(L, 3, 0)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_arrow_button) {
+LH_BIND(l_arrow_button) {
     lua_pushboolean(L, ImGui::ArrowButton(lh::str(L, 1), (ImGuiDir)lh::num_int(L, 2)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_combo) {
+LH_BIND(l_combo) {
     const char* label = lh::str(L, 1);
 
     luaL_checktype(L, 3, LUA_TTABLE);
@@ -198,9 +196,9 @@ LUA_HAND_FUNC(l_combo) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_drag_float) {
+LH_BIND(l_drag_float) {
     float value = lh::num_float(L, 2);
 
     const auto changed = ImGui::DragFloat(
@@ -211,9 +209,9 @@ LUA_HAND_FUNC(l_drag_float) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_drag_float2) {
+LH_BIND(l_drag_float2) {
     auto value = lh::get_checked<Vector2f>(L, 2, "Vector2f expected for argument #2");
 
     const auto changed = ImGui::DragFloat2(
@@ -224,9 +222,9 @@ LUA_HAND_FUNC(l_drag_float2) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_drag_float3) {
+LH_BIND(l_drag_float3) {
     auto value = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
 
     const auto changed = ImGui::DragFloat3(
@@ -237,9 +235,9 @@ LUA_HAND_FUNC(l_drag_float3) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_drag_float4) {
+LH_BIND(l_drag_float4) {
     auto value = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
 
     const auto changed = ImGui::DragFloat4(
@@ -250,9 +248,9 @@ LUA_HAND_FUNC(l_drag_float4) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_drag_int) {
+LH_BIND(l_drag_int) {
     int value = lh::num_int(L, 2);
 
     const auto changed = ImGui::DragInt(
@@ -263,9 +261,9 @@ LUA_HAND_FUNC(l_drag_int) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_slider_float) {
+LH_BIND(l_slider_float) {
     float value = lh::num_float(L, 2);
 
     const auto changed = ImGui::SliderFloat(lh::str(L, 1), &value, lh::num_float(L, 3), lh::num_float(L, 4), lh::opt_str(L, 5, "%.3f"), 0);
@@ -275,9 +273,9 @@ LUA_HAND_FUNC(l_slider_float) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_slider_int) {
+LH_BIND(l_slider_int) {
     int value = lh::num_int(L, 2);
 
     const auto changed = ImGui::SliderInt(lh::str(L, 1), &value, lh::num_int(L, 3), lh::num_int(L, 4), lh::opt_str(L, 5, "%d"), 0);
@@ -287,7 +285,7 @@ LUA_HAND_FUNC(l_slider_int) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static std::string g_input_text_buffer{""};
 static int g_input_text_selection_start{0};
@@ -305,7 +303,7 @@ static int input_text_callback(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
-LUA_HAND_FUNC(l_input_text) {
+LH_BIND(l_input_text) {
     const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 3) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
 
     g_input_text_buffer = lh::str(L, 2);
@@ -320,9 +318,9 @@ LUA_HAND_FUNC(l_input_text) {
 
     return 4;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_input_text_multiline) {
+LH_BIND(l_input_text_multiline) {
     const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 4) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
 
     g_input_text_buffer = lh::str(L, 2);
@@ -339,15 +337,15 @@ LUA_HAND_FUNC(l_input_text_multiline) {
 
     return 4;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_text) {
+LH_BIND(l_text) {
     ImGui::TextUnformatted(lh::str(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_text_colored) {
+LH_BIND(l_text_colored) {
     const auto color = (unsigned)lh::num_int(L, 2);
 
     const auto r = color & 0xFF;
@@ -359,9 +357,9 @@ LUA_HAND_FUNC(l_text_colored) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_checkbox) {
+LH_BIND(l_checkbox) {
     bool value = lh::num_bool(L, 2);
 
     const auto changed = ImGui::Checkbox(lh::str(L, 1), &value);
@@ -371,57 +369,57 @@ LUA_HAND_FUNC(l_checkbox) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_tree_node) {
+LH_BIND(l_tree_node) {
     lua_pushboolean(L, ImGui::TreeNode(lh::str(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_tree_node_ptr_id) {
+LH_BIND(l_tree_node_ptr_id) {
     lua_pushboolean(L, ImGui::TreeNode(lua_topointer(L, 1), lh::str(L, 2)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_tree_node_str_id) {
+LH_BIND(l_tree_node_str_id) {
     lua_pushboolean(L, ImGui::TreeNode(lh::str(L, 1), lh::str(L, 2)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_tree_pop) {
+LH_BIND(l_tree_pop) {
     ImGui::TreePop();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_same_line) {
+LH_BIND(l_same_line) {
     ImGui::SameLine();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_item_hovered) {
+LH_BIND(l_is_item_hovered) {
     lua_pushboolean(L, ImGui::IsItemHovered((ImGuiHoveredFlags)lh::opt_int(L, 1, 0)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_item_active) {
+LH_BIND(l_is_item_active) {
     lua_pushboolean(L, ImGui::IsItemActive());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_item_focused) {
+LH_BIND(l_is_item_focused) {
     lua_pushboolean(L, ImGui::IsItemFocused());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_window) {
+LH_BIND(l_begin_window) {
     bool open = true;
     bool* open_p = nullptr;
 
@@ -441,47 +439,47 @@ LUA_HAND_FUNC(l_begin_window) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_window) {
+LH_BIND(l_end_window) {
     ImGui::End();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_child_window) {
+LH_BIND(l_begin_child_window) {
     lua_pushboolean(
         L, ImGui::BeginChild(lh::str(L, 1), imvec2(L, 2), lh::opt_bool(L, 3, false), (ImGuiWindowFlags)lh::opt_int(L, 4, 0)));
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_child_window) {
+LH_BIND(l_end_child_window) {
     ImGui::EndChild();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_group) {
+LH_BIND(l_begin_group) {
     ImGui::BeginGroup();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_group) {
+LH_BIND(l_end_group) {
     ImGui::EndGroup();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_rect) {
+LH_BIND(l_begin_rect) {
     ImGui::BeginGroup();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_rect) {
+LH_BIND(l_end_rect) {
     ImGui::EndGroup();
 
     float rounding = lh::opt_num(L, 2, ImGui::GetStyle().FrameRounding);
@@ -500,16 +498,16 @@ LUA_HAND_FUNC(l_end_rect) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_disabled) {
+LH_BIND(l_begin_disabled) {
     ++g_disabled_counts;
     ImGui::BeginDisabled(lh::opt_bool(L, 1, true));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_disabled) {
+LH_BIND(l_end_disabled) {
     if (g_disabled_counts > 0) {
         --g_disabled_counts;
         ImGui::EndDisabled();
@@ -517,33 +515,33 @@ LUA_HAND_FUNC(l_end_disabled) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_separator) {
+LH_BIND(l_separator) {
     ImGui::Separator();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_spacing) {
+LH_BIND(l_spacing) {
     ImGui::Spacing();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_new_line) {
+LH_BIND(l_new_line) {
     ImGui::NewLine();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_collapsing_header) {
+LH_BIND(l_collapsing_header) {
     lua_pushboolean(L, ImGui::CollapsingHeader(lh::str(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_load_font) {
+LH_BIND(l_load_font) {
     namespace fs = std::filesystem;
 
     const char* filepath = "doesnt-exist.not-a-real-font";
@@ -571,9 +569,9 @@ LUA_HAND_FUNC(l_load_font) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_font) {
+LH_BIND(l_push_font) {
     try {
         const int font = lh::num_int(L, 1);
 
@@ -592,33 +590,33 @@ LUA_HAND_FUNC(l_push_font) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_font) {
+LH_BIND(l_pop_font) {
     ImGui::PopFont();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_font_size) {
+LH_BIND(l_push_font_size) {
     ImGui::PushFont(nullptr, lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_font_size) {
+LH_BIND(l_pop_font_size) {
     ImGui::PopFont();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_default_font_size) {
+LH_BIND(l_get_default_font_size) {
     lua_pushinteger(L, g_framework->get_font_size());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_picker) {
+LH_BIND(l_color_picker) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
     const auto color = (unsigned)lh::num_int(L, 2);
 
@@ -647,9 +645,9 @@ LUA_HAND_FUNC(l_color_picker) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_picker_argb) {
+LH_BIND(l_color_picker_argb) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
     const auto color = (unsigned)lh::num_int(L, 2);
 
@@ -678,9 +676,9 @@ LUA_HAND_FUNC(l_color_picker_argb) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_picker3) {
+LH_BIND(l_color_picker3) {
     auto color = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
 
     const auto changed = ImGui::ColorPicker3(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
@@ -690,9 +688,9 @@ LUA_HAND_FUNC(l_color_picker3) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_picker4) {
+LH_BIND(l_color_picker4) {
     auto color = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
 
     const auto changed = ImGui::ColorPicker4(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
@@ -702,9 +700,9 @@ LUA_HAND_FUNC(l_color_picker4) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_edit) {
+LH_BIND(l_color_edit) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
     const auto color = (unsigned)lh::num_int(L, 2);
 
@@ -733,9 +731,9 @@ LUA_HAND_FUNC(l_color_edit) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_edit_argb) {
+LH_BIND(l_color_edit_argb) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
     const auto color = (unsigned)lh::num_int(L, 2);
 
@@ -764,9 +762,9 @@ LUA_HAND_FUNC(l_color_edit_argb) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_edit3) {
+LH_BIND(l_color_edit3) {
     auto color = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
 
     const auto changed = ImGui::ColorEdit3(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
@@ -776,9 +774,9 @@ LUA_HAND_FUNC(l_color_edit3) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_color_edit4) {
+LH_BIND(l_color_edit4) {
     auto color = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
 
     const auto changed = ImGui::ColorEdit4(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
@@ -788,23 +786,23 @@ LUA_HAND_FUNC(l_color_edit4) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_next_window_pos) {
+LH_BIND(l_set_next_window_pos) {
     ImGui::SetNextWindowPos(imvec2(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0), imvec2(L, 3));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_next_window_size) {
+LH_BIND(l_set_next_window_size) {
     ImGui::SetNextWindowSize(imvec2(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static const char* id_type_error = "Type must be int, const char* or void*";
 
-LUA_HAND_FUNC(l_push_id) {
+LH_BIND(l_push_id) {
     if (lh::is_int(L, 1)) {
         ImGui::PushID((int)lua_tointeger(L, 1));
     } else if (lh::is_str(L, 1)) {
@@ -817,15 +815,15 @@ LUA_HAND_FUNC(l_push_id) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_id) {
+LH_BIND(l_pop_id) {
     ImGui::PopID();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_id) {
+LH_BIND(l_get_id) {
     if (lh::is_int(L, 1)) {
         lua_pushinteger(L, (ImGuiID)lua_tointeger(L, 1));
     } else if (lh::is_str(L, 1)) {
@@ -838,228 +836,228 @@ LUA_HAND_FUNC(l_get_id) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_mouse) {
+LH_BIND(l_get_mouse) {
     const auto mouse = ImGui::GetMousePos();
 
     put_vec2(L, Vector2f{mouse.x, mouse.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_key_index) {
+LH_BIND(l_get_key_index) {
     lua_pushinteger(L, (int)(ImGuiKey)lh::num_int(L, 1));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_key_down) {
+LH_BIND(l_is_key_down) {
     lua_pushboolean(L, ImGui::IsKeyDown((ImGuiKey)lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_key_pressed) {
+LH_BIND(l_is_key_pressed) {
     lua_pushboolean(L, ImGui::IsKeyPressed((ImGuiKey)lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_key_released) {
+LH_BIND(l_is_key_released) {
     lua_pushboolean(L, ImGui::IsKeyReleased((ImGuiKey)lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_mouse_down) {
+LH_BIND(l_is_mouse_down) {
     lua_pushboolean(L, ImGui::IsMouseDown(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_mouse_clicked) {
+LH_BIND(l_is_mouse_clicked) {
     lua_pushboolean(L, ImGui::IsMouseClicked(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_mouse_released) {
+LH_BIND(l_is_mouse_released) {
     lua_pushboolean(L, ImGui::IsMouseReleased(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_mouse_double_clicked) {
+LH_BIND(l_is_mouse_double_clicked) {
     lua_pushboolean(L, ImGui::IsMouseDoubleClicked(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_indent) {
+LH_BIND(l_indent) {
     ImGui::Indent(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_unindent) {
+LH_BIND(l_unindent) {
     ImGui::Unindent(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_tooltip) {
+LH_BIND(l_begin_tooltip) {
     ImGui::BeginTooltip();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_tooltip) {
+LH_BIND(l_end_tooltip) {
     ImGui::EndTooltip();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_tooltip) {
+LH_BIND(l_set_tooltip) {
     ImGui::SetTooltip("%s", lh::str(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_open_popup) {
+LH_BIND(l_open_popup) {
     ImGui::OpenPopup(lh::str(L, 1), (ImGuiWindowFlags)lh::opt_int(L, 2, 0));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_popup) {
+LH_BIND(l_begin_popup) {
     lua_pushboolean(L, ImGui::BeginPopup(lh::str(L, 1), lh::opt_int(L, 2, 0)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_popup_context_item) {
+LH_BIND(l_begin_popup_context_item) {
     lua_pushboolean(L, ImGui::BeginPopupContextItem(lh::str(L, 1), lh::opt_int(L, 2, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_popup) {
+LH_BIND(l_end_popup) {
     ImGui::EndPopup();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_close_current_popup) {
+LH_BIND(l_close_current_popup) {
     ImGui::CloseCurrentPopup();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_popup_open) {
+LH_BIND(l_is_popup_open) {
     lua_pushboolean(L, ImGui::IsPopupOpen(lh::str(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_calc_text_size) {
+LH_BIND(l_calc_text_size) {
     const auto result = ImGui::CalcTextSize(lh::str(L, 1));
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_window_size) {
+LH_BIND(l_get_window_size) {
     const auto result = ImGui::GetWindowSize();
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_window_pos) {
+LH_BIND(l_get_window_pos) {
     const auto result = ImGui::GetWindowPos();
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_next_item_open) {
+LH_BIND(l_set_next_item_open) {
     ImGui::SetNextItemOpen(lh::num_bool(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_list_box) {
+LH_BIND(l_begin_list_box) {
     lua_pushboolean(L, ImGui::BeginListBox(lh::str(L, 1), imvec2(L, 2)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_list_box) {
+LH_BIND(l_end_list_box) {
     ImGui::EndListBox();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_menu_bar) {
+LH_BIND(l_begin_menu_bar) {
     lua_pushboolean(L, ImGui::BeginMenuBar());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_menu_bar) {
+LH_BIND(l_end_menu_bar) {
     ImGui::EndMenuBar();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_main_menu_bar) {
+LH_BIND(l_begin_main_menu_bar) {
     lua_pushboolean(L, ImGui::BeginMainMenuBar());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_main_menu_bar) {
+LH_BIND(l_end_main_menu_bar) {
     ImGui::EndMainMenuBar();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_menu) {
+LH_BIND(l_begin_menu) {
     lua_pushboolean(L, ImGui::BeginMenu(lh::str(L, 1), lh::opt_bool(L, 2, true)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_menu) {
+LH_BIND(l_end_menu) {
     ImGui::EndMenu();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_menu_item) {
+LH_BIND(l_menu_item) {
     const char* shortcut = lh::opt_str(L, 2, "");
 
     lua_pushboolean(L, ImGui::MenuItem(lh::str(L, 1), shortcut, lh::opt_bool(L, 3, false), lh::opt_bool(L, 4, true)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_display_size) {
+LH_BIND(l_get_display_size) {
     const auto& result = ImGui::GetIO().DisplaySize;
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static int push_draw_list(lua_State* L, ImDrawList* draw_list) {
     if (draw_list == nullptr) {
@@ -1078,46 +1076,46 @@ static ImDrawList* check_draw_list(lua_State* L, int index) {
     return *static_cast<ImDrawList**>(luaL_checkudata(L, index, DRAW_LIST_MT));
 }
 
-LUA_HAND_FUNC(l_get_window_draw_list) {
+LH_BIND(l_get_window_draw_list) {
     return push_draw_list(L, ImGui::GetWindowDrawList());
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_background_draw_list) {
+LH_BIND(l_get_background_draw_list) {
     return push_draw_list(L, ImGui::GetBackgroundDrawList());
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_foreground_draw_list) {
+LH_BIND(l_get_foreground_draw_list) {
     return push_draw_list(L, ImGui::GetForegroundDrawList());
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_item_width) {
+LH_BIND(l_push_item_width) {
     ImGui::PushItemWidth(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_item_width) {
+LH_BIND(l_pop_item_width) {
     ImGui::PopItemWidth();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_next_item_width) {
+LH_BIND(l_set_next_item_width) {
     ImGui::SetNextItemWidth(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_calc_item_width) {
+LH_BIND(l_calc_item_width) {
     lua_pushnumber(L, ImGui::CalcItemWidth());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_item_add) {
+LH_BIND(l_item_add) {
     const auto window = ImGui::GetCurrentWindow();
 
     if (window == nullptr) {
@@ -1131,9 +1129,9 @@ LUA_HAND_FUNC(l_item_add) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_item_size) {
+LH_BIND(l_item_size) {
     const auto rect = ImRect{imvec2(L, 1), imvec2(L, 2)};
 
     if (lh::is_num(L, 3)) {
@@ -1144,9 +1142,9 @@ LUA_HAND_FUNC(l_item_size) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_style_color) {
+LH_BIND(l_push_style_color) {
     if (lh::is_int(L, 2)) {
         ImGui::PushStyleColor((ImGuiCol)lh::num_int(L, 1), (ImU32)lua_tointeger(L, 2));
     } else if (lh::is<Vector4f>(L, 2)) {
@@ -1155,15 +1153,15 @@ LUA_HAND_FUNC(l_push_style_color) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_style_color) {
+LH_BIND(l_pop_style_color) {
     ImGui::PopStyleColor(lh::opt_int(L, 1, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_style_var) {
+LH_BIND(l_push_style_var) {
     if (lh::is_num(L, 2)) {
         ImGui::PushStyleVar((ImGuiStyleVar)lh::num_int(L, 1), lh::opt_num(L, 2, 0.0f));
     } else if (lh::is<Vector2f>(L, 2)) {
@@ -1172,90 +1170,90 @@ LUA_HAND_FUNC(l_push_style_var) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_style_var) {
+LH_BIND(l_pop_style_var) {
     ImGui::PopStyleVar(lh::opt_int(L, 1, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_cursor_pos) {
+LH_BIND(l_get_cursor_pos) {
     const auto result = ImGui::GetCursorPos();
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_cursor_pos) {
+LH_BIND(l_set_cursor_pos) {
     ImGui::SetCursorPos(imvec2(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_cursor_start_pos) {
+LH_BIND(l_get_cursor_start_pos) {
     const auto result = ImGui::GetCursorStartPos();
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_cursor_screen_pos) {
+LH_BIND(l_get_cursor_screen_pos) {
     const auto result = ImGui::GetCursorScreenPos();
 
     put_vec2(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_cursor_screen_pos) {
+LH_BIND(l_set_cursor_screen_pos) {
     ImGui::SetCursorScreenPos(imvec2(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_item_default_focus) {
+LH_BIND(l_set_item_default_focus) {
     ImGui::SetItemDefaultFocus();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_clipboard) {
+LH_BIND(l_set_clipboard) {
     ImGui::SetClipboardText(lh::str(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_clipboard) {
+LH_BIND(l_get_clipboard) {
     const auto text = ImGui::GetClipboardText();
 
     lua_pushstring(L, text == nullptr ? "" : text);
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_progress_bar) {
+LH_BIND(l_progress_bar) {
     ImGui::ProgressBar(lh::num_float(L, 1), imvec2(L, 2), lh::str(L, 3));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_draw_list_path_clear) {
+LH_BIND(l_draw_list_path_clear) {
     if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
         dl->PathClear();
     }
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_draw_list_path_line_to) {
+LH_BIND(l_draw_list_path_line_to) {
     const auto pos = imvec2(L, 1);
 
     if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
@@ -1264,78 +1262,78 @@ LUA_HAND_FUNC(l_draw_list_path_line_to) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_draw_list_path_stroke) {
+LH_BIND(l_draw_list_path_stroke) {
     if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
         dl->PathStroke((ImU32)lh::num_int(L, 1), lua_toboolean(L, 2) != 0, lh::num_float(L, 3));
     }
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_scroll_x) {
+LH_BIND(l_get_scroll_x) {
     lua_pushnumber(L, ImGui::GetScrollX());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_scroll_y) {
+LH_BIND(l_get_scroll_y) {
     lua_pushnumber(L, ImGui::GetScrollY());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_x) {
+LH_BIND(l_set_scroll_x) {
     ImGui::SetScrollX(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_y) {
+LH_BIND(l_set_scroll_y) {
     ImGui::SetScrollY(lh::num_float(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_scroll_max_x) {
+LH_BIND(l_get_scroll_max_x) {
     lua_pushnumber(L, ImGui::GetScrollMaxX());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_scroll_max_y) {
+LH_BIND(l_get_scroll_max_y) {
     lua_pushnumber(L, ImGui::GetScrollMaxY());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_here_x) {
+LH_BIND(l_set_scroll_here_x) {
     ImGui::SetScrollHereX(lh::opt_num(L, 1, 0.5f));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_here_y) {
+LH_BIND(l_set_scroll_here_y) {
     ImGui::SetScrollHereY(lh::opt_num(L, 1, 0.5f));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_from_pos_x) {
+LH_BIND(l_set_scroll_from_pos_x) {
     ImGui::SetScrollFromPosX(lh::num_float(L, 1), lh::opt_num(L, 2, 0.5f));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_scroll_from_pos_y) {
+LH_BIND(l_set_scroll_from_pos_y) {
     ImGui::SetScrollFromPosY(lh::num_float(L, 1), lh::opt_num(L, 2, 0.5f));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_table) {
+LH_BIND(l_begin_table) {
     ImVec2 outer_size{};
 
     if (lh::is<Vector2f>(L, 4)) {
@@ -1348,33 +1346,33 @@ LUA_HAND_FUNC(l_begin_table) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_table) {
+LH_BIND(l_end_table) {
     ImGui::EndTable();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_next_row) {
+LH_BIND(l_table_next_row) {
     ImGui::TableNextRow(lh::opt_int(L, 1, 0), lh::opt_num(L, 2, 0.0f));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_next_column) {
+LH_BIND(l_table_next_column) {
     lua_pushboolean(L, ImGui::TableNextColumn());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_set_column_index) {
+LH_BIND(l_table_set_column_index) {
     lua_pushboolean(L, ImGui::TableSetColumnIndex(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_setup_column) {
+LH_BIND(l_table_setup_column) {
     ImGui::TableSetupColumn(lh::str(L, 1),
         lh::opt_int(L, 2, 0),
         lh::opt_num(L, 3, 0.0f),
@@ -1382,64 +1380,64 @@ LUA_HAND_FUNC(l_table_setup_column) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_setup_scroll_freeze) {
+LH_BIND(l_table_setup_scroll_freeze) {
     ImGui::TableSetupScrollFreeze(lh::num_int(L, 1), lh::num_int(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_headers_row) {
+LH_BIND(l_table_headers_row) {
     ImGui::TableHeadersRow();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_header) {
+LH_BIND(l_table_header) {
     ImGui::TableHeader(lh::str(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_get_column_count) {
+LH_BIND(l_table_get_column_count) {
     lua_pushinteger(L, ImGui::TableGetColumnCount());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_get_column_index) {
+LH_BIND(l_table_get_column_index) {
     lua_pushinteger(L, ImGui::TableGetColumnIndex());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_get_row_index) {
+LH_BIND(l_table_get_row_index) {
     lua_pushinteger(L, ImGui::TableGetRowIndex());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_get_column_name) {
+LH_BIND(l_table_get_column_name) {
     const auto name = ImGui::TableGetColumnName(lh::opt_int(L, 1, -1));
 
     lua_pushstring(L, name == nullptr ? "" : name);
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_get_column_flags) {
+LH_BIND(l_table_get_column_flags) {
     lua_pushinteger(L, (int)ImGui::TableGetColumnFlags(lh::opt_int(L, 1, -1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_table_set_bg_color) {
+LH_BIND(l_table_set_bg_color) {
     ImGui::TableSetBgColor((ImGuiTableBgTarget)lh::num_int(L, 1), (ImU32)lh::num_int(L, 2), lh::opt_int(L, 3, -1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static int push_sort_specs(lua_State* L, ImGuiTableSortSpecs* specs) {
     if (specs == nullptr) {
@@ -1467,225 +1465,225 @@ static int push_column_sort_specs(lua_State* L, ImGuiTableColumnSortSpecs* specs
     return 1;
 }
 
-LUA_HAND_FUNC(l_table_get_sort_specs) {
+LH_BIND(l_table_get_sort_specs) {
     return push_sort_specs(L, ImGui::TableGetSortSpecs());
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 } // namespace api::imgui
 
 namespace api::imgui {
-LUA_HAND_FUNC(l_dl_push_clip_rect) {
+LH_BIND(l_dl_push_clip_rect) {
     check_draw_list(L, 1)->PushClipRect(imvec2(L, 2), imvec2(L, 3), lh::num_bool(L, 4));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_push_clip_rect_fullscreen) {
+LH_BIND(l_dl_push_clip_rect_fullscreen) {
     check_draw_list(L, 1)->PushClipRectFullScreen();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_pop_clip_rect) {
+LH_BIND(l_dl_pop_clip_rect) {
     check_draw_list(L, 1)->PopClipRect();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_line) {
+LH_BIND(l_dl_add_line) {
     check_draw_list(L, 1)->AddLine(
         imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_rect) {
+LH_BIND(l_dl_add_rect) {
     check_draw_list(L, 1)->AddRect(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5),
         (ImDrawFlags)lh::num_int(L, 6), lh::num_float(L, 7));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_rect_filled) {
+LH_BIND(l_dl_add_rect_filled) {
     check_draw_list(L, 1)->AddRectFilled(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5),
         (ImDrawFlags)lh::num_int(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_rect_filled_multi_color) {
+LH_BIND(l_dl_add_rect_filled_multi_color) {
     check_draw_list(L, 1)->AddRectFilledMultiColor(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4),
         (ImU32)lh::num_uint(L, 5), (ImU32)lh::num_uint(L, 6), (ImU32)lh::num_uint(L, 7));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_quad) {
+LH_BIND(l_dl_add_quad) {
     check_draw_list(L, 1)->AddQuad(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5), (ImU32)lh::num_uint(L, 6),
         lh::num_float(L, 7));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_quad_filled) {
+LH_BIND(l_dl_add_quad_filled) {
     check_draw_list(L, 1)->AddQuadFilled(
         imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5), (ImU32)lh::num_uint(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_triangle) {
+LH_BIND(l_dl_add_triangle) {
     check_draw_list(L, 1)->AddTriangle(
         imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5), lh::num_float(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_triangle_filled) {
+LH_BIND(l_dl_add_triangle_filled) {
     check_draw_list(L, 1)->AddTriangleFilled(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_circle) {
+LH_BIND(l_dl_add_circle) {
     check_draw_list(L, 1)->AddCircle(
         imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5), lh::num_float(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_circle_filled) {
+LH_BIND(l_dl_add_circle_filled) {
     check_draw_list(L, 1)->AddCircleFilled(
         imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_ngon) {
+LH_BIND(l_dl_add_ngon) {
     check_draw_list(L, 1)->AddNgon(
         imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5), lh::num_float(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_ngon_filled) {
+LH_BIND(l_dl_add_ngon_filled) {
     check_draw_list(L, 1)->AddNgonFilled(
         imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_ellipse) {
+LH_BIND(l_dl_add_ellipse) {
     check_draw_list(L, 1)->AddEllipse(
         imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5), lh::num_int(L, 6), lh::num_float(L, 7));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_ellipse_filled) {
+LH_BIND(l_dl_add_ellipse_filled) {
     check_draw_list(L, 1)->AddEllipseFilled(
         imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5), lh::num_int(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_text) {
+LH_BIND(l_dl_add_text) {
     check_draw_list(L, 1)->AddText(imvec2(L, 2), (ImU32)lh::num_uint(L, 3), lh::str(L, 4));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_bezier_cubic) {
+LH_BIND(l_dl_add_bezier_cubic) {
     check_draw_list(L, 1)->AddBezierCubic(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5),
         (ImU32)lh::num_uint(L, 6), lh::num_float(L, 7));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_add_bezier_quadratic) {
+LH_BIND(l_dl_add_bezier_quadratic) {
     check_draw_list(L, 1)->AddBezierQuadratic(
         imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5), lh::num_float(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_clear) {
+LH_BIND(l_dl_path_clear) {
     check_draw_list(L, 1)->PathClear();
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_line_to) {
+LH_BIND(l_dl_path_line_to) {
     check_draw_list(L, 1)->PathLineTo(imvec2(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_line_to_merge_duplicate) {
+LH_BIND(l_dl_path_line_to_merge_duplicate) {
     check_draw_list(L, 1)->PathLineToMergeDuplicate(imvec2(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_fill_convex) {
+LH_BIND(l_dl_path_fill_convex) {
     check_draw_list(L, 1)->PathFillConvex((ImU32)lh::num_uint(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_fill_concave) {
+LH_BIND(l_dl_path_fill_concave) {
     check_draw_list(L, 1)->PathFillConcave((ImU32)lh::num_uint(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_stroke) {
+LH_BIND(l_dl_path_stroke) {
     check_draw_list(L, 1)->PathStroke(
         (ImU32)lh::num_uint(L, 2), (ImDrawFlags)lh::num_int(L, 3), lh::num_float(L, 4));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_arc_to) {
+LH_BIND(l_dl_path_arc_to) {
     check_draw_list(L, 1)->PathArcTo(imvec2(L, 2), lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5),
         lh::num_int(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_arc_to_fast) {
+LH_BIND(l_dl_path_arc_to_fast) {
     check_draw_list(L, 1)->PathArcToFast(
         imvec2(L, 2), lh::num_float(L, 3), lh::num_int(L, 4), lh::num_int(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_elliptical_arc_to) {
+LH_BIND(l_dl_path_elliptical_arc_to) {
     check_draw_list(L, 1)->PathEllipticalArcTo(
         imvec2(L, 2), imvec2(L, 3), 0.0f, lh::num_float(L, 4), lh::num_float(L, 5), lh::num_int(L, 6));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_bezier_cubic_curve_to) {
+LH_BIND(l_dl_path_bezier_cubic_curve_to) {
     check_draw_list(L, 1)->PathBezierCubicCurveTo(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), lh::num_int(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_bezier_quadratic_curve_to) {
+LH_BIND(l_dl_path_bezier_quadratic_curve_to) {
     check_draw_list(L, 1)->PathBezierQuadraticCurveTo(imvec2(L, 2), imvec2(L, 3), lh::num_int(L, 4));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dl_path_rect) {
+LH_BIND(l_dl_path_rect) {
     check_draw_list(L, 1)->PathRect(imvec2(L, 2), imvec2(L, 3), lh::num_float(L, 4), (ImDrawFlags)lh::num_int(L, 5));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_specs_get_specs) {
+LH_BIND(l_specs_get_specs) {
     const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
 
     lua_createtable(L, specs->SpecsCount, 0);
@@ -1697,9 +1695,9 @@ LUA_HAND_FUNC(l_specs_get_specs) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_specs_index) {
+LH_BIND(l_specs_index) {
     const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
     const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
 
@@ -1721,9 +1719,9 @@ LUA_HAND_FUNC(l_specs_index) {
     lua_pushnil(L);
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_specs_newindex) {
+LH_BIND(l_specs_newindex) {
     const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
     const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
 
@@ -1734,9 +1732,9 @@ LUA_HAND_FUNC(l_specs_newindex) {
 
     return luaL_error(L, "TableSortSpecs has no writable member '%s'", key == nullptr ? "" : key);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_column_specs_index) {
+LH_BIND(l_column_specs_index) {
     const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
     const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
 
@@ -1768,9 +1766,9 @@ LUA_HAND_FUNC(l_column_specs_index) {
     lua_pushnil(L);
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_column_specs_newindex) {
+LH_BIND(l_column_specs_newindex) {
     const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
     const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
 
@@ -1795,21 +1793,21 @@ LUA_HAND_FUNC(l_column_specs_newindex) {
 
     return luaL_error(L, "TableColumnSortSpecs has no writable member '%s'", key == nullptr ? "" : key);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // sol2 published `TableSortSpecs` and `TableColumnSortSpecs` under `imgui` as
 // well as in the metatables, so a member could be read off the type table
 // (`imgui.TableSortSpecs.get_specs`). A type table holds them as the function
 // an instance offers, which is what these two produce.
-LUA_HAND_FUNC(l_specs_get_specs_dirty) {
+LH_BIND(l_specs_get_specs_dirty) {
     const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
 
     lua_pushboolean(L, specs->SpecsDirty);
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_column_specs_get_value) {
+LH_BIND(l_column_specs_get_value) {
     const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
 
     switch (static_cast<int>(lua_tointeger(L, lua_upvalueindex(1)))) {
@@ -1821,7 +1819,7 @@ LUA_HAND_FUNC(l_column_specs_get_value) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 } // namespace api::imgui
 
 namespace api::draw {
@@ -1866,13 +1864,13 @@ static bool push_world_to_screen(lua_State* L, int index) {
     return true;
 }
 
-LUA_HAND_FUNC(l_world_to_screen) {
+LH_BIND(l_world_to_screen) {
     push_world_to_screen(L, 1);
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_world_text) {
+LH_BIND(l_world_text) {
     const char* text = lh::str(L, 1);
 
     if (!push_world_to_screen(L, 2)) {
@@ -1887,16 +1885,16 @@ LUA_HAND_FUNC(l_world_text) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_text) {
+LH_BIND(l_text) {
     ImGui::GetBackgroundDrawList()->AddText(
         ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)}, (ImU32)lh::num_uint(L, 4), lh::str(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_filled_rect) {
+LH_BIND(l_filled_rect) {
     const auto x = lh::num_float(L, 1);
     const auto y = lh::num_float(L, 2);
 
@@ -1905,9 +1903,9 @@ LUA_HAND_FUNC(l_filled_rect) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_outline_rect) {
+LH_BIND(l_outline_rect) {
     const auto x = lh::num_float(L, 1);
     const auto y = lh::num_float(L, 2);
 
@@ -1916,51 +1914,51 @@ LUA_HAND_FUNC(l_outline_rect) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_line) {
+LH_BIND(l_line) {
     ImGui::GetBackgroundDrawList()->AddLine(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
         ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, (ImU32)lh::num_uint(L, 5));
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_outline_circle) {
+LH_BIND(l_outline_circle) {
     ImGui::GetBackgroundDrawList()->AddCircle(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
         lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::is_none(L, 5) ? 32 : lh::num_int(L, 5));
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_filled_circle) {
+LH_BIND(l_filled_circle) {
     ImGui::GetBackgroundDrawList()->AddCircleFilled(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
         lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::is_none(L, 5) ? 32 : lh::num_int(L, 5));
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_outline_quad) {
+LH_BIND(l_outline_quad) {
     ImGui::GetBackgroundDrawList()->AddQuad(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
         ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, ImVec2{lh::num_float(L, 5), lh::num_float(L, 6)},
         ImVec2{lh::num_float(L, 7), lh::num_float(L, 8)}, (ImU32)lh::num_uint(L, 9));
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_filled_quad) {
+LH_BIND(l_filled_quad) {
     ImGui::GetBackgroundDrawList()->AddQuadFilled(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
         ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, ImVec2{lh::num_float(L, 5), lh::num_float(L, 6)},
         ImVec2{lh::num_float(L, 7), lh::num_float(L, 8)}, (ImU32)lh::num_uint(L, 9));
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_sphere) {
+LH_BIND(l_sphere) {
     Vector3f world_pos{};
 
     if (!to_world_pos(L, 1, world_pos)) {
@@ -1971,9 +1969,9 @@ LUA_HAND_FUNC(l_sphere) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_capsule) {
+LH_BIND(l_capsule) {
     Vector3f start_pos{};
     Vector3f end_pos{};
 
@@ -1986,9 +1984,9 @@ LUA_HAND_FUNC(l_capsule) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_gizmo) {
+LH_BIND(l_gizmo) {
     if (!ImGui::GetIO().MouseDown[0]) {
         ImGuizmo::Enable(false);
         ImGuizmo::Enable(true);
@@ -2029,9 +2027,9 @@ LUA_HAND_FUNC(l_gizmo) {
 
     return 2;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_cube) {
+LH_BIND(l_cube) {
     if (!lh::is<Matrix4x4f>(L, 1)) {
         throw std::runtime_error("Matrix4x4f expected for argument #1");
     }
@@ -2040,9 +2038,9 @@ LUA_HAND_FUNC(l_cube) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_grid) {
+LH_BIND(l_grid) {
     if (!lh::is<Matrix4x4f>(L, 1)) {
         throw std::runtime_error("Matrix4x4f expected for argument #1");
     }
@@ -2051,7 +2049,7 @@ LUA_HAND_FUNC(l_grid) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 } // namespace api::draw
 
 namespace api::imnodes {
@@ -2071,223 +2069,223 @@ static int push_id_result(lua_State* L, bool result, int id) {
     return 2;
 }
 
-LUA_HAND_FUNC(l_is_editor_hovered) {
+LH_BIND(l_is_editor_hovered) {
     lua_pushboolean(L, ImNodes::IsEditorHovered());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_node_hovered) {
+LH_BIND(l_is_node_hovered) {
     int id{};
     const auto result = ImNodes::IsNodeHovered(&id);
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_hovered) {
+LH_BIND(l_is_link_hovered) {
     int id{};
     const auto result = ImNodes::IsLinkHovered(&id);
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_pin_hovered) {
+LH_BIND(l_is_pin_hovered) {
     int id{};
     const auto result = ImNodes::IsPinHovered(&id);
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_node_editor) {
+LH_BIND(l_begin_node_editor) {
     ImNodes::BeginNodeEditor();
     ++g_node_editor_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_node_editor) {
+LH_BIND(l_end_node_editor) {
     ImNodes::EndNodeEditor();
     --g_node_editor_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_node) {
+LH_BIND(l_begin_node) {
     ImNodes::BeginNode(lh::num_int(L, 1));
     ++g_node_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_node) {
+LH_BIND(l_end_node) {
     ImNodes::EndNode();
     --g_node_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_node_titlebar) {
+LH_BIND(l_begin_node_titlebar) {
     ImNodes::BeginNodeTitleBar();
     ++g_node_titlebar_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_node_titlebar) {
+LH_BIND(l_end_node_titlebar) {
     ImNodes::EndNodeTitleBar();
     --g_node_titlebar_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_input_attribute) {
+LH_BIND(l_begin_input_attribute) {
     ImNodes::BeginInputAttribute(lh::num_int(L, 1), (ImNodesPinShape)lh::num_int(L, 2));
     ++g_input_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_input_attribute) {
+LH_BIND(l_end_input_attribute) {
     ImNodes::EndInputAttribute();
     --g_input_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_output_attribute) {
+LH_BIND(l_begin_output_attribute) {
     ImNodes::BeginOutputAttribute(lh::num_int(L, 1), (ImNodesPinShape)lh::num_int(L, 2));
     ++g_output_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_output_attribute) {
+LH_BIND(l_end_output_attribute) {
     ImNodes::EndOutputAttribute();
     --g_output_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_begin_static_attribute) {
+LH_BIND(l_begin_static_attribute) {
     ImNodes::BeginStaticAttribute(lh::num_int(L, 1));
     ++g_static_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_end_static_attribute) {
+LH_BIND(l_end_static_attribute) {
     ImNodes::EndStaticAttribute();
     --g_static_attribute_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_minimap) {
+LH_BIND(l_minimap) {
     ImNodes::MiniMap(lh::num_float(L, 1), (ImNodesMiniMapLocation)lh::num_int(L, 2));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_link) {
+LH_BIND(l_link) {
     ImNodes::Link(lh::num_int(L, 1), lh::num_int(L, 2), lh::num_int(L, 3));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_node_dimensions) {
+LH_BIND(l_get_node_dimensions) {
     const auto result = ImNodes::GetNodeDimensions(lh::num_int(L, 1));
 
     lh::put(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_color_style) {
+LH_BIND(l_push_color_style) {
     ImNodes::PushColorStyle((ImNodesCol)lh::num_int(L, 1), lh::num_uint(L, 2));
     ++g_color_style_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_color_style) {
+LH_BIND(l_pop_color_style) {
     ImNodes::PopColorStyle();
     --g_color_style_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_style_var) {
+LH_BIND(l_push_style_var) {
     ImNodes::PushStyleVar((ImNodesStyleVar)lh::num_int(L, 1), lh::num_float(L, 2));
     ++g_color_style_var_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_push_style_var_vec2) {
+LH_BIND(l_push_style_var_vec2) {
     ImNodes::PushStyleVar(
         (ImNodesStyleVar)lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
     ++g_color_style_var_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_pop_style_var) {
+LH_BIND(l_pop_style_var) {
     ImNodes::PopStyleVar();
     --g_color_style_var_counts;
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_node_screen_space_pos) {
+LH_BIND(l_set_node_screen_space_pos) {
     ImNodes::SetNodeScreenSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_node_editor_space_pos) {
+LH_BIND(l_set_node_editor_space_pos) {
     ImNodes::SetNodeEditorSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_set_node_grid_space_pos) {
+LH_BIND(l_set_node_grid_space_pos) {
     ImNodes::SetNodeGridSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_node_screen_space_pos) {
+LH_BIND(l_get_node_screen_space_pos) {
     const auto result = ImNodes::GetNodeScreenSpacePos(lh::num_int(L, 1));
 
     lh::put(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_node_editor_space_pos) {
+LH_BIND(l_get_node_editor_space_pos) {
     const auto result = ImNodes::GetNodeEditorSpacePos(lh::num_int(L, 1));
 
     lh::put(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_node_grid_space_pos) {
+LH_BIND(l_get_node_grid_space_pos) {
     const auto result = ImNodes::GetNodeGridSpacePos(lh::num_int(L, 1));
 
     lh::put(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_clear_node_selection) {
+LH_BIND(l_clear_node_selection) {
     if (lh::is_none(L, 1)) {
         ImNodes::ClearNodeSelection();
     } else if (lh::is_int(L, 1)) {
@@ -2298,9 +2296,9 @@ LUA_HAND_FUNC(l_clear_node_selection) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_clear_link_selection) {
+LH_BIND(l_clear_link_selection) {
     if (lh::is_none(L, 1)) {
         ImNodes::ClearLinkSelection();
     } else if (lh::is_int(L, 1)) {
@@ -2311,48 +2309,48 @@ LUA_HAND_FUNC(l_clear_link_selection) {
 
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_editor_reset_panning) {
+LH_BIND(l_editor_reset_panning) {
     ImNodes::EditorContextResetPanning(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)});
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_editor_get_panning) {
+LH_BIND(l_editor_get_panning) {
     const auto result = ImNodes::EditorContextGetPanning();
 
     lh::put(L, Vector2f{result.x, result.y});
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_started) {
+LH_BIND(l_is_link_started) {
     int id{};
     const auto result = ImNodes::IsLinkStarted(&id);
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_dropped) {
+LH_BIND(l_is_link_dropped) {
     int id{};
     const auto result = ImNodes::IsLinkDropped(&id, lh::num_bool(L, 1));
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_destroyed) {
+LH_BIND(l_is_link_destroyed) {
     int id{};
     const auto result = ImNodes::IsLinkDestroyed(&id);
 
     return push_id_result(L, result, id);
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_created) {
+LH_BIND(l_is_link_created) {
     int started_at_node{};
     int started_at_attr{};
     int ended_at_node{};
@@ -2371,9 +2369,9 @@ LUA_HAND_FUNC(l_is_link_created) {
 
     return 6;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_selected_nodes) {
+LH_BIND(l_get_selected_nodes) {
     const auto num_selected = ImNodes::NumSelectedNodes();
 
     lua_createtable(L, num_selected, 0);
@@ -2390,9 +2388,9 @@ LUA_HAND_FUNC(l_get_selected_nodes) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_get_selected_links) {
+LH_BIND(l_get_selected_links) {
     const auto num_selected = ImNodes::NumSelectedLinks();
 
     lua_createtable(L, num_selected, 0);
@@ -2409,7 +2407,7 @@ LUA_HAND_FUNC(l_get_selected_links) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 void cleanup() {
     for (auto i = 0; i < g_node_editor_counts; ++i) {
@@ -2462,72 +2460,72 @@ void cleanup() {
 }
 } // namespace api::imnodes
 
-LUA_HAND_FUNC(l_imguizmo_is_over) {
+LH_BIND(l_imguizmo_is_over) {
     lua_pushboolean(L, ImGuizmo::IsOver());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_imguizmo_is_using) {
+LH_BIND(l_imguizmo_is_using) {
     lua_pushboolean(L, ImGuizmo::IsUsing());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 namespace api::imnodes {
-LUA_HAND_FUNC(l_is_node_selected) {
+LH_BIND(l_is_node_selected) {
     lua_pushboolean(L, ImNodes::IsNodeSelected(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_link_selected) {
+LH_BIND(l_is_link_selected) {
     lua_pushboolean(L, ImNodes::IsLinkSelected(lh::num_int(L, 1)));
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_num_selected_nodes) {
+LH_BIND(l_num_selected_nodes) {
     lua_pushinteger(L, ImNodes::NumSelectedNodes());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_num_selected_links) {
+LH_BIND(l_num_selected_links) {
     lua_pushinteger(L, ImNodes::NumSelectedLinks());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_select_node) {
+LH_BIND(l_select_node) {
     ImNodes::SelectNode(lh::num_int(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_select_link) {
+LH_BIND(l_select_link) {
     ImNodes::SelectLink(lh::num_int(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_is_attribute_active) {
+LH_BIND(l_is_attribute_active) {
     lua_pushboolean(L, ImNodes::IsAttributeActive());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_snap_node_to_grid) {
+LH_BIND(l_snap_node_to_grid) {
     ImNodes::SnapNodeToGrid(lh::num_int(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_editor_move_to_node) {
+LH_BIND(l_editor_move_to_node) {
     ImNodes::EditorContextMoveToNode(lh::num_int(L, 1));
     return 0;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 } // namespace api::imnodes
 

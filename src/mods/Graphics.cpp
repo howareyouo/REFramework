@@ -8,7 +8,7 @@
 #include <sdk/REGameObject.hpp>
 
 #include "Graphics.hpp"
-#include "bindings/LuaHand.hpp"
+#include "bindings/LuaBind.hpp"
 
 
 #include "sdk/regenny/re4/via/Window.hpp"
@@ -287,7 +287,7 @@ std::optional<std::string> Graphics::on_initialize() {
 namespace {
 constexpr const char* GRAPHICS_MT = "REFramework.REFGraphics";
 
-LUA_HAND_FUNC(l_graphics_get) {
+LH_BIND(l_graphics_get) {
     const auto graphics = Graphics::get().get();
 
     if (graphics == nullptr) {
@@ -300,15 +300,15 @@ LUA_HAND_FUNC(l_graphics_get) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_graphics_is_ultrawide_fix_enabled) {
+LH_BIND(l_graphics_is_ultrawide_fix_enabled) {
     const auto self = *static_cast<Graphics**>(luaL_checkudata(L, 1, GRAPHICS_MT));
 
     lua_pushboolean(L, self->is_ultrawide_fix_enabled());
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 constexpr luaL_Reg GRAPHICS_FUNCS[] = {
     {"get", l_graphics_get},

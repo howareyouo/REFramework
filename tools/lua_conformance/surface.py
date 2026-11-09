@@ -89,7 +89,7 @@ USERTYPE_ALIASES = {
 
 # The rewrite generates its array bindings from one macro, so the members are not
 # readable from the call site.
-NEW_ARRAY_MACRO = "LUA_HAND_DYNAMIC_ARRAY"
+NEW_ARRAY_MACRO = "LH_BIND_ARRAY"
 
 MATH_NAMES = {
     "Vector2f": "Vector2f",
@@ -761,8 +761,8 @@ def innermost_function(spans, index):
 
 
 def hand_function_body(clean, spans, name):
-    """The body of a function written through the LUA_HAND_FUNC macro."""
-    m = re.search(r"LUA_HAND_FUNC\s*\(\s*%s\s*\)\s*\{" % re.escape(name), clean)
+    """The body of a function written through the LH_BIND macro."""
+    m = re.search(r"LH_BIND\s*\(\s*%s\s*\)\s*\{" % re.escape(name), clean)
 
     if m is not None:
         try:

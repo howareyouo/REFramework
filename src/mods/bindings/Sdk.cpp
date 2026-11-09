@@ -19,9 +19,7 @@
 #include <lgc.h>
 
 #include "Sdk.hpp"
-#include "LuaHand.hpp"
-
-namespace lh = lua_hand;
+#include "LuaBind.hpp"
 
 namespace api {
 namespace sdk {
@@ -1659,7 +1657,7 @@ T read_memory(::REManagedObject* obj, int32_t offset) {
 }
 
 // Members whose body is more than a direct member pointer call.
-LUA_HAND_FUNC(sdk_hand_type_definition_get_methods)
+LH_BIND(sdk_hand_type_definition_get_methods)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1684,9 +1682,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_get_methods)
 
     lh::put_seq(L, methods);
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_get_fields)
+LH_BIND(sdk_hand_type_definition_get_fields)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1701,9 +1699,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_get_fields)
 
     lh::put_seq(L, fields);
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_get_properties)
+LH_BIND(sdk_hand_type_definition_get_properties)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1718,9 +1716,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_get_properties)
 
     lh::put_seq(L, properties);
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_is_a)
+LH_BIND(sdk_hand_type_definition_is_a)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1737,9 +1735,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_is_a)
 
     lua_pushboolean(L, result);
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_create_instance)
+LH_BIND(sdk_hand_type_definition_create_instance)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1747,9 +1745,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_create_instance)
     }
 
     return lh::put(L, def->create_instance_full(lh::opt_bool(L, 2, false)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_create_instance_gc_safe)
+LH_BIND(sdk_hand_type_definition_create_instance_gc_safe)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1757,9 +1755,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_create_instance_gc_safe)
     }
 
     return lh::put(L, ::api::sdk::create_global_object(L, def->create_instance_full()));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_type_definition_get_vm_obj_type)
+LH_BIND(sdk_hand_type_definition_get_vm_obj_type)
     auto def = lh::get_self<::sdk::RETypeDefinition>(L);
 
     if (def == nullptr) {
@@ -1768,9 +1766,9 @@ LUA_HAND_FUNC(sdk_hand_type_definition_get_vm_obj_type)
 
     // via::clr::VMObjType is not registered as a Lua type, so it stays an int.
     return lh::put(L, (int)def->get_vm_obj_type());
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_method_call)
+LH_BIND(sdk_hand_method_call)
     auto def = lh::get_self<::sdk::REMethodDefinition>(L);
 
     if (def == nullptr) {
@@ -1791,9 +1789,9 @@ LUA_HAND_FUNC(sdk_hand_method_call)
     auto ret_ty = def->get_return_type();
 
     return lh::put(L, ::api::sdk::parse_data(L, &ret_val, ret_ty, true));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_field_get_data)
+LH_BIND(sdk_hand_field_get_data)
     auto field = lh::get_self<::sdk::REField>(L);
 
     if (field == nullptr) {
@@ -1828,9 +1826,9 @@ LUA_HAND_FUNC(sdk_hand_field_get_data)
     }
 
     return lh::put(L, ::api::sdk::get_native_field_from_field(obj, ty, field));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_resource_add_ref)
+LH_BIND(sdk_hand_resource_add_ref)
     auto res = lh::get_self<::sdk::Resource>(L);
 
     if (res == nullptr) {
@@ -1840,9 +1838,9 @@ LUA_HAND_FUNC(sdk_hand_resource_add_ref)
     res->add_ref();
     lua_pushvalue(L, 1);
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_resource_get_address)
+LH_BIND(sdk_hand_resource_get_address)
     auto res = lh::get_self<::sdk::Resource>(L);
 
     if (res == nullptr) {
@@ -1850,14 +1848,14 @@ LUA_HAND_FUNC(sdk_hand_resource_get_address)
     }
 
     return lh::put(L, (uintptr_t)res);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static int sdk_hand_managed_object_index(lua_State* L);
 
 // sol2's SystemArray __index reads an integer key through get_element, which
 // boxes the element -- value types included -- and sends every other key to
 // the type database.
-LUA_HAND_FUNC(sdk_hand_system_array_index)
+LH_BIND(sdk_hand_system_array_index)
     auto arr = lh::get_self<::sdk::SystemArray>(L);
 
     if (arr == nullptr) {
@@ -1878,9 +1876,9 @@ LUA_HAND_FUNC(sdk_hand_system_array_index)
     }
 
     return sdk_hand_managed_object_index(L);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_system_array_new_index)
+LH_BIND(sdk_hand_system_array_new_index)
     auto arr = lh::get_self<::sdk::SystemArray>(L);
 
     if (arr == nullptr) {
@@ -1896,12 +1894,12 @@ LUA_HAND_FUNC(sdk_hand_system_array_new_index)
     // and args[1] as the value, so the tail must start at the key, not past it.
     ::api::re_managed_object::new_index(L, lh::get_object(L, 1), lh::get_rest(L, 2));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // The iterator of the __pairs triple: f(state, key) walks the live array, and
 // __pairs itself returns iterator, state and initial key -- Lua 5.4 reads three
 // values back, so the trailing nil cannot be left to the stack top.
-LUA_HAND_FUNC(sdk_hand_system_array_next)
+LH_BIND(sdk_hand_system_array_next)
     auto arr = lh::get_self<::sdk::SystemArray>(L);
 
     if (arr == nullptr) {
@@ -1920,9 +1918,9 @@ LUA_HAND_FUNC(sdk_hand_system_array_next)
     lh::put(L, arr->get_element(i));
 
     return 2;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_system_array_pairs)
+LH_BIND(sdk_hand_system_array_pairs)
     if (lh::get_self<::sdk::SystemArray>(L) == nullptr) {
         return luaL_error(L, "SystemArray is nil");
     }
@@ -1932,16 +1930,16 @@ LUA_HAND_FUNC(sdk_hand_system_array_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_delegate_add)
+LH_BIND(sdk_hand_delegate_add)
     ::api::delegate::add_lua_delegate(L, lh::get_self<::sdk::Delegate>(L), lh::num_uint(L, 2),
         lh::get<lua_stack::protected_function>(L, 3));
 
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_delegate_new_index)
+LH_BIND(sdk_hand_delegate_new_index)
     auto delegate = lh::get_self<::sdk::Delegate>(L);
 
     if (delegate == nullptr) {
@@ -1951,9 +1949,9 @@ LUA_HAND_FUNC(sdk_hand_delegate_new_index)
     ::api::delegate::new_index(L, delegate, lh::get_object(L, 2), lh::get_rest(L, 3));
 
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_index)
+LH_BIND(sdk_hand_value_type_index)
     // The type table `ValueType` reaches this through the metatable it shares
     // with an instance, and a table is not a value sol2 converted to a
     // ValueType* -- an unknown key off the type table read as nil there.
@@ -1969,9 +1967,9 @@ LUA_HAND_FUNC(sdk_hand_value_type_index)
     }
 
     return lh::put(L, self->index(L, lh::str(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_new_index)
+LH_BIND(sdk_hand_value_type_new_index)
     auto self = lh::get_self<::api::sdk::ValueType>(L);
 
     if (self == nullptr) {
@@ -1981,11 +1979,11 @@ LUA_HAND_FUNC(sdk_hand_value_type_new_index)
     self->new_index(L, lh::str(L, 2), lh::get_object(L, 3));
 
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // The __call of ValueType: `ValueType(retype)` builds a value the state owns,
 // which is what constructors<ValueType(RETypeDefinition*)> did under sol2.
-LUA_HAND_FUNC(sdk_hand_value_type_construct)
+LH_BIND(sdk_hand_value_type_construct)
     auto type = lh::get<::sdk::RETypeDefinition*>(L, 1);
 
     void* storage = lua_newuserdatauv(L, sizeof(api::sdk::ValueType), 0);
@@ -1995,9 +1993,9 @@ LUA_HAND_FUNC(sdk_hand_value_type_construct)
     lua_setmetatable(L, -2);
 
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_call)
+LH_BIND(sdk_hand_value_type_call)
     auto self = lh::get_self<::api::sdk::ValueType>(L);
 
     if (self == nullptr) {
@@ -2005,9 +2003,9 @@ LUA_HAND_FUNC(sdk_hand_value_type_call)
     }
 
     return lh::put(L, self->call(L, lh::str(L, 2), lh::get_rest(L, 3)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_get_field)
+LH_BIND(sdk_hand_value_type_get_field)
     auto self = lh::get_self<::api::sdk::ValueType>(L);
 
     if (self == nullptr) {
@@ -2015,9 +2013,9 @@ LUA_HAND_FUNC(sdk_hand_value_type_get_field)
     }
 
     return lh::put(L, self->get_field(L, lh::str(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_set_field)
+LH_BIND(sdk_hand_value_type_set_field)
     auto self = lh::get_self<::api::sdk::ValueType>(L);
 
     if (self == nullptr) {
@@ -2027,9 +2025,9 @@ LUA_HAND_FUNC(sdk_hand_value_type_set_field)
     self->set_field(L, lh::str(L, 2), lh::get_object(L, 3));
 
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_value_type_get_type_definition)
+LH_BIND(sdk_hand_value_type_get_type_definition)
     auto self = lh::get_self<::api::sdk::ValueType>(L);
 
     if (self == nullptr) {
@@ -2038,7 +2036,7 @@ LUA_HAND_FUNC(sdk_hand_value_type_get_type_definition)
     }
 
     return lh::put(L, self->type);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // __pairs hands out the iteration function before it is defined.
 static int sdk_hand_dyn_u32arr_next(lua_State* L);
@@ -2048,7 +2046,7 @@ static int sdk_hand_dyn_u8_next(lua_State* L);
 static int sdk_hand_dyn_i32_next(lua_State* L);
 static int sdk_hand_dyn_u32_next(lua_State* L);
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_size)
+LH_BIND(sdk_hand_dyn_u32arr_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2058,9 +2056,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_len)
+LH_BIND(sdk_hand_dyn_u32arr_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2070,9 +2068,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_index)
+LH_BIND(sdk_hand_dyn_u32arr_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2091,9 +2089,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_index)
     }
 
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_new_index)
+LH_BIND(sdk_hand_dyn_u32arr_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2108,9 +2106,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_new_index)
 
     (*arr)[i] = lh::get<uint32_t>(L, 3);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_push_back)
+LH_BIND(sdk_hand_dyn_u32arr_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr || lh::is_none(L, 2)) {
@@ -2121,11 +2119,11 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_push_back)
     arr->push_back(value);
 
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static int sdk_hand_dyn_mo_pairs(lua_State* L);
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_pairs)
+LH_BIND(sdk_hand_dyn_u32arr_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2136,9 +2134,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_next)
+LH_BIND(sdk_hand_dyn_u32arr_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2157,9 +2155,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_next)
     lh::put(L, (*arr)[i]);
 
     return 2;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_clear)
+LH_BIND(sdk_hand_dyn_u32arr_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2168,9 +2166,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32arr_as_memoryview)
+LH_BIND(sdk_hand_dyn_u32arr_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2179,9 +2177,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32arr_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<uint32_t>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_size)
+LH_BIND(sdk_hand_dyn_tn_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2191,9 +2189,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_len)
+LH_BIND(sdk_hand_dyn_tn_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2203,9 +2201,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_index)
+LH_BIND(sdk_hand_dyn_tn_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2224,9 +2222,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_index)
     }
 
     return lh::put_borrowed(L, &(*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_new_index)
+LH_BIND(sdk_hand_dyn_tn_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2247,9 +2245,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_new_index)
 
     (*arr)[i] = *element;
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_push_back)
+LH_BIND(sdk_hand_dyn_tn_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     auto value = lh::get_arg<::sdk::behaviortree::TreeNode>(L, 2, "BehaviorTreeNode");
@@ -2260,9 +2258,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_push_back)
 
     arr->push_back(*value);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_pairs)
+LH_BIND(sdk_hand_dyn_tn_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2273,9 +2271,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_next)
+LH_BIND(sdk_hand_dyn_tn_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2294,9 +2292,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_next)
     lh::put_borrowed(L, &(*arr)[i]);
 
     return 2;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_clear)
+LH_BIND(sdk_hand_dyn_tn_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2305,9 +2303,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tn_as_memoryview)
+LH_BIND(sdk_hand_dyn_tn_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>>(L);
 
     if (arr == nullptr) {
@@ -2316,9 +2314,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tn_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_size)
+LH_BIND(sdk_hand_dyn_tnd_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2328,9 +2326,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_len)
+LH_BIND(sdk_hand_dyn_tnd_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2340,9 +2338,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_index)
+LH_BIND(sdk_hand_dyn_tnd_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2361,9 +2359,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_index)
     }
 
     return lh::put_borrowed(L, &(*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_new_index)
+LH_BIND(sdk_hand_dyn_tnd_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2384,9 +2382,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_new_index)
 
     (*arr)[i] = *element;
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_push_back)
+LH_BIND(sdk_hand_dyn_tnd_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     auto value = lh::get_arg<::sdk::behaviortree::TreeNodeData>(L, 2, "BehaviorTreeNodeData");
@@ -2397,9 +2395,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_push_back)
 
     arr->push_back(*value);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_pairs)
+LH_BIND(sdk_hand_dyn_tnd_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2410,9 +2408,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_next)
+LH_BIND(sdk_hand_dyn_tnd_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2431,9 +2429,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_next)
     lh::put_borrowed(L, &(*arr)[i]);
 
     return 2;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_clear)
+LH_BIND(sdk_hand_dyn_tnd_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2442,9 +2440,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_tnd_as_memoryview)
+LH_BIND(sdk_hand_dyn_tnd_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>>(L);
 
     if (arr == nullptr) {
@@ -2453,8 +2451,8 @@ LUA_HAND_FUNC(sdk_hand_dyn_tnd_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>)));
-LUA_HAND_CATCH(L)
-LUA_HAND_FUNC(sdk_hand_dyn_u8_size)
+LH_BIND_END(L)
+LH_BIND(sdk_hand_dyn_u8_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2464,9 +2462,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_len)
+LH_BIND(sdk_hand_dyn_u8_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2476,9 +2474,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_index)
+LH_BIND(sdk_hand_dyn_u8_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2497,9 +2495,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_index)
     }
 
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_new_index)
+LH_BIND(sdk_hand_dyn_u8_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2514,9 +2512,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_new_index)
 
     (*arr)[i] = lh::get<uint8_t>(L, 3);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_push_back)
+LH_BIND(sdk_hand_dyn_u8_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr || lh::is_none(L, 2)) {
@@ -2526,9 +2524,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_push_back)
     uint8_t value = lh::get<uint8_t>(L, 2);
     arr->push_back(value);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_pairs)
+LH_BIND(sdk_hand_dyn_u8_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2539,9 +2537,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_next)
+LH_BIND(sdk_hand_dyn_u8_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2558,9 +2556,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_next)
 
     lua_pushinteger(L, i);
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_clear)
+LH_BIND(sdk_hand_dyn_u8_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2569,9 +2567,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u8_as_memoryview)
+LH_BIND(sdk_hand_dyn_u8_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint8_t>>(L);
 
     if (arr == nullptr) {
@@ -2580,9 +2578,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u8_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<uint8_t>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_size)
+LH_BIND(sdk_hand_dyn_i32_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2592,9 +2590,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_len)
+LH_BIND(sdk_hand_dyn_i32_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2604,9 +2602,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_index)
+LH_BIND(sdk_hand_dyn_i32_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2625,9 +2623,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_index)
     }
 
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_new_index)
+LH_BIND(sdk_hand_dyn_i32_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2642,9 +2640,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_new_index)
 
     (*arr)[i] = lh::get<int32_t>(L, 3);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_push_back)
+LH_BIND(sdk_hand_dyn_i32_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr || lh::is_none(L, 2)) {
@@ -2654,9 +2652,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_push_back)
     int32_t value = lh::get<int32_t>(L, 2);
     arr->push_back(value);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_pairs)
+LH_BIND(sdk_hand_dyn_i32_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2667,9 +2665,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_next)
+LH_BIND(sdk_hand_dyn_i32_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2686,9 +2684,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_next)
 
     lua_pushinteger(L, i);
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_clear)
+LH_BIND(sdk_hand_dyn_i32_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2697,9 +2695,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_i32_as_memoryview)
+LH_BIND(sdk_hand_dyn_i32_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<int32_t>>(L);
 
     if (arr == nullptr) {
@@ -2708,9 +2706,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_i32_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<int32_t>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_size)
+LH_BIND(sdk_hand_dyn_u32_size)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2720,9 +2718,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_len)
+LH_BIND(sdk_hand_dyn_u32_len)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2732,9 +2730,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_index)
+LH_BIND(sdk_hand_dyn_u32_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2753,9 +2751,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_index)
     }
 
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_new_index)
+LH_BIND(sdk_hand_dyn_u32_new_index)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
@@ -2770,9 +2768,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_new_index)
 
     (*arr)[i] = lh::get<uint32_t>(L, 3);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_push_back)
+LH_BIND(sdk_hand_dyn_u32_push_back)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr || lh::is_none(L, 2)) {
@@ -2782,9 +2780,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_push_back)
     uint32_t value = lh::get<uint32_t>(L, 2);
     arr->push_back(value);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_pairs)
+LH_BIND(sdk_hand_dyn_u32_pairs)
     if (lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2795,9 +2793,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_next)
+LH_BIND(sdk_hand_dyn_u32_next)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2814,9 +2812,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_next)
 
     lua_pushinteger(L, i);
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_clear)
+LH_BIND(sdk_hand_dyn_u32_clear)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2825,9 +2823,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_clear)
 
     arr->clear(lh::opt_bool(L, 2, false));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_u32_as_memoryview)
+LH_BIND(sdk_hand_dyn_u32_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
@@ -2836,9 +2834,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_u32_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<uint32_t>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_size)
+LH_BIND(sdk_hand_dyn_mo_size)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2848,11 +2846,11 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_size)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 static int sdk_hand_dyn_mo_next(lua_State* L);
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_pairs)
+LH_BIND(sdk_hand_dyn_mo_pairs)
     if (lh::get_self<sdk::NativeArray<::REManagedObject*>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
@@ -2863,9 +2861,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_pairs)
     lua_pushnil(L);
 
     return 3;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_next)
+LH_BIND(sdk_hand_dyn_mo_next)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2882,9 +2880,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_next)
 
     lua_pushinteger(L, static_cast<lua_Integer>(i));
     return lh::put(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_len)
+LH_BIND(sdk_hand_dyn_mo_len)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2894,9 +2892,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_len)
 
     lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_index)
+LH_BIND(sdk_hand_dyn_mo_index)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2915,9 +2913,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_index)
     }
 
     return lh::put_borrowed(L, (*arr)[i]);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_new_index)
+LH_BIND(sdk_hand_dyn_mo_new_index)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr || !lh::is_index(L, 2)) {
@@ -2932,9 +2930,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_new_index)
 
     (*arr)[i] = lh::get<::REManagedObject*>(L, 3);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_push_back)
+LH_BIND(sdk_hand_dyn_mo_push_back)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2947,9 +2945,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_push_back)
     // handing it a temporary.
     arr->emplace() = value;
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_clear)
+LH_BIND(sdk_hand_dyn_mo_clear)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2958,9 +2956,9 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_clear)
 
     arr->clear();
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_dyn_mo_as_memoryview)
+LH_BIND(sdk_hand_dyn_mo_as_memoryview)
     auto arr = lh::get_self<sdk::NativeArray<::REManagedObject*>>(L);
 
     if (arr == nullptr) {
@@ -2969,12 +2967,12 @@ LUA_HAND_FUNC(sdk_hand_dyn_mo_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArray<::REManagedObject*>)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // The wide-string accessors cannot go through a member thunk, because sol2
 // converted std::wstring_view to a UTF-8 Lua string and a raw read would push
 // a usertype. These repeat the conversion explicitly.
-LUA_HAND_FUNC(sdk_hand_tnd_get_name)
+LH_BIND(sdk_hand_tnd_get_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeNodeData>(L);
 
     if (self == nullptr) {
@@ -2983,9 +2981,9 @@ LUA_HAND_FUNC(sdk_hand_tnd_get_name)
     }
 
     return lh::put(L, utility::narrow(self->get_name()));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tnd_set_name)
+LH_BIND(sdk_hand_tnd_set_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeNodeData>(L);
 
     if (self == nullptr) {
@@ -2994,9 +2992,9 @@ LUA_HAND_FUNC(sdk_hand_tnd_set_name)
 
     self->set_name(utility::widen(lh::str(L, 2)));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_get_name)
+LH_BIND(sdk_hand_tn_get_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3005,9 +3003,9 @@ LUA_HAND_FUNC(sdk_hand_tn_get_name)
     }
 
     return lh::put(L, utility::narrow(self->get_name()));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_set_name)
+LH_BIND(sdk_hand_tn_set_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3016,9 +3014,9 @@ LUA_HAND_FUNC(sdk_hand_tn_set_name)
 
     self->set_name(utility::widen(lh::str(L, 2)));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_get_full_name)
+LH_BIND(sdk_hand_tn_get_full_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3027,9 +3025,9 @@ LUA_HAND_FUNC(sdk_hand_tn_get_full_name)
     }
 
     return lh::put(L, utility::narrow(self->get_full_name()));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_get_selector)
+LH_BIND(sdk_hand_tn_get_selector)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3038,9 +3036,9 @@ LUA_HAND_FUNC(sdk_hand_tn_get_selector)
     }
 
     return lh::put_borrowed<::REManagedObject>(L, reinterpret_cast<::REManagedObject*>(self->get_selector()));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_to_get_node_by_name)
+LH_BIND(sdk_hand_to_get_node_by_name)
     auto self = lh::get_self<::sdk::behaviortree::TreeObject>(L);
 
     if (self == nullptr) {
@@ -3049,9 +3047,9 @@ LUA_HAND_FUNC(sdk_hand_to_get_node_by_name)
     }
 
     return lh::put_borrowed(L, self->get_node_by_name(lh::str(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tnd_as_memoryview)
+LH_BIND(sdk_hand_tnd_as_memoryview)
     auto self = lh::get_self<::sdk::behaviortree::TreeNodeData>(L);
 
     if (self == nullptr) {
@@ -3060,9 +3058,9 @@ LUA_HAND_FUNC(sdk_hand_tnd_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(self), sizeof(::sdk::behaviortree::TreeNodeData)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_as_memoryview)
+LH_BIND(sdk_hand_tn_as_memoryview)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3071,9 +3069,9 @@ LUA_HAND_FUNC(sdk_hand_tn_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(self), sizeof(::sdk::behaviortree::TreeNode)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tod_as_memoryview)
+LH_BIND(sdk_hand_tod_as_memoryview)
     auto self = lh::get_self<::sdk::behaviortree::TreeObjectData>(L);
 
     if (self == nullptr) {
@@ -3082,9 +3080,9 @@ LUA_HAND_FUNC(sdk_hand_tod_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(self), sizeof(::sdk::behaviortree::TreeObjectData)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_to_as_memoryview)
+LH_BIND(sdk_hand_to_as_memoryview)
     auto self = lh::get_self<::sdk::behaviortree::TreeObject>(L);
 
     if (self == nullptr) {
@@ -3093,11 +3091,11 @@ LUA_HAND_FUNC(sdk_hand_to_as_memoryview)
     }
 
     return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(self), sizeof(::sdk::behaviortree::TreeObject)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // to_valuetype hands back a copy of the live structure, which is the value
 // semantics the sol2 binding had.
-LUA_HAND_FUNC(sdk_hand_tnd_to_valuetype)
+LH_BIND(sdk_hand_tnd_to_valuetype)
     auto self = lh::get_self<::sdk::behaviortree::TreeNodeData>(L);
 
     if (self == nullptr) {
@@ -3106,9 +3104,9 @@ LUA_HAND_FUNC(sdk_hand_tnd_to_valuetype)
     }
 
     return lh::put(L, *self);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tn_to_valuetype)
+LH_BIND(sdk_hand_tn_to_valuetype)
     auto self = lh::get_self<::sdk::behaviortree::TreeNode>(L);
 
     if (self == nullptr) {
@@ -3117,29 +3115,29 @@ LUA_HAND_FUNC(sdk_hand_tn_to_valuetype)
     }
 
     return lh::put(L, *self);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // REManagedObject and every type derived from it route field access through
 // the type database instead of their member table, so the receiver arrives as
 // an ordinary lua_stack::object and the trailing arguments as lua_stack::variadic_args.
-LUA_HAND_FUNC(sdk_hand_managed_object_index)
+LH_BIND(sdk_hand_managed_object_index)
     return lh::put(L, ::api::re_managed_object::index(L, lh::get_object(L, 1), lh::get_rest(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_new_index)
+LH_BIND(sdk_hand_managed_object_new_index)
     ::api::re_managed_object::new_index(L, lh::get_object(L, 1), lh::get_rest(L, 2));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_add_ref)
+LH_BIND(sdk_hand_managed_object_add_ref)
     return lh::put(L, ::api::re_managed_object::add_ref(L, lh::get_self<::REManagedObject>(L)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_add_ref_permanent)
+LH_BIND(sdk_hand_managed_object_add_ref_permanent)
     return lh::put(L, ::api::re_managed_object::add_ref_permanent(L, lh::get_self<::REManagedObject>(L)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_force_release)
+LH_BIND(sdk_hand_managed_object_force_release)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3148,9 +3146,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_force_release)
 
     ::api::re_managed_object::release(L, obj, true);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_release)
+LH_BIND(sdk_hand_managed_object_release)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3159,11 +3157,11 @@ LUA_HAND_FUNC(sdk_hand_managed_object_release)
 
     ::api::re_managed_object::release(L, obj, false);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // The metatable __gc sol2 installed through a Lua snippet: drop the reference
 // this state added, without forcing a release the game did not ask for.
-LUA_HAND_FUNC(sdk_hand_managed_object_gc)
+LH_BIND(sdk_hand_managed_object_gc)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3172,9 +3170,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_gc)
 
     ::api::re_managed_object::release(L, obj, false);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_deserialize_native)
+LH_BIND(sdk_hand_managed_object_deserialize_native)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3202,9 +3200,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_deserialize_native)
 
     ::utility::re_managed_object::deserialize_native(obj, data.data(), data.size(), objects);
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_get_reference_count)
+LH_BIND(sdk_hand_managed_object_get_reference_count)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3212,9 +3210,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_get_reference_count)
     }
 
     return lh::put(L, (int32_t)obj->referenceCount);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_get_address)
+LH_BIND(sdk_hand_managed_object_get_address)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3222,15 +3220,15 @@ LUA_HAND_FUNC(sdk_hand_managed_object_get_address)
     }
 
     return lh::put(L, (uintptr_t)obj);
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_get_type_definition)
+LH_BIND(sdk_hand_managed_object_get_type_definition)
     return lh::put(L, ::utility::re_managed_object::get_type_definition(lh::get_self<::REManagedObject>(L)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // Field access on a null receiver answers nil rather than failing, which is
 // what the sol2 lambdas did before the type definition was ever looked up.
-LUA_HAND_FUNC(sdk_hand_managed_object_get_field)
+LH_BIND(sdk_hand_managed_object_get_field)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3239,9 +3237,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_get_field)
 
     return lh::put(L, ::api::sdk::get_native_field(lua_stack::make_object(L, obj), ::utility::re_managed_object::get_type_definition(obj),
                                                   lh::str(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_set_field)
+LH_BIND(sdk_hand_managed_object_set_field)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3251,9 +3249,9 @@ LUA_HAND_FUNC(sdk_hand_managed_object_set_field)
     ::api::sdk::set_native_field(L, lua_stack::make_object(L, obj), ::utility::re_managed_object::get_type_definition(obj),
                                 lh::str(L, 2), lh::get_object(L, 3));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_managed_object_call)
+LH_BIND(sdk_hand_managed_object_call)
     auto obj = lh::get_self<::REManagedObject>(L);
 
     if (obj == nullptr) {
@@ -3261,7 +3259,7 @@ LUA_HAND_FUNC(sdk_hand_managed_object_call)
     }
 
     return lh::put(L, ::api::sdk::call_object_func(lua_stack::make_object(L, obj), lh::str(L, 2), lh::get_rest(L, 3)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // sol2 installs no __gc on a pointer metatable, so the reference drop is added
 // explicitly for every type pushed as a managed object pointer.
@@ -3272,7 +3270,7 @@ void install_managed_gc(lua_State* L, const std::string& metatable) {
     lua_pop(L, 1);
 }
 
-LUA_HAND_FUNC(sdk_hand_apply_joints_tpose)
+LH_BIND(sdk_hand_apply_joints_tpose)
     auto t = lh::get_self<::RETransform>(L);
 
     if (t == nullptr) {
@@ -3294,9 +3292,9 @@ LUA_HAND_FUNC(sdk_hand_apply_joints_tpose)
 
     ::utility::re_transform::apply_joints_tpose(*t, joints, lh::opt_uint(L, 3, 0));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_transform_hook_update)
+LH_BIND(sdk_hand_transform_hook_update)
     auto transform = lh::get_self<::RETransform>(L);
 
     if (transform == nullptr) {
@@ -3306,9 +3304,9 @@ LUA_HAND_FUNC(sdk_hand_transform_hook_update)
     auto state = lua_stack::registry_get<ScriptState*>(L, "state");
     state->add_update_transform(transform, lh::get<lua_stack::protected_function>(L, 2));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_get_tree_object)
+LH_BIND(sdk_hand_get_tree_object)
     auto handle = lh::get_self<::api::sdk::BehaviorTreeCoreHandle>(L);
 
     if (handle == nullptr) {
@@ -3316,12 +3314,12 @@ LUA_HAND_FUNC(sdk_hand_get_tree_object)
     }
 
     return lh::put(L, ((sdk::behaviortree::CoreHandle*)handle)->get_tree_object());
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // The node array is borrowed from the caller: NativeArrayNoCapacity owns its
 // elements and frees them on destruction, so the thunk passes the Lua userdata
 // through by reference and never copies it.
-LUA_HAND_FUNC(sdk_hand_core_handle_relocate)
+LH_BIND(sdk_hand_core_handle_relocate)
     auto handle = lh::get_self<::api::sdk::BehaviorTreeCoreHandle>(L);
 
     if (handle == nullptr) {
@@ -3331,9 +3329,9 @@ LUA_HAND_FUNC(sdk_hand_core_handle_relocate)
     ((sdk::behaviortree::CoreHandle*)handle)
         ->relocate(lh::get<uintptr_t>(L, 2), lh::get<uintptr_t>(L, 3), lh::get_arg_ref<sdk::NativeArrayNoCapacity<sdk::behaviortree::TreeNode>>(L, 4, "DynamicArrayNoCapacityTreeNode"));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_core_handle_relocate_datas)
+LH_BIND(sdk_hand_core_handle_relocate_datas)
     auto handle = lh::get_self<::api::sdk::BehaviorTreeCoreHandle>(L);
 
     if (handle == nullptr) {
@@ -3344,9 +3342,9 @@ LUA_HAND_FUNC(sdk_hand_core_handle_relocate_datas)
         ->relocate_datas(lh::get<uintptr_t>(L, 2), lh::get<uintptr_t>(L, 3),
                          lh::get_arg_ref<sdk::NativeArrayNoCapacity<sdk::behaviortree::TreeNodeData>>(L, 4, "DynamicArrayNoCapacityTreeNodeData"));
     return 0;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tree_get_tree)
+LH_BIND(sdk_hand_tree_get_tree)
     auto tree = lh::get_self<::api::sdk::BehaviorTree>(L);
 
     if (tree == nullptr) {
@@ -3354,9 +3352,9 @@ LUA_HAND_FUNC(sdk_hand_tree_get_tree)
     }
 
     return lh::put(L, ((sdk::behaviortree::BehaviorTree*)tree)->get_tree<::api::sdk::BehaviorTreeCoreHandle>(lh::num_uint(L, 2)));
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tree_get_tree_count)
+LH_BIND(sdk_hand_tree_get_tree_count)
     auto tree = lh::get_self<::api::sdk::BehaviorTree>(L);
 
     if (tree == nullptr) {
@@ -3364,9 +3362,9 @@ LUA_HAND_FUNC(sdk_hand_tree_get_tree_count)
     }
 
     return lh::put(L, ((sdk::behaviortree::BehaviorTree*)tree)->get_tree_count());
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(sdk_hand_tree_get_trees)
+LH_BIND(sdk_hand_tree_get_trees)
     auto tree = lh::get_self<::api::sdk::BehaviorTree>(L);
 
     if (tree == nullptr) {
@@ -3375,7 +3373,7 @@ LUA_HAND_FUNC(sdk_hand_tree_get_trees)
 
     lh::put_seq(L, ((sdk::behaviortree::BehaviorTree*)tree)->get_trees<::api::sdk::BehaviorTreeCoreHandle>());
     return 1;
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 // sol2 registered size as the data member it is, so reading it hands back the
 // number itself and calling it fails the way calling any number fails. The
@@ -3842,7 +3840,7 @@ void bindings::open_sdk(ScriptState* s) {
 // registers the type. TAG names the thunks, which keep the short prefixes the
 // bindings are filed under; the Lua name is spelled out because the C++ type of
 // a macro argument cannot be turned back into the string sol2 used.
-#define LUA_HAND_DYNAMIC_ARRAY(L, NAME, TAG, LUA_NAME, C) \
+#define LH_BIND_ARRAY(L, NAME, TAG, LUA_NAME, C) \
     lh::methods NAME(L); \
     NAME.meta("__newindex", &sdk_hand_##TAG##_new_index) \
         .meta("__pairs", &sdk_hand_##TAG##_pairs) \
@@ -3863,22 +3861,22 @@ void bindings::open_sdk(ScriptState* s) {
 \
     install_managed_gc(L, lua_stack::pointer_metatable<C>());
 
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityUInt8, dyn_u8, "DynamicArrayNoCapacityUInt8", sdk::NativeArrayNoCapacity<uint8_t>)
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityInt32, dyn_i32, "DynamicArrayNoCapacityInt32", sdk::NativeArrayNoCapacity<int32_t>)
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityUInt32, dyn_u32, "DynamicArrayNoCapacityUInt32", sdk::NativeArrayNoCapacity<uint32_t>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityUInt8, dyn_u8, "DynamicArrayNoCapacityUInt8", sdk::NativeArrayNoCapacity<uint8_t>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityInt32, dyn_i32, "DynamicArrayNoCapacityInt32", sdk::NativeArrayNoCapacity<int32_t>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityUInt32, dyn_u32, "DynamicArrayNoCapacityUInt32", sdk::NativeArrayNoCapacity<uint32_t>)
 
     // An array of arrays: a read is pushed as a borrowed pointer and push_back
     // copies what the pointer addresses.
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityUInt32Array, dyn_u32arr, "DynamicArrayNoCapacityUInt32Array", sdk::NativeArrayNoCapacity<uint32_t>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityUInt32Array, dyn_u32arr, "DynamicArrayNoCapacityUInt32Array", sdk::NativeArrayNoCapacity<uint32_t>)
 
     // The behaviour tree types register their arrays once the tree binding
     // below has installed them.
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityTreeNode, dyn_tn, "DynamicArrayNoCapacityTreeNode", sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>)
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayNoCapacityTreeNodeData, dyn_tnd, "DynamicArrayNoCapacityTreeNodeData", sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityTreeNode, dyn_tn, "DynamicArrayNoCapacityTreeNode", sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNode>)
+    LH_BIND_ARRAY(L, DynamicArrayNoCapacityTreeNodeData, dyn_tnd, "DynamicArrayNoCapacityTreeNodeData", sdk::NativeArrayNoCapacity<::sdk::behaviortree::TreeNodeData>)
 
-    LUA_HAND_DYNAMIC_ARRAY(L, DynamicArrayManagedObject, dyn_mo, "DynamicArrayManagedObject", sdk::NativeArray<::REManagedObject*>)
+    LH_BIND_ARRAY(L, DynamicArrayManagedObject, dyn_mo, "DynamicArrayManagedObject", sdk::NativeArray<::REManagedObject*>)
 
-#undef LUA_HAND_DYNAMIC_ARRAY
+#undef LH_BIND_ARRAY
 
     lh::methods tree_node_data(L);
 

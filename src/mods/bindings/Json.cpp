@@ -13,7 +13,7 @@
 #include "../ScriptRunner.hpp"
 
 #include "Json.hpp"
-#include "LuaHand.hpp"
+#include "LuaBind.hpp"
 
 namespace api::json {
 using json = nlohmann::json;
@@ -176,7 +176,7 @@ void push_value(lua_State* L, const json& j) {
 }
 } // namespace
 
-LUA_HAND_FUNC(l_load_string) {
+LH_BIND(l_load_string) {
     const std::string text{luaL_checkstring(L, 1)};
 
     try {
@@ -187,9 +187,9 @@ LUA_HAND_FUNC(l_load_string) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dump_string) {
+LH_BIND(l_dump_string) {
     try {
         const auto result = encode(L, 1).dump(indent_of(L, 2, -1));
         lua_pushlstring(L, result.data(), result.size());
@@ -199,9 +199,9 @@ LUA_HAND_FUNC(l_dump_string) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_load_file) {
+LH_BIND(l_load_file) {
     const std::string filepath{luaL_checkstring(L, 1)};
     const auto path = resolve_path(filepath, "json.load_file");
 
@@ -219,9 +219,9 @@ LUA_HAND_FUNC(l_load_file) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
-LUA_HAND_FUNC(l_dump_file) {
+LH_BIND(l_dump_file) {
     const std::string filepath{luaL_checkstring(L, 1)};
     const auto path = resolve_path(filepath, "json.dump_file");
 
@@ -265,7 +265,7 @@ LUA_HAND_FUNC(l_dump_file) {
 
     return 1;
 }
-LUA_HAND_CATCH(L)
+LH_BIND_END(L)
 
 } // namespace api::json
 
