@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
@@ -9,14 +11,14 @@
 #include "utility/ImGui.hpp"
 
 #include "ImGui.hpp"
+#include "LuaBind.hpp"
+
+static constexpr const char* DRAW_LIST_MT = "REFramework.ImDrawList";
+static constexpr const char* SORT_SPECS_MT = "REFramework.ImGuiTableSortSpecs";
+static constexpr const char* COLUMN_SORT_SPECS_MT = "REFramework.ImGuiTableColumnSortSpecs";
 
 namespace api::imgui {
 int32_t g_disabled_counts{0};
-
-// Lua strings can arrive as NULL; ImGui expects non-null throughout.
-const char* safe_str(const char* s) {
-    return s == nullptr ? "" : s;
-}
 
 void cleanup() {
     for (auto i = 0; i < g_disabled_counts; ++i) {
@@ -26,379 +28,462 @@ void cleanup() {
     g_disabled_counts = 0;
 }
 
-ImVec2 create_imvec2(sol::object obj) {
-    ImVec2 out{ 0.0f, 0.0f };
+static ImVec2 imvec2(lua_State* L, int index) {
+    index = lua_absindex(L, index);
 
-    if (obj.is<Vector2f>()) {
-        auto vec = obj.as<Vector2f>();
+    ImVec2 out{0.0f, 0.0f};
+
+    if (lh::is<Vector2f>(L, index)) {
+        const auto vec = lh::get<Vector2f>(L, index);
         out.x = vec.x;
         out.y = vec.y;
-    } else if (obj.is<sol::table>()) {
-        auto table = obj.as<sol::table>();
-
-        if (table.size() == 2) {
-            out.x = table.get<float>(1);
-            out.y = table.get<float>(2);
-        } else {
-            throw sol::error{ "Invalid table passed. Table size must be 2." };
+    } else if (lua_istable(L, index)) {
+        if (lua_rawlen(L, index) != 2) {
+            throw std::runtime_error("Invalid table passed. Table size must be 2.");
         }
-    } else if (obj.is<Vector3f>()) {
-        auto vec = obj.as<Vector3f>();
+
+        lua_rawgeti(L, index, 1);
+        out.x = static_cast<float>(lua_tonumber(L, -1));
+        lua_pop(L, 1);
+        lua_rawgeti(L, index, 2);
+        out.y = static_cast<float>(lua_tonumber(L, -1));
+        lua_pop(L, 1);
+    } else if (lh::is<Vector3f>(L, index)) {
+        const auto vec = lh::get<Vector3f>(L, index);
         out.x = vec.x;
         out.y = vec.y;
-    } else if (obj.is<Vector4f>()) {
-        auto vec = obj.as<Vector4f>();
+    } else if (lh::is<Vector4f>(L, index)) {
+        const auto vec = lh::get<Vector4f>(L, index);
         out.x = vec.x;
         out.y = vec.y;
     }
 
     return out;
-};
+}
 
-ImVec4 create_imvec4(sol::object obj) {
-    ImVec4 out{ 0.0f, 0.0f, 0.0f, 0.0f };
+static ImVec4 imvec4(lua_State* L, int index) {
+    index = lua_absindex(L, index);
 
-    if (obj.is<Vector4f>()) {
-        auto vec = obj.as<Vector4f>();
+    ImVec4 out{0.0f, 0.0f, 0.0f, 0.0f};
+
+    if (lh::is<Vector4f>(L, index)) {
+        const auto vec = lh::get<Vector4f>(L, index);
         out.x = vec.x;
         out.y = vec.y;
         out.z = vec.z;
         out.w = vec.w;
-    } else if (obj.is<sol::table>()) {
-        auto table = obj.as<sol::table>();
+    } else if (lua_istable(L, index)) {
+        if (lua_rawlen(L, index) != 4) {
+            throw std::runtime_error("Invalid table passed. Table size must be 4.");
+        }
 
-        if (table.size() == 4) {
-            out.x = table.get<float>(1);
-            out.y = table.get<float>(2);
-            out.z = table.get<float>(3);
-            out.w = table.get<float>(4);
-        } else {
-            throw sol::error{ "Invalid table passed. Table size must be 4." };
+        float* dst[4]{&out.x, &out.y, &out.z, &out.w};
+
+        for (int i = 0; i < 4; ++i) {
+            lua_rawgeti(L, index, i + 1);
+            *dst[i] = static_cast<float>(lua_tonumber(L, -1));
+            lua_pop(L, 1);
         }
     }
 
     return out;
-};
-
-bool button(const char* label, sol::object size_object) {
-    label = safe_str(label);
-
-    const auto size = create_imvec2(size_object);
-
-    return ImGui::Button(label, size);
 }
 
-bool small_button(const char* label) {
-    label = safe_str(label);
-
-    return ImGui::SmallButton(label);
+static void put_vec2(lua_State* L, Vector2f value) {
+    lh::put(L, value);
 }
 
-bool invisible_button(const char* id, sol::object size_object, sol::object flags_object) {
-    id = safe_str(id);
-
-    const auto size = create_imvec2(size_object);
-
-    ImGuiButtonFlags flags = 0;
-
-    if (flags_object.is<int>()) {
-        flags = (ImGuiButtonFlags)(flags_object.as<int>());
-    }
-
-    return ImGui::InvisibleButton(id, size, flags);
+static int put_changed(lua_State* L, bool changed) {
+    lua_pushboolean(L, changed);
+    return 1;
 }
 
-bool arrow_button(const char* str_id, int dir) {
-    str_id = safe_str(str_id);
-
-    return ImGui::ArrowButton(str_id, (ImGuiDir)dir);
+LH_BIND(l_button) {
+    lua_pushboolean(L, ImGui::Button(lh::str(L, 1), imvec2(L, 2)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void text(const char* text) {
-    text = safe_str(text);
-
-    ImGui::TextUnformatted(text);
+LH_BIND(l_small_button) {
+    lua_pushboolean(L, ImGui::SmallButton(lh::str(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void text_colored(const char* text, unsigned int color) {
-    text = safe_str(text);
-
-    auto r = color & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = (color >> 16) & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    ImGui::TextColored(ImVec4{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f }, "%s", text);
+LH_BIND(l_invisible_button) {
+    lua_pushboolean(L, ImGui::InvisibleButton(lh::str(L, 1), imvec2(L, 2), (ImGuiButtonFlags)lh::opt_int(L, 3, 0)));
+    return 1;
 }
+LH_BIND_END(L)
 
-// Shared body for the "widget returns (changed, value)" wrappers: sanitizes the
-// label, calls the underlying ImGui widget and packs {changed, value} into the
-// Lua return list. ImGuiT is the scalar type the widget takes a pointer to
-// (e.g. float for DragFloat2, which receives &v of a Vector2f).
-template <typename T, typename ImGuiT, typename... Args>
-sol::variadic_results widget_changed_value(sol::this_state s, const char* label, T v, bool (*widget)(const char*, ImGuiT*, Args...), Args... args) {
-    label = safe_str(label);
-
-    auto changed = widget(label, (ImGuiT*)&v, args...);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, v));
-
-    return results;
+LH_BIND(l_arrow_button) {
+    lua_pushboolean(L, ImGui::ArrowButton(lh::str(L, 1), (ImGuiDir)lh::num_int(L, 2)));
+    return 1;
 }
+LH_BIND_END(L)
 
-sol::variadic_results checkbox(sol::this_state s, const char* label, bool v) {
-    return widget_changed_value(s, label, v, ImGui::Checkbox);
-}
+LH_BIND(l_combo) {
+    const char* label = lh::str(L, 1);
 
-sol::variadic_results drag_float(sol::this_state s, const char* label, float v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    return widget_changed_value(s, label, v, ImGui::DragFloat, v_speed, v_min, v_max, display_format, 0);
-}
+    luaL_checktype(L, 3, LUA_TTABLE);
 
-sol::variadic_results drag_float2(sol::this_state s, const char* label, Vector2f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    return widget_changed_value(s, label, v, ImGui::DragFloat2, v_speed, v_min, v_max, display_format, 0);
-}
+    lua_pushvalue(L, 2);
 
-sol::variadic_results drag_float3(sol::this_state s, const char* label, Vector3f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    return widget_changed_value(s, label, v, ImGui::DragFloat3, v_speed, v_min, v_max, display_format, 0);
-}
-
-sol::variadic_results drag_float4(sol::this_state s, const char* label, Vector4f v, float v_speed, float v_min, float v_max, const char* display_format = "%.3f") {
-    return widget_changed_value(s, label, v, ImGui::DragFloat4, v_speed, v_min, v_max, display_format, 0);
-}
-
-sol::variadic_results drag_int(sol::this_state s, const char* label, int v, float v_speed, int v_min, int v_max, const char* display_format = "%d") {
-    return widget_changed_value(s, label, v, ImGui::DragInt, v_speed, v_min, v_max, display_format, 0);
-}
-
-sol::variadic_results slider_float(sol::this_state s, const char* label, float v, float v_min, float v_max, const char* display_format = "%.3f") {
-    return widget_changed_value(s, label, v, ImGui::SliderFloat, v_min, v_max, display_format, 0);
-}
-
-sol::variadic_results slider_int(sol::this_state s, const char* label, int v, int v_min, int v_max, const char* display_format = "%d") {
-    return widget_changed_value(s, label, v, ImGui::SliderInt, v_min, v_max, display_format, 0);
-}
-
-sol::variadic_results input_text(sol::this_state s, const char* label, const std::string& v, ImGuiInputTextFlags flags) {
-    flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
-
-    label = safe_str(label);
-
-    static std::string buffer{""};
-    buffer = v;
-
-    static int selection_start, selection_end;
-
-    static auto input_text_callback = [](ImGuiInputTextCallbackData* data) -> int {
-        if ((data->EventFlag & ImGuiInputTextFlags_CallbackResize) != 0) {
-            buffer.resize(data->BufTextLen);
-            data->Buf = (char*)buffer.c_str();
-        }
-
-        selection_start = data->SelectionStart;
-        selection_end = data->SelectionEnd;
-
-        return 0;
-    };
-
-    auto changed = ImGui::InputText(label, buffer.data(), buffer.capacity() + 1, flags, input_text_callback);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, std::string{buffer.data()}));
-    results.push_back(sol::make_object(s, selection_start));
-    results.push_back(sol::make_object(s, selection_end));
-
-    return results;
-}
-
-sol::variadic_results input_text_multiline(sol::this_state s, const char* label, const std::string& v, sol::object size_obj, ImGuiInputTextFlags flags) {
-    flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
-
-    label = safe_str(label);
-
-    static std::string buffer{""};
-    buffer = v;
-
-    static int selection_start, selection_end;
-
-    static auto input_text_callback = [](ImGuiInputTextCallbackData* data) -> int {
-        if ((data->EventFlag & ImGuiInputTextFlags_CallbackResize) != 0) {
-            buffer.resize(data->BufTextLen);
-            data->Buf = (char*)buffer.c_str();
-        }
-
-        selection_start = data->SelectionStart;
-        selection_end = data->SelectionEnd;
-
-        return 0;
-    };
-
-    const auto size = create_imvec2(size_obj);
-
-    auto changed = ImGui::InputTextMultiline(label, buffer.data(), buffer.capacity() + 1, size, flags, input_text_callback);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, std::string{buffer.data()}));
-    results.push_back(sol::make_object(s, selection_start));
-    results.push_back(sol::make_object(s, selection_end));
-
-    return results;
-}
-
-
-sol::variadic_results combo(sol::this_state s, const char* label, sol::object selection, sol::table values) {
-    label = safe_str(label);
-
+    const int selection = lua_gettop(L);
     const char* preview_value = "";
 
-    if (!values.empty()) {
-        if (selection.is<sol::nil_t>() || values.get_or(selection, sol::make_object(s, sol::nil)).is<sol::nil_t>()) {
-            selection = (*values.begin()).first;
+    if (lua_rawlen(L, 3) > 0) {
+        bool use_first = lua_isnoneornil(L, selection);
+
+        if (!use_first) {
+            lua_pushvalue(L, selection);
+            lua_gettable(L, 3);
+            use_first = lua_isnoneornil(L, -1);
+            lua_pop(L, 1);
         }
 
-        auto val_at_selection = values[selection].get<sol::object>();
+        if (use_first) {
+            lua_pushnil(L);
 
-        if (val_at_selection.is<const char*>()) {
-            preview_value = val_at_selection.as<const char*>();
+            if (lua_next(L, 3) != 0) {
+                lua_pushvalue(L, -2);
+                lua_replace(L, selection);
+                lua_pop(L, 2);
+            }
         }
+
+        lua_pushvalue(L, selection);
+        lua_gettable(L, 3);
+
+        if (lua_type(L, -1) == LUA_TSTRING) {
+            preview_value = lua_tostring(L, -1);
+        }
+
+        lua_pop(L, 1);
     }
 
-    auto selection_changed = false;
+    bool selection_changed = false;
 
     if (ImGui::BeginCombo(label, preview_value)) {
-        //for (auto i = 1u; i <= values.size(); ++i) {
-        for (auto& [key, val] : values) {
-            sol::object val_at_k = val;
+        lua_pushnil(L);
 
-            if (val_at_k.is<const char*>()) {
-                auto entry = val_at_k.as<const char*>();
+        while (lua_next(L, 3) != 0) {
+            if (lua_type(L, -1) == LUA_TSTRING) {
+                const char* entry = lua_tostring(L, -1);
 
-                if (ImGui::Selectable(entry, selection == key)) {
-                    selection = key;
+                lua_pushvalue(L, -2);
+                lua_pushvalue(L, selection);
+
+                const bool is_current = lua_compare(L, -2, -1, LUA_OPEQ) != 0;
+
+                lua_pop(L, 2);
+
+                if (ImGui::Selectable(entry, is_current)) {
+                    lua_pushvalue(L, -2);
+                    lua_replace(L, selection);
                     selection_changed = true;
                 }
             }
+
+            lua_pop(L, 1);
         }
 
         ImGui::EndCombo();
     }
 
-    sol::variadic_results results{};
+    lua_pushboolean(L, selection_changed);
+    lua_pushvalue(L, selection);
 
-    results.push_back(sol::make_object(s, selection_changed));
-    results.push_back(sol::make_object(s, selection));
-
-    return results;
+    return 2;
 }
+LH_BIND_END(L)
 
-bool tree_node(const char* label) {
-    label = safe_str(label);
+LH_BIND(l_drag_float) {
+    float value = lh::num_float(L, 2);
 
-    return ImGui::TreeNode(label);
+    const auto changed = ImGui::DragFloat(
+        lh::str(L, 1), &value, lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5), lh::opt_str(L, 6, "%.3f"), 0);
+
+    lua_pushboolean(L, changed);
+    lua_pushnumber(L, value);
+
+    return 2;
 }
+LH_BIND_END(L)
 
-bool tree_node_ptr_id(const void* id, const char* label) {
-    label = safe_str(label);
+LH_BIND(l_drag_float2) {
+    auto value = lh::get_checked<Vector2f>(L, 2, "Vector2f expected for argument #2");
 
-    return ImGui::TreeNode(id, label);
+    const auto changed = ImGui::DragFloat2(
+        lh::str(L, 1), (float*)&value, lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5), lh::opt_str(L, 6, "%.3f"), 0);
+
+    lua_pushboolean(L, changed);
+    put_vec2(L, value);
+
+    return 2;
 }
+LH_BIND_END(L)
 
-bool tree_node_str_id(const char* id, const char* label) {
-    label = safe_str(label);
+LH_BIND(l_drag_float3) {
+    auto value = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
 
-    return ImGui::TreeNode(id, label);
+    const auto changed = ImGui::DragFloat3(
+        lh::str(L, 1), (float*)&value, lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5), lh::opt_str(L, 6, "%.3f"), 0);
+
+    lua_pushboolean(L, changed);
+    lh::put(L, value);
+
+    return 2;
 }
+LH_BIND_END(L)
 
-void tree_pop() {
-    ImGui::TreePop();
+LH_BIND(l_drag_float4) {
+    auto value = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
+
+    const auto changed = ImGui::DragFloat4(
+        lh::str(L, 1), (float*)&value, lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5), lh::opt_str(L, 6, "%.3f"), 0);
+
+    lua_pushboolean(L, changed);
+    lh::put(L, value);
+
+    return 2;
 }
+LH_BIND_END(L)
 
-void same_line() {
-    ImGui::SameLine();
+LH_BIND(l_drag_int) {
+    int value = lh::num_int(L, 2);
+
+    const auto changed = ImGui::DragInt(
+        lh::str(L, 1), &value, lh::num_float(L, 3), lh::num_int(L, 4), lh::num_int(L, 5), lh::opt_str(L, 6, "%d"), 0);
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, value);
+
+    return 2;
 }
+LH_BIND_END(L)
 
-bool is_item_hovered(sol::object flags_obj) {
-    ImGuiHoveredFlags flags{0};
+LH_BIND(l_slider_float) {
+    float value = lh::num_float(L, 2);
 
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiHoveredFlags)flags_obj.as<int>();
+    const auto changed = ImGui::SliderFloat(lh::str(L, 1), &value, lh::num_float(L, 3), lh::num_float(L, 4), lh::opt_str(L, 5, "%.3f"), 0);
+
+    lua_pushboolean(L, changed);
+    lua_pushnumber(L, value);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_slider_int) {
+    int value = lh::num_int(L, 2);
+
+    const auto changed = ImGui::SliderInt(lh::str(L, 1), &value, lh::num_int(L, 3), lh::num_int(L, 4), lh::opt_str(L, 5, "%d"), 0);
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, value);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+static std::string g_input_text_buffer{""};
+static int g_input_text_selection_start{0};
+static int g_input_text_selection_end{0};
+
+static int input_text_callback(ImGuiInputTextCallbackData* data) {
+    if ((data->EventFlag & ImGuiInputTextFlags_CallbackResize) != 0) {
+        g_input_text_buffer.resize(data->BufTextLen);
+        data->Buf = (char*)g_input_text_buffer.c_str();
     }
 
-    return ImGui::IsItemHovered(flags);
+    g_input_text_selection_start = data->SelectionStart;
+    g_input_text_selection_end = data->SelectionEnd;
+
+    return 0;
 }
 
-bool is_item_active() {
-    return ImGui::IsItemActive();
+LH_BIND(l_input_text) {
+    const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 3) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
+
+    g_input_text_buffer = lh::str(L, 2);
+
+    const auto changed = ImGui::InputText(
+        lh::str(L, 1), g_input_text_buffer.data(), g_input_text_buffer.capacity() + 1, flags, input_text_callback);
+
+    lua_pushboolean(L, changed);
+    lua_pushlstring(L, g_input_text_buffer.data(), g_input_text_buffer.size());
+    lua_pushinteger(L, g_input_text_selection_start);
+    lua_pushinteger(L, g_input_text_selection_end);
+
+    return 4;
 }
+LH_BIND_END(L)
 
-bool is_item_focused() {
-    return ImGui::IsItemFocused();
+LH_BIND(l_input_text_multiline) {
+    const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 4) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
+
+    g_input_text_buffer = lh::str(L, 2);
+
+    const auto size = imvec2(L, 3);
+
+    const auto changed = ImGui::InputTextMultiline(
+        lh::str(L, 1), g_input_text_buffer.data(), g_input_text_buffer.capacity() + 1, size, flags, input_text_callback);
+
+    lua_pushboolean(L, changed);
+    lua_pushlstring(L, g_input_text_buffer.data(), g_input_text_buffer.size());
+    lua_pushinteger(L, g_input_text_selection_start);
+    lua_pushinteger(L, g_input_text_selection_end);
+
+    return 4;
 }
+LH_BIND_END(L)
 
-bool begin_window(const char* name, sol::object open_obj, ImGuiWindowFlags flags = 0) {
-    name = safe_str(name);
+LH_BIND(l_text) {
+    ImGui::TextUnformatted(lh::str(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
 
+LH_BIND(l_text_colored) {
+    const auto color = (unsigned)lh::num_int(L, 2);
+
+    const auto r = color & 0xFF;
+    const auto g = (color >> 8) & 0xFF;
+    const auto b = (color >> 16) & 0xFF;
+    const auto a = (color >> 24) & 0xFF;
+
+    ImGui::TextColored(ImVec4{(float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f}, "%s", lh::str(L, 1));
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_checkbox) {
+    bool value = lh::num_bool(L, 2);
+
+    const auto changed = ImGui::Checkbox(lh::str(L, 1), &value);
+
+    lua_pushboolean(L, changed);
+    lua_pushboolean(L, value);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_tree_node) {
+    lua_pushboolean(L, ImGui::TreeNode(lh::str(L, 1)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_tree_node_ptr_id) {
+    lua_pushboolean(L, ImGui::TreeNode(lua_topointer(L, 1), lh::str(L, 2)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_tree_node_str_id) {
+    lua_pushboolean(L, ImGui::TreeNode(lh::str(L, 1), lh::str(L, 2)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_tree_pop) {
+    ImGui::TreePop();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_same_line) {
+    ImGui::SameLine();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_is_item_hovered) {
+    lua_pushboolean(L, ImGui::IsItemHovered((ImGuiHoveredFlags)lh::opt_int(L, 1, 0)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_is_item_active) {
+    lua_pushboolean(L, ImGui::IsItemActive());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_is_item_focused) {
+    lua_pushboolean(L, ImGui::IsItemFocused());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_begin_window) {
     bool open = true;
     bool* open_p = nullptr;
 
-    if (!open_obj.is<sol::nil_t>() && open_obj.is<bool>()) {
-        open = open_obj.as<bool>();
+    if (!lh::is_none(L, 2) && lh::is_bool(L, 2)) {
+        open = lua_toboolean(L, 2) != 0;
         open_p = &open;
     }
 
     if (!open) {
-        return false;
+        lua_pushboolean(L, false);
+        return 1;
     }
 
-    ImGui::Begin(name, open_p, flags);
+    ImGui::Begin(lh::str(L, 1), open_p, (ImGuiWindowFlags)lh::opt_int(L, 3, 0));
 
-    return open;
+    lua_pushboolean(L, open);
+
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_window() {
+LH_BIND(l_end_window) {
     ImGui::End();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_child_window(const char* name, sol::object size_obj, sol::object border_obj, ImGuiWindowFlags flags = 0) {
-    name = safe_str(name);
+LH_BIND(l_begin_child_window) {
+    lua_pushboolean(
+        L, ImGui::BeginChild(lh::str(L, 1), imvec2(L, 2), lh::opt_bool(L, 3, false), (ImGuiWindowFlags)lh::opt_int(L, 4, 0)));
 
-    const auto size = create_imvec2(size_obj);
-    bool border{false};
-
-    if (border_obj.is<bool>()) {
-        border = border_obj.as<bool>();
-    }
-
-    return ImGui::BeginChild(name, size, border, flags);
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_child_window() {
+LH_BIND(l_end_child_window) {
     ImGui::EndChild();
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_group() {
+LH_BIND(l_begin_group) {
     ImGui::BeginGroup();
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_group() {
+LH_BIND(l_end_group) {
     ImGui::EndGroup();
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_rect() {
+LH_BIND(l_begin_rect) {
     ImGui::BeginGroup();
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_rect(sol::object additional_size_obj, sol::object rounding_obj) {
+LH_BIND(l_end_rect) {
     ImGui::EndGroup();
 
-    float rounding = rounding_obj.is<float>() ? rounding_obj.as<float>() : ImGui::GetStyle().FrameRounding;
-    float additional_size = additional_size_obj.is<float>() ? additional_size_obj.as<float>() : 0.0f;
+    float rounding = lh::opt_num(L, 2, ImGui::GetStyle().FrameRounding);
+    float additional_size = lh::opt_num(L, 1, 0.0f);
 
     auto mins = ImGui::GetItemRectMin();
     mins.x -= additional_size;
@@ -408,50 +493,64 @@ void end_rect(sol::object additional_size_obj, sol::object rounding_obj) {
     maxs.x += additional_size;
     maxs.y += additional_size;
 
-    ImGui::GetWindowDrawList()->AddRect(mins, maxs, ImGui::GetColorU32(ImGuiCol_Border), ImGui::GetStyle().FrameRounding, ImDrawFlags_RoundCornersAll, 1.0f);
+    ImGui::GetWindowDrawList()->AddRect(
+        mins, maxs, ImGui::GetColorU32(ImGuiCol_Border), ImGui::GetStyle().FrameRounding, ImDrawFlags_RoundCornersAll, 1.0f);
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_disabled(sol::object disabled_obj) {
-    bool disabled{true};
-
-    if (disabled_obj.is<bool>()) {
-        disabled = disabled_obj.as<bool>();
-    }
-
+LH_BIND(l_begin_disabled) {
     ++g_disabled_counts;
-    ImGui::BeginDisabled(disabled);
+    ImGui::BeginDisabled(lh::opt_bool(L, 1, true));
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_disabled() {
+LH_BIND(l_end_disabled) {
     if (g_disabled_counts > 0) {
         --g_disabled_counts;
         ImGui::EndDisabled();
     }
-}
 
-void separator() {
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_separator) {
     ImGui::Separator();
+    return 0;
 }
+LH_BIND_END(L)
 
-void spacing() {
+LH_BIND(l_spacing) {
     ImGui::Spacing();
+    return 0;
 }
+LH_BIND_END(L)
 
-void new_line() {
+LH_BIND(l_new_line) {
     ImGui::NewLine();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool collapsing_header(const char* name) {
-    return ImGui::CollapsingHeader(name);
+LH_BIND(l_collapsing_header) {
+    lua_pushboolean(L, ImGui::CollapsingHeader(lh::str(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-int load_font(sol::object filepath_obj, float size) {
+LH_BIND(l_load_font) {
     namespace fs = std::filesystem;
+
     const char* filepath = "doesnt-exist.not-a-real-font";
 
-    if (filepath_obj.is<const char*>()) {
-        filepath = filepath_obj.as<const char*>();
+    if (lh::is_str(L, 1)) {
+        filepath = lua_tostring(L, 1);
     }
+
+    const float size = lh::num_float(L, 2);
 
     if (std::filesystem::path(filepath).is_absolute()) {
         throw std::runtime_error("Font filepath must not be absolute.");
@@ -466,1008 +565,1491 @@ int load_font(sol::object filepath_obj, float size) {
 
     fs::create_directories(fonts_path);
 
-    return g_framework->add_font(font_path, size);
-}
+    lua_pushinteger(L, g_framework->add_font(font_path, size));
 
-void push_font(int font, sol::object size_obj) {
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_push_font) {
     try {
+        const int font = lh::num_int(L, 1);
+
         float size = g_framework->get_font_size();
 
-        if (size_obj.is<float>()) {
-            size = size_obj.as<float>();
+        if (lh::is_num(L, 2)) {
+            size = lh::opt_num(L, 2, size);
         } else {
             size = g_framework->get_font_size(font);
         }
-        const auto loaded_font = g_framework->get_font(font);
 
-        ImGui::PushFont(loaded_font, size);
+        ImGui::PushFont(g_framework->get_font(font), size);
     } catch (const std::exception& e) {
         spdlog::error("Failed to push_font: {}", e.what());
-    }
-}
-
-void pop_font() {
-    ImGui::PopFont();
-}
-
-void push_font_size(float size) {
-    ImGui::PushFont(nullptr, size);
-}
-
-void pop_font_size() {
-    ImGui::PopFont();
-}
-
-int get_default_font_size() {
-    return g_framework->get_font_size();
-}
-
-sol::variadic_results color_picker(sol::this_state s, const char* label, unsigned int color, sol::object flags_obj) {
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto r = color & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = (color >> 16) & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{
-        r / 255.0f,
-        g / 255.0f,
-        b / 255.0f,
-        a / 255.0f,
-    };
-
-    auto changed = ImGui::ColorPicker4(label, col, flags);
-
-    r = (unsigned int)(col[0] * 255.0f);
-    g = (unsigned int)(col[1] * 255.0f);
-    b = (unsigned int)(col[2] * 255.0f);
-    a = (unsigned int)(col[3] * 255.0f);
-
-    unsigned int new_color = 0;
-
-    new_color |= r;
-    new_color |= g << 8;
-    new_color |= b << 16;
-    new_color |= a << 24;
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, new_color));
-
-    return results;
-}
-
-sol::variadic_results color_picker_argb(sol::this_state s, const char* label, unsigned int color, sol::object flags_obj) {
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto r = (color >> 16) & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = color & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{
-        r / 255.0f,
-        g / 255.0f,
-        b / 255.0f,
-        a / 255.0f,
-    };
-
-    auto changed = ImGui::ColorPicker4(label, col, flags);
-
-    r = (unsigned int)(col[0] * 255.0f);
-    g = (unsigned int)(col[1] * 255.0f);
-    b = (unsigned int)(col[2] * 255.0f);
-    a = (unsigned int)(col[3] * 255.0f);
-
-    unsigned int new_color = 0;
-
-    new_color |= r << 16;
-    new_color |= g << 8;
-    new_color |= b;
-    new_color |= a << 24;
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, new_color));
-
-    return results;
-}
-
-sol::variadic_results color_picker3(sol::this_state s, const char* label, Vector3f color, sol::object flags_obj) {
-    label = safe_str(label);
-
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto changed = ImGui::ColorPicker3(label, &color.x, flags);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, color));
-
-    return results;
-}
-
-sol::variadic_results color_picker4(sol::this_state s, const char* label, Vector4f color, sol::object flags_obj) {
-    label = safe_str(label);
-
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto changed = ImGui::ColorPicker4(label, &color.x, flags);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, color));
-
-    return results;
-}
-
-sol::variadic_results color_edit(sol::this_state s, const char* label, unsigned int color, sol::object flags_obj) {
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-   
-    auto r = color & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = (color >> 16) & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{
-        r / 255.0f,
-        g / 255.0f,
-        b / 255.0f,
-        a / 255.0f,
-    };
-
-    auto changed = ImGui::ColorEdit4(label, col, flags);
-
-    r = (unsigned int)(col[0] * 255.0f);
-    g = (unsigned int)(col[1] * 255.0f);
-    b = (unsigned int)(col[2] * 255.0f);
-    a = (unsigned int)(col[3] * 255.0f);
-
-    unsigned int new_color = 0;
-
-    new_color |= r;
-    new_color |= g << 8;
-    new_color |= b << 16;
-    new_color |= a << 24;
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, new_color));
-
-    return results;
-}
-
-sol::variadic_results color_edit_argb(sol::this_state s, const char* label, unsigned int color, sol::object flags_obj) {
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto r = (color >> 16) & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = color & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{
-        r / 255.0f,
-        g / 255.0f,
-        b / 255.0f,
-        a / 255.0f,
-    };
-
-    auto changed = ImGui::ColorEdit4(label, col, flags);
-
-    r = (unsigned int)(col[0] * 255.0f);
-    g = (unsigned int)(col[1] * 255.0f);
-    b = (unsigned int)(col[2] * 255.0f);
-    a = (unsigned int)(col[3] * 255.0f);
-
-    unsigned int new_color = 0;
-
-    new_color |= r << 16;
-    new_color |= g << 8;
-    new_color |= b;
-    new_color |= a << 24;
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, new_color));
-
-    return results;
-}
-
-sol::variadic_results color_edit3(sol::this_state s, const char* label, Vector3f color, sol::object flags_obj) {
-    label = safe_str(label);
-
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto changed = ImGui::ColorEdit3(label, &color.x, flags);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, color));
-
-    return results;
-}
-
-sol::variadic_results color_edit4(sol::this_state s, const char* label, Vector4f color, sol::object flags_obj) {
-    label = safe_str(label);
-
-    ImGuiColorEditFlags flags{};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiColorEditFlags)flags_obj.as<int>();
-    }
-
-    auto changed = ImGui::ColorEdit4(label, &color.x, flags);
-
-    sol::variadic_results results{};
-
-    results.push_back(sol::make_object(s, changed));
-    results.push_back(sol::make_object(s, color));
-
-    return results;
-}
-
-void set_next_window_pos(sol::object pos_obj, sol::object condition_obj, sol::object pivot_obj) {
-    ImGuiCond condition{};
-
-    if (condition_obj.is<int>()) {
-        condition = (ImGuiCond)condition_obj.as<int>();
-    }
-
-    auto pos = create_imvec2(pos_obj);
-    auto pivot = create_imvec2(pivot_obj);
-
-    ImGui::SetNextWindowPos(pos, condition, pivot);
-}
-
-void set_next_window_size(sol::object size_obj, sol::object condition_obj) {
-    ImGuiCond condition{};
-
-    if (condition_obj.is<int>()) {
-        condition = (ImGuiCond)condition_obj.as<int>();
-    }
-
-    auto size = create_imvec2(size_obj);
-
-    ImGui::SetNextWindowSize(size, condition);
-}
-
-void push_id(sol::object id) {
-    if (id.is<int>()) {
-        ImGui::PushID(id.as<int>());
-    } else if (id.is<const char*>()) {
-        ImGui::PushID(id.as<const char*>());
-    } else if (id.is<void*>()) {
-        ImGui::PushID(id.as<void*>());
-    } else {
-        throw sol::error("Type must be int, const char* or void*");
-    }
-}
-
-void pop_id() {
-    ImGui::PopID();
-}
-
-ImGuiID get_id(sol::object id) {
-    if (id.is<int>()) {
-        return id.as<ImGuiID>();
-    } else if (id.is<const char*>()) {
-        return ImGui::GetID(id.as<const char*>());
-    } else if (id.is<void*>()) {
-        return ImGui::GetID(id.as<void*>());
-    } else {
-        throw sol::error("Type must be int, const char* or void*");
     }
 
     return 0;
 }
+LH_BIND_END(L)
 
-Vector2f get_mouse() {
+LH_BIND(l_pop_font) {
+    ImGui::PopFont();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_push_font_size) {
+    ImGui::PushFont(nullptr, lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_pop_font_size) {
+    ImGui::PopFont();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_default_font_size) {
+    lua_pushinteger(L, g_framework->get_font_size());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_picker) {
+    const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
+    const auto color = (unsigned)lh::num_int(L, 2);
+
+    auto r = color & 0xFF;
+    auto g = (color >> 8) & 0xFF;
+    auto b = (color >> 16) & 0xFF;
+    auto a = (color >> 24) & 0xFF;
+
+    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+
+    const auto changed = ImGui::ColorPicker4(lh::str(L, 1), col, flags);
+
+    r = (unsigned)(col[0] * 255.0f);
+    g = (unsigned)(col[1] * 255.0f);
+    b = (unsigned)(col[2] * 255.0f);
+    a = (unsigned)(col[3] * 255.0f);
+
+    unsigned new_color = 0;
+    new_color |= r;
+    new_color |= g << 8;
+    new_color |= b << 16;
+    new_color |= a << 24;
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, new_color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_picker_argb) {
+    const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
+    const auto color = (unsigned)lh::num_int(L, 2);
+
+    auto r = (color >> 16) & 0xFF;
+    auto g = (color >> 8) & 0xFF;
+    auto b = color & 0xFF;
+    auto a = (color >> 24) & 0xFF;
+
+    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+
+    const auto changed = ImGui::ColorPicker4(lh::str(L, 1), col, flags);
+
+    r = (unsigned)(col[0] * 255.0f);
+    g = (unsigned)(col[1] * 255.0f);
+    b = (unsigned)(col[2] * 255.0f);
+    a = (unsigned)(col[3] * 255.0f);
+
+    unsigned new_color = 0;
+    new_color |= r << 16;
+    new_color |= g << 8;
+    new_color |= b;
+    new_color |= a << 24;
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, new_color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_picker3) {
+    auto color = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
+
+    const auto changed = ImGui::ColorPicker3(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
+
+    lua_pushboolean(L, changed);
+    lh::put(L, color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_picker4) {
+    auto color = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
+
+    const auto changed = ImGui::ColorPicker4(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
+
+    lua_pushboolean(L, changed);
+    lh::put(L, color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_edit) {
+    const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
+    const auto color = (unsigned)lh::num_int(L, 2);
+
+    auto r = color & 0xFF;
+    auto g = (color >> 8) & 0xFF;
+    auto b = (color >> 16) & 0xFF;
+    auto a = (color >> 24) & 0xFF;
+
+    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+
+    const auto changed = ImGui::ColorEdit4(lh::str(L, 1), col, flags);
+
+    r = (unsigned)(col[0] * 255.0f);
+    g = (unsigned)(col[1] * 255.0f);
+    b = (unsigned)(col[2] * 255.0f);
+    a = (unsigned)(col[3] * 255.0f);
+
+    unsigned new_color = 0;
+    new_color |= r;
+    new_color |= g << 8;
+    new_color |= b << 16;
+    new_color |= a << 24;
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, new_color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_edit_argb) {
+    const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
+    const auto color = (unsigned)lh::num_int(L, 2);
+
+    auto r = (color >> 16) & 0xFF;
+    auto g = (color >> 8) & 0xFF;
+    auto b = color & 0xFF;
+    auto a = (color >> 24) & 0xFF;
+
+    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+
+    const auto changed = ImGui::ColorEdit4(lh::str(L, 1), col, flags);
+
+    r = (unsigned)(col[0] * 255.0f);
+    g = (unsigned)(col[1] * 255.0f);
+    b = (unsigned)(col[2] * 255.0f);
+    a = (unsigned)(col[3] * 255.0f);
+
+    unsigned new_color = 0;
+    new_color |= r << 16;
+    new_color |= g << 8;
+    new_color |= b;
+    new_color |= a << 24;
+
+    lua_pushboolean(L, changed);
+    lua_pushinteger(L, new_color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_edit3) {
+    auto color = lh::get_checked<Vector3f>(L, 2, "Vector3f expected for argument #2");
+
+    const auto changed = ImGui::ColorEdit3(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
+
+    lua_pushboolean(L, changed);
+    lh::put(L, color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_color_edit4) {
+    auto color = lh::get_checked<Vector4f>(L, 2, "Vector4f expected for argument #2");
+
+    const auto changed = ImGui::ColorEdit4(lh::str(L, 1), &color.x, (ImGuiColorEditFlags)lh::opt_int(L, 3, 0));
+
+    lua_pushboolean(L, changed);
+    lh::put(L, color);
+
+    return 2;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_next_window_pos) {
+    ImGui::SetNextWindowPos(imvec2(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0), imvec2(L, 3));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_next_window_size) {
+    ImGui::SetNextWindowSize(imvec2(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0));
+    return 0;
+}
+LH_BIND_END(L)
+
+static const char* id_type_error = "Type must be int, const char* or void*";
+
+LH_BIND(l_push_id) {
+    if (lh::is_int(L, 1)) {
+        ImGui::PushID((int)lua_tointeger(L, 1));
+    } else if (lh::is_str(L, 1)) {
+        ImGui::PushID(lua_tostring(L, 1));
+    } else if (lh::is_ptr(L, 1)) {
+        ImGui::PushID(lua_touserdata(L, 1));
+    } else {
+        throw std::runtime_error(id_type_error);
+    }
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_pop_id) {
+    ImGui::PopID();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_id) {
+    if (lh::is_int(L, 1)) {
+        lua_pushinteger(L, (ImGuiID)lua_tointeger(L, 1));
+    } else if (lh::is_str(L, 1)) {
+        lua_pushinteger(L, ImGui::GetID(lua_tostring(L, 1)));
+    } else if (lh::is_ptr(L, 1)) {
+        lua_pushinteger(L, ImGui::GetID(lua_touserdata(L, 1)));
+    } else {
+        throw std::runtime_error(id_type_error);
+    }
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_mouse) {
     const auto mouse = ImGui::GetMousePos();
 
-    return Vector2f{
-        mouse.x,
-        mouse.y,
-    };
-}
+    put_vec2(L, Vector2f{mouse.x, mouse.y});
 
-int get_key_index(int imgui_key) {
-    return (ImGuiKey)imgui_key;
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_key_down(int key) {
-    return ImGui::IsKeyDown((ImGuiKey)key);
+LH_BIND(l_get_key_index) {
+    lua_pushinteger(L, (int)(ImGuiKey)lh::num_int(L, 1));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_key_pressed(int key) {
-    return ImGui::IsKeyPressed((ImGuiKey)key);
+LH_BIND(l_is_key_down) {
+    lua_pushboolean(L, ImGui::IsKeyDown((ImGuiKey)lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_key_released(int key) {
-    return ImGui::IsKeyReleased((ImGuiKey)key);
+LH_BIND(l_is_key_pressed) {
+    lua_pushboolean(L, ImGui::IsKeyPressed((ImGuiKey)lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_mouse_down(int button) {
-    return ImGui::IsMouseDown(button);
+LH_BIND(l_is_key_released) {
+    lua_pushboolean(L, ImGui::IsKeyReleased((ImGuiKey)lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_mouse_clicked(int button) {
-    return ImGui::IsMouseClicked(button);
+LH_BIND(l_is_mouse_down) {
+    lua_pushboolean(L, ImGui::IsMouseDown(lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_mouse_released(int button) {
-    return ImGui::IsMouseReleased(button);
+LH_BIND(l_is_mouse_clicked) {
+    lua_pushboolean(L, ImGui::IsMouseClicked(lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool is_mouse_double_clicked(int button) {
-    return ImGui::IsMouseDoubleClicked(button);
+LH_BIND(l_is_mouse_released) {
+    lua_pushboolean(L, ImGui::IsMouseReleased(lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void indent(int indent_width) {
-    ImGui::Indent(indent_width);
+LH_BIND(l_is_mouse_double_clicked) {
+    lua_pushboolean(L, ImGui::IsMouseDoubleClicked(lh::num_int(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void unindent(int indent_width) {
-    ImGui::Unindent(indent_width);
+LH_BIND(l_indent) {
+    ImGui::Indent(lh::num_float(L, 1));
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_tooltip() {
+LH_BIND(l_unindent) {
+    ImGui::Unindent(lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_begin_tooltip) {
     ImGui::BeginTooltip();
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_tooltip() {
+LH_BIND(l_end_tooltip) {
     ImGui::EndTooltip();
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_tooltip(const char* text) {
-    text = safe_str(text);
-
-    ImGui::SetTooltip("%s", text);
+LH_BIND(l_set_tooltip) {
+    ImGui::SetTooltip("%s", lh::str(L, 1));
+    return 0;
 }
+LH_BIND_END(L)
 
-void open_popup(const char* str_id, sol::object flags_obj) {
-    str_id = safe_str(str_id);
-
-    ImGuiWindowFlags flags{0};
-
-    if (flags_obj.is<int>()) {
-        flags = (ImGuiWindowFlags)flags_obj.as<int>();
-    }
-
-    ImGui::OpenPopup(str_id, flags);
+LH_BIND(l_open_popup) {
+    ImGui::OpenPopup(lh::str(L, 1), (ImGuiWindowFlags)lh::opt_int(L, 2, 0));
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_popup(const char* str_id, sol::object flags_obj) {
-    int flags{0};
-
-    if (flags_obj.is<int>()) {
-        flags = flags_obj.as<int>();
-    }
-
-    return ImGui::BeginPopup(str_id, flags);
+LH_BIND(l_begin_popup) {
+    lua_pushboolean(L, ImGui::BeginPopup(lh::str(L, 1), lh::opt_int(L, 2, 0)));
+    return 1;
 }
+LH_BIND_END(L)
 
-bool begin_popup_context_item(const char* str_id, sol::object flags_obj) {
-    int flags{1};
-
-    if (flags_obj.is<int>()) {
-        flags = flags_obj.as<int>();
-    }
-
-    return ImGui::BeginPopupContextItem(str_id, flags);
+LH_BIND(l_begin_popup_context_item) {
+    lua_pushboolean(L, ImGui::BeginPopupContextItem(lh::str(L, 1), lh::opt_int(L, 2, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_popup() {
+LH_BIND(l_end_popup) {
     ImGui::EndPopup();
+    return 0;
 }
+LH_BIND_END(L)
 
-void close_current_popup() {
+LH_BIND(l_close_current_popup) {
     ImGui::CloseCurrentPopup();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool is_popup_open(const char* str_id) {
-    return ImGui::IsPopupOpen(str_id);
+LH_BIND(l_is_popup_open) {
+    lua_pushboolean(L, ImGui::IsPopupOpen(lh::str(L, 1)));
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f calc_text_size(const char* text) {
-    const auto result = ImGui::CalcTextSize(text);
+LH_BIND(l_calc_text_size) {
+    const auto result = ImGui::CalcTextSize(lh::str(L, 1));
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    put_vec2(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f get_window_size() {
+LH_BIND(l_get_window_size) {
     const auto result = ImGui::GetWindowSize();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
-}
+    put_vec2(L, Vector2f{result.x, result.y});
 
-Vector2f get_window_pos() {
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_window_pos) {
     const auto result = ImGui::GetWindowPos();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    put_vec2(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-ImDrawList* get_window_draw_list() {
-    return ImGui::GetWindowDrawList();
+LH_BIND(l_set_next_item_open) {
+    ImGui::SetNextItemOpen(lh::num_bool(L, 1), (ImGuiCond)lh::opt_int(L, 2, 0));
+    return 0;
 }
+LH_BIND_END(L)
 
-ImDrawList* get_background_draw_list() {
-    return ImGui::GetBackgroundDrawList();
+LH_BIND(l_begin_list_box) {
+    lua_pushboolean(L, ImGui::BeginListBox(lh::str(L, 1), imvec2(L, 2)));
+    return 1;
 }
+LH_BIND_END(L)
 
-ImDrawList* get_foreground_draw_list() {
-    return ImGui::GetForegroundDrawList();
-}
-
-void set_next_item_open(bool is_open, sol::object condition_obj) {
-    ImGuiCond condition{0};
-
-    if (condition_obj.is<int>()) {
-        condition = (ImGuiCond)condition_obj.as<int>();
-    }
-
-    ImGui::SetNextItemOpen(is_open, condition);
-}
-
-bool begin_list_box(const char* label, sol::object size_obj) {
-    label = safe_str(label);
-
-    auto size = create_imvec2(size_obj);
-
-    return ImGui::BeginListBox(label, size);
-}
-
-void end_list_box() {
+LH_BIND(l_end_list_box) {
     ImGui::EndListBox();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_menu_bar() {
-    return ImGui::BeginMenuBar();
+LH_BIND(l_begin_menu_bar) {
+    lua_pushboolean(L, ImGui::BeginMenuBar());
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_menu_bar() {
+LH_BIND(l_end_menu_bar) {
     ImGui::EndMenuBar();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_main_menu_bar() {
-    return ImGui::BeginMainMenuBar();
+LH_BIND(l_begin_main_menu_bar) {
+    lua_pushboolean(L, ImGui::BeginMainMenuBar());
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_main_menu_bar() {
+LH_BIND(l_end_main_menu_bar) {
     ImGui::EndMainMenuBar();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_menu(const char* label, sol::object enabled_obj) {
-    label = safe_str(label);
-
-    bool enabled{true};
-
-    if (enabled_obj.is<bool>()) {
-        enabled = enabled_obj.as<bool>();
-    }
-
-    return ImGui::BeginMenu(label, enabled);
+LH_BIND(l_begin_menu) {
+    lua_pushboolean(L, ImGui::BeginMenu(lh::str(L, 1), lh::opt_bool(L, 2, true)));
+    return 1;
 }
+LH_BIND_END(L)
 
-void end_menu() {
+LH_BIND(l_end_menu) {
     ImGui::EndMenu();
+    return 0;
 }
+LH_BIND_END(L)
 
-bool menu_item(const char* label, sol::object shortcut_obj, sol::object selected_obj, sol::object enabled_obj) {
-    label = safe_str(label);
+LH_BIND(l_menu_item) {
+    const char* shortcut = lh::opt_str(L, 2, "");
 
-    const char* shortcut{nullptr};
-    bool selected{false};
-    bool enabled{true};
-
-    if (shortcut_obj.is<const char*>()) {
-        shortcut = shortcut_obj.as<const char*>();
-    } else {
-        shortcut = "";
-    }
-
-    if (selected_obj.is<bool>()) {
-        selected = selected_obj.as<bool>();
-    }
-
-    if (enabled_obj.is<bool>()) {
-        enabled = enabled_obj.as<bool>();
-    }
-
-    return ImGui::MenuItem(label, shortcut, selected, enabled);
+    lua_pushboolean(L, ImGui::MenuItem(lh::str(L, 1), shortcut, lh::opt_bool(L, 3, false), lh::opt_bool(L, 4, true)));
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f get_display_size() {
+LH_BIND(l_get_display_size) {
     const auto& result = ImGui::GetIO().DisplaySize;
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
-}
+    put_vec2(L, Vector2f{result.x, result.y});
 
-void push_item_width(float item_width) {
-    ImGui::PushItemWidth(item_width);
+    return 1;
 }
+LH_BIND_END(L)
 
-void pop_item_width() {
-    ImGui::PopItemWidth();
-}
-
-void set_next_item_width(float item_width) {
-    ImGui::SetNextItemWidth(item_width);
-}
-
-float calc_item_width() {
-    return ImGui::CalcItemWidth();
-}
-
-void item_size(sol::object pos, sol::object size, sol::object text_baseline_y) {
-    if (text_baseline_y.is<float>()) {
-        ImGui::ItemSize(ImRect{create_imvec2(pos), create_imvec2(size)}, text_baseline_y.as<float>());
-    } else {
-        ImGui::ItemSize(ImRect{create_imvec2(pos), create_imvec2(size)});
+static int push_draw_list(lua_State* L, ImDrawList* draw_list) {
+    if (draw_list == nullptr) {
+        lua_pushnil(L);
+        return 1;
     }
+
+    auto out = static_cast<ImDrawList**>(lua_newuserdatauv(L, sizeof(ImDrawList*), 0));
+    *out = draw_list;
+    luaL_setmetatable(L, DRAW_LIST_MT);
+
+    return 1;
 }
 
-bool item_add(const char* label, sol::object pos, sol::object size) {
-    label = safe_str(label);
+static ImDrawList* check_draw_list(lua_State* L, int index) {
+    return *static_cast<ImDrawList**>(luaL_checkudata(L, index, DRAW_LIST_MT));
+}
 
+LH_BIND(l_get_window_draw_list) {
+    return push_draw_list(L, ImGui::GetWindowDrawList());
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_background_draw_list) {
+    return push_draw_list(L, ImGui::GetBackgroundDrawList());
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_foreground_draw_list) {
+    return push_draw_list(L, ImGui::GetForegroundDrawList());
+}
+LH_BIND_END(L)
+
+LH_BIND(l_push_item_width) {
+    ImGui::PushItemWidth(lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_pop_item_width) {
+    ImGui::PopItemWidth();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_next_item_width) {
+    ImGui::SetNextItemWidth(lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_calc_item_width) {
+    lua_pushnumber(L, ImGui::CalcItemWidth());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_item_add) {
     const auto window = ImGui::GetCurrentWindow();
 
     if (window == nullptr) {
-        return false;
+        lua_pushboolean(L, false);
+        return 1;
     }
 
-    return ImGui::ItemAdd(ImRect{create_imvec2(pos), create_imvec2(size)}, window->GetID(label));
+    const auto rect = ImRect{imvec2(L, 2), imvec2(L, 3)};
+
+    lua_pushboolean(L, ImGui::ItemAdd(rect, window->GetID(lh::str(L, 1))));
+
+    return 1;
 }
+LH_BIND_END(L)
 
-void push_style_color(int style_color, sol::object color_obj) {
-    if (color_obj.is<int>()) {
-        ImGui::PushStyleColor((ImGuiCol)style_color, (ImU32)color_obj.as<int>());
-    } else if (color_obj.is<Vector4f>()) {
-        ImGui::PushStyleColor((ImGuiCol)style_color, create_imvec4(color_obj));
-    }
-}
+LH_BIND(l_item_size) {
+    const auto rect = ImRect{imvec2(L, 1), imvec2(L, 2)};
 
-void pop_style_color(sol::object count_obj) {
-    int count{1};
-
-    if (count_obj.is<int>()) {
-        count = count_obj.as<int>();
-    }
-
-    ImGui::PopStyleColor(count);
-}
-
-void push_style_var(int idx, sol::object value_obj) {
-    if (value_obj.is<float>()) {
-        ImGui::PushStyleVar((ImGuiStyleVar)idx, value_obj.as<float>());
-    } else if (value_obj.is<Vector2f>()) {
-        ImGui::PushStyleVar((ImGuiStyleVar)idx, create_imvec2(value_obj));
-    }
-}
-
-void pop_style_var(sol::object count_obj) {
-    int count{1};
-
-    if (count_obj.is<int>()) {
-        count = count_obj.as<int>();
+    if (lh::is_num(L, 3)) {
+        ImGui::ItemSize(rect, lh::opt_num(L, 3, 0.0f));
+    } else {
+        ImGui::ItemSize(rect);
     }
 
-    ImGui::PopStyleVar(count);
+    return 0;
 }
+LH_BIND_END(L)
 
-Vector2f get_cursor_pos() {
+LH_BIND(l_push_style_color) {
+    if (lh::is_int(L, 2)) {
+        ImGui::PushStyleColor((ImGuiCol)lh::num_int(L, 1), (ImU32)lua_tointeger(L, 2));
+    } else if (lh::is<Vector4f>(L, 2)) {
+        ImGui::PushStyleColor((ImGuiCol)lh::num_int(L, 1), imvec4(L, 2));
+    }
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_pop_style_color) {
+    ImGui::PopStyleColor(lh::opt_int(L, 1, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_push_style_var) {
+    if (lh::is_num(L, 2)) {
+        ImGui::PushStyleVar((ImGuiStyleVar)lh::num_int(L, 1), lh::opt_num(L, 2, 0.0f));
+    } else if (lh::is<Vector2f>(L, 2)) {
+        ImGui::PushStyleVar((ImGuiStyleVar)lh::num_int(L, 1), imvec2(L, 2));
+    }
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_pop_style_var) {
+    ImGui::PopStyleVar(lh::opt_int(L, 1, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_cursor_pos) {
     const auto result = ImGui::GetCursorPos();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
-}
+    put_vec2(L, Vector2f{result.x, result.y});
 
-void set_cursor_pos(sol::object pos) {
-    ImGui::SetCursorPos(create_imvec2(pos));
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f get_cursor_start_pos() {
+LH_BIND(l_set_cursor_pos) {
+    ImGui::SetCursorPos(imvec2(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_cursor_start_pos) {
     const auto result = ImGui::GetCursorStartPos();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
-}
+    put_vec2(L, Vector2f{result.x, result.y});
 
-Vector2f get_cursor_screen_pos() {
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_cursor_screen_pos) {
     const auto result = ImGui::GetCursorScreenPos();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
-}
+    put_vec2(L, Vector2f{result.x, result.y});
 
-void set_cursor_screen_pos(sol::object pos) {
-    ImGui::SetCursorScreenPos(create_imvec2(pos));
+    return 1;
 }
+LH_BIND_END(L)
 
-void set_item_default_focus() {
+LH_BIND(l_set_cursor_screen_pos) {
+    ImGui::SetCursorScreenPos(imvec2(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_item_default_focus) {
     ImGui::SetItemDefaultFocus();
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_clipboard(sol::object data) {
-    ImGui::SetClipboardText(data.as<const char*>());
+LH_BIND(l_set_clipboard) {
+    ImGui::SetClipboardText(lh::str(L, 1));
+    return 0;
 }
+LH_BIND_END(L)
 
-const char* get_clipboard() {
-    return ImGui::GetClipboardText();
+LH_BIND(l_get_clipboard) {
+    const auto text = ImGui::GetClipboardText();
+
+    lua_pushstring(L, text == nullptr ? "" : text);
+
+    return 1;
 }
+LH_BIND_END(L)
 
-void progress_bar(float progress, sol::object size, const char* overlay ){
-    overlay = safe_str(overlay);
-
-    ImGui::ProgressBar(progress, create_imvec2(size), overlay);
+LH_BIND(l_progress_bar) {
+    ImGui::ProgressBar(lh::num_float(L, 1), imvec2(L, 2), lh::str(L, 3));
+    return 0;
 }
+LH_BIND_END(L)
 
-bool begin_table(const char* str_id, int column, sol::object flags_obj, sol::object outer_size_obj, sol::object inner_width_obj) {
-    str_id = safe_str(str_id);
-
-    ImVec2 outer_size{};
-    if (outer_size_obj.is<Vector2f>()) {
-        const auto& vec = outer_size_obj.as<Vector2f>();
-        outer_size = {vec.x, vec.y};
-    }
-
-    float inner_width = inner_width_obj.is<float>() ? inner_width_obj.as<float>() : 0.0f;
-    int flags = flags_obj.is<int>() ? flags_obj.as<int>() : 0;
-
-    return ImGui::BeginTable(str_id, column, flags, outer_size, inner_width);
-}
-
-void end_table() {
-    ImGui::EndTable();
-}
-
-void table_next_row(sol::object row_flags, sol::object min_row_height) {
-    int flags = row_flags.is<int>() ? row_flags.as<int>() : 0;
-    float min_height = min_row_height.is<float>() ? min_row_height.as<float>() : 0.0f;
-    ImGui::TableNextRow(flags, min_height);
-}
-
-bool table_next_column() {
-    return ImGui::TableNextColumn();
-}
-
-bool table_set_column_index(int column_index) {
-    return ImGui::TableSetColumnIndex(column_index);
-}
-
-void table_setup_column(const char* label, sol::object flags_obj, sol::object init_width_or_weight_obj, sol::object user_id_obj) {
-    label = safe_str(label);
-
-    auto flags = flags_obj.is<int>() ? flags_obj.as<int>() : 0;
-    auto init_width = init_width_or_weight_obj.is<float>() ? init_width_or_weight_obj.as<float>() : 0.0f;
-    auto user_id = user_id_obj.is<ImGuiID>() ? user_id_obj.as<ImGuiID>() : 0;
-
-    ImGui::TableSetupColumn(label, flags, init_width, user_id);
-}
-
-void table_setup_scroll_freeze(int cols, int rows) {
-    ImGui::TableSetupScrollFreeze(cols, rows);
-}
-
-void table_headers_row() {
-    ImGui::TableHeadersRow();
-}
-
-void table_header(const char* label) {
-    label = safe_str(label);
-
-    ImGui::TableHeader(label);
-}
-
-int table_get_column_count() {
-    return ImGui::TableGetColumnCount();
-}
-
-int table_get_column_index() {
-    return ImGui::TableGetColumnIndex();
-}
-
-int table_get_row_index() {
-    return ImGui::TableGetRowIndex();
-}
-
-const char* table_get_column_name(int column = -1) {
-    return ImGui::TableGetColumnName(column);
-}
-
-ImGuiTableColumnFlags table_get_column_flags(sol::object column) {
-    return ImGui::TableGetColumnFlags(column.is<int>() ? column.as<int>() : -1);
-}
-
-void table_set_bg_color(ImGuiTableBgTarget target, ImU32 color, sol::object column) {
-    ImGui::TableSetBgColor(target, color, column.is<int>() ? column.as<int>() : -1);
-}
-
-void table_set_bg_color_vec4(ImGuiTableBgTarget target, Vector4f color, sol::object column) {
-    ImVec4 _color = {color.x, color.y, color.z, color.w};
-    ImGui::TableSetBgColor(target, ImGui::ColorConvertFloat4ToU32(_color), column.is<int>() ? column.as<int>() : -1);
-}
-
-ImGuiTableSortSpecs* table_get_sort_specs() {
-    return ImGui::TableGetSortSpecs();
-}
-
-// Window Drawlist
-void draw_list_path_clear() {
+LH_BIND(l_draw_list_path_clear) {
     if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
         dl->PathClear();
     }
-}
 
-void draw_list_path_line_to(sol::object pos_obj) {
-    auto pos = create_imvec2(pos_obj);
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_draw_list_path_line_to) {
+    const auto pos = imvec2(L, 1);
+
     if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
         dl->PathLineTo(pos);
     }
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_draw_list_path_stroke) {
+    if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
+        dl->PathStroke((ImU32)lh::num_int(L, 1), lua_toboolean(L, 2) != 0, lh::num_float(L, 3));
+    }
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_scroll_x) {
+    lua_pushnumber(L, ImGui::GetScrollX());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_scroll_y) {
+    lua_pushnumber(L, ImGui::GetScrollY());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_x) {
+    ImGui::SetScrollX(lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_y) {
+    ImGui::SetScrollY(lh::num_float(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_scroll_max_x) {
+    lua_pushnumber(L, ImGui::GetScrollMaxX());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_get_scroll_max_y) {
+    lua_pushnumber(L, ImGui::GetScrollMaxY());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_here_x) {
+    ImGui::SetScrollHereX(lh::opt_num(L, 1, 0.5f));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_here_y) {
+    ImGui::SetScrollHereY(lh::opt_num(L, 1, 0.5f));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_from_pos_x) {
+    ImGui::SetScrollFromPosX(lh::num_float(L, 1), lh::opt_num(L, 2, 0.5f));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_set_scroll_from_pos_y) {
+    ImGui::SetScrollFromPosY(lh::num_float(L, 1), lh::opt_num(L, 2, 0.5f));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_begin_table) {
+    ImVec2 outer_size{};
+
+    if (lh::is<Vector2f>(L, 4)) {
+        const auto vec = lh::get<Vector2f>(L, 4);
+        outer_size = {vec.x, vec.y};
+    }
+
+    lua_pushboolean(L,
+        ImGui::BeginTable(lh::str(L, 1), lh::num_int(L, 2), lh::opt_int(L, 3, 0), outer_size, lh::opt_num(L, 5, 0.0f)));
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_end_table) {
+    ImGui::EndTable();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_next_row) {
+    ImGui::TableNextRow(lh::opt_int(L, 1, 0), lh::opt_num(L, 2, 0.0f));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_next_column) {
+    lua_pushboolean(L, ImGui::TableNextColumn());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_set_column_index) {
+    lua_pushboolean(L, ImGui::TableSetColumnIndex(lh::num_int(L, 1)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_setup_column) {
+    ImGui::TableSetupColumn(lh::str(L, 1),
+        lh::opt_int(L, 2, 0),
+        lh::opt_num(L, 3, 0.0f),
+        (ImGuiID)lh::opt_uint(L, 4, 0));
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_setup_scroll_freeze) {
+    ImGui::TableSetupScrollFreeze(lh::num_int(L, 1), lh::num_int(L, 2));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_headers_row) {
+    ImGui::TableHeadersRow();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_header) {
+    ImGui::TableHeader(lh::str(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_get_column_count) {
+    lua_pushinteger(L, ImGui::TableGetColumnCount());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_get_column_index) {
+    lua_pushinteger(L, ImGui::TableGetColumnIndex());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_get_row_index) {
+    lua_pushinteger(L, ImGui::TableGetRowIndex());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_get_column_name) {
+    const auto name = ImGui::TableGetColumnName(lh::opt_int(L, 1, -1));
+
+    lua_pushstring(L, name == nullptr ? "" : name);
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_get_column_flags) {
+    lua_pushinteger(L, (int)ImGui::TableGetColumnFlags(lh::opt_int(L, 1, -1)));
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_table_set_bg_color) {
+    ImGui::TableSetBgColor((ImGuiTableBgTarget)lh::num_int(L, 1), (ImU32)lh::num_int(L, 2), lh::opt_int(L, 3, -1));
+    return 0;
+}
+LH_BIND_END(L)
+
+static int push_sort_specs(lua_State* L, ImGuiTableSortSpecs* specs) {
+    if (specs == nullptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    auto out = static_cast<ImGuiTableSortSpecs**>(lua_newuserdatauv(L, sizeof(ImGuiTableSortSpecs*), 0));
+    *out = specs;
+    luaL_setmetatable(L, SORT_SPECS_MT);
+
+    return 1;
 }
 
-void draw_list_path_stroke(ImU32 color, bool closed, float thickness) {
-    if (auto dl = ImGui::GetWindowDrawList(); dl != nullptr) {
-        dl->PathStroke(color, closed, thickness);
+static int push_column_sort_specs(lua_State* L, ImGuiTableColumnSortSpecs* specs) {
+    if (specs == nullptr) {
+        lua_pushnil(L);
+        return 1;
     }
+
+    auto out = static_cast<ImGuiTableColumnSortSpecs**>(lua_newuserdatauv(L, sizeof(ImGuiTableColumnSortSpecs*), 0));
+    *out = specs;
+    luaL_setmetatable(L, COLUMN_SORT_SPECS_MT);
+
+    return 1;
 }
+
+LH_BIND(l_table_get_sort_specs) {
+    return push_sort_specs(L, ImGui::TableGetSortSpecs());
+}
+LH_BIND_END(L)
 } // namespace api::imgui
 
-// Scroll APIs
 namespace api::imgui {
-float get_scroll_x() {
-    return ImGui::GetScrollX();
+LH_BIND(l_dl_push_clip_rect) {
+    check_draw_list(L, 1)->PushClipRect(imvec2(L, 2), imvec2(L, 3), lh::num_bool(L, 4));
+    return 0;
 }
+LH_BIND_END(L)
 
-float get_scroll_y() {
-    return ImGui::GetScrollY();
+LH_BIND(l_dl_push_clip_rect_fullscreen) {
+    check_draw_list(L, 1)->PushClipRectFullScreen();
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_x(float scroll_x) {
-    ImGui::SetScrollX(scroll_x);
+LH_BIND(l_dl_pop_clip_rect) {
+    check_draw_list(L, 1)->PopClipRect();
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_y(float scroll_y) {
-    ImGui::SetScrollY(scroll_y);
+LH_BIND(l_dl_add_line) {
+    check_draw_list(L, 1)->AddLine(
+        imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5));
+    return 0;
 }
+LH_BIND_END(L)
 
-float get_scroll_max_x() {
-    return ImGui::GetScrollMaxX();
+LH_BIND(l_dl_add_rect) {
+    check_draw_list(L, 1)->AddRect(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5),
+        (ImDrawFlags)lh::num_int(L, 6), lh::num_float(L, 7));
+    return 0;
 }
+LH_BIND_END(L)
 
-float get_scroll_max_y() {
-    return ImGui::GetScrollMaxY();
+LH_BIND(l_dl_add_rect_filled) {
+    check_draw_list(L, 1)->AddRectFilled(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5),
+        (ImDrawFlags)lh::num_int(L, 6));
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_here_x(float center_x_ratio = 0.5f) {
-    ImGui::SetScrollHereX(center_x_ratio);
+LH_BIND(l_dl_add_rect_filled_multi_color) {
+    check_draw_list(L, 1)->AddRectFilledMultiColor(imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4),
+        (ImU32)lh::num_uint(L, 5), (ImU32)lh::num_uint(L, 6), (ImU32)lh::num_uint(L, 7));
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_here_y(float center_y_ratio = 0.5f) {
-    ImGui::SetScrollHereY(center_y_ratio);
+LH_BIND(l_dl_add_quad) {
+    check_draw_list(L, 1)->AddQuad(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5), (ImU32)lh::num_uint(L, 6),
+        lh::num_float(L, 7));
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_from_pos_x(float local_x, float center_x_ratio = 0.5f) {
-    ImGui::SetScrollFromPosX(local_x, center_x_ratio);
+LH_BIND(l_dl_add_quad_filled) {
+    check_draw_list(L, 1)->AddQuadFilled(
+        imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5), (ImU32)lh::num_uint(L, 6));
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_scroll_from_pos_y(float local_y, float center_y_ratio = 0.5f) {
-    ImGui::SetScrollFromPosY(local_y, center_y_ratio);
+LH_BIND(l_dl_add_triangle) {
+    check_draw_list(L, 1)->AddTriangle(
+        imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5), lh::num_float(L, 6));
+    return 0;
 }
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_triangle_filled) {
+    check_draw_list(L, 1)->AddTriangleFilled(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_circle) {
+    check_draw_list(L, 1)->AddCircle(
+        imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5), lh::num_float(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_circle_filled) {
+    check_draw_list(L, 1)->AddCircleFilled(
+        imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_ngon) {
+    check_draw_list(L, 1)->AddNgon(
+        imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5), lh::num_float(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_ngon_filled) {
+    check_draw_list(L, 1)->AddNgonFilled(
+        imvec2(L, 2), lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_int(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_ellipse) {
+    check_draw_list(L, 1)->AddEllipse(
+        imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5), lh::num_int(L, 6), lh::num_float(L, 7));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_ellipse_filled) {
+    check_draw_list(L, 1)->AddEllipseFilled(
+        imvec2(L, 2), imvec2(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_float(L, 5), lh::num_int(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_text) {
+    check_draw_list(L, 1)->AddText(imvec2(L, 2), (ImU32)lh::num_uint(L, 3), lh::str(L, 4));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_bezier_cubic) {
+    check_draw_list(L, 1)->AddBezierCubic(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), imvec2(L, 5),
+        (ImU32)lh::num_uint(L, 6), lh::num_float(L, 7));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_add_bezier_quadratic) {
+    check_draw_list(L, 1)->AddBezierQuadratic(
+        imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), (ImU32)lh::num_uint(L, 5), lh::num_float(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_clear) {
+    check_draw_list(L, 1)->PathClear();
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_line_to) {
+    check_draw_list(L, 1)->PathLineTo(imvec2(L, 2));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_line_to_merge_duplicate) {
+    check_draw_list(L, 1)->PathLineToMergeDuplicate(imvec2(L, 2));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_fill_convex) {
+    check_draw_list(L, 1)->PathFillConvex((ImU32)lh::num_uint(L, 2));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_fill_concave) {
+    check_draw_list(L, 1)->PathFillConcave((ImU32)lh::num_uint(L, 2));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_stroke) {
+    check_draw_list(L, 1)->PathStroke(
+        (ImU32)lh::num_uint(L, 2), (ImDrawFlags)lh::num_int(L, 3), lh::num_float(L, 4));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_arc_to) {
+    check_draw_list(L, 1)->PathArcTo(imvec2(L, 2), lh::num_float(L, 3), lh::num_float(L, 4), lh::num_float(L, 5),
+        lh::num_int(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_arc_to_fast) {
+    check_draw_list(L, 1)->PathArcToFast(
+        imvec2(L, 2), lh::num_float(L, 3), lh::num_int(L, 4), lh::num_int(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_elliptical_arc_to) {
+    check_draw_list(L, 1)->PathEllipticalArcTo(
+        imvec2(L, 2), imvec2(L, 3), 0.0f, lh::num_float(L, 4), lh::num_float(L, 5), lh::num_int(L, 6));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_bezier_cubic_curve_to) {
+    check_draw_list(L, 1)->PathBezierCubicCurveTo(imvec2(L, 2), imvec2(L, 3), imvec2(L, 4), lh::num_int(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_bezier_quadratic_curve_to) {
+    check_draw_list(L, 1)->PathBezierQuadraticCurveTo(imvec2(L, 2), imvec2(L, 3), lh::num_int(L, 4));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dl_path_rect) {
+    check_draw_list(L, 1)->PathRect(imvec2(L, 2), imvec2(L, 3), lh::num_float(L, 4), (ImDrawFlags)lh::num_int(L, 5));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_specs_get_specs) {
+    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+
+    lua_createtable(L, specs->SpecsCount, 0);
+
+    for (int i = 0; i < specs->SpecsCount; ++i) {
+        push_column_sort_specs(L, const_cast<ImGuiTableColumnSortSpecs*>(specs->Specs + i));
+        lua_rawseti(L, -2, i + 1);
+    }
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_specs_index) {
+    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+
+    if (key == nullptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    if (std::strcmp(key, "specs_dirty") == 0) {
+        lua_pushboolean(L, specs->SpecsDirty);
+        return 1;
+    }
+
+    if (std::strcmp(key, "get_specs") == 0) {
+        lua_pushcfunction(L, l_specs_get_specs);
+        return 1;
+    }
+
+    lua_pushnil(L);
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_specs_newindex) {
+    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+
+    if (key != nullptr && std::strcmp(key, "specs_dirty") == 0) {
+        specs->SpecsDirty = lua_toboolean(L, 3) != 0;
+        return 0;
+    }
+
+    return luaL_error(L, "TableSortSpecs has no writable member '%s'", key == nullptr ? "" : key);
+}
+LH_BIND_END(L)
+
+LH_BIND(l_column_specs_index) {
+    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
+    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+
+    if (key == nullptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    if (std::strcmp(key, "user_id") == 0) {
+        lua_pushinteger(L, (lua_Integer)specs->ColumnUserID);
+        return 1;
+    }
+
+    if (std::strcmp(key, "column_index") == 0) {
+        lua_pushinteger(L, specs->ColumnIndex);
+        return 1;
+    }
+
+    if (std::strcmp(key, "sort_order") == 0) {
+        lua_pushinteger(L, specs->SortOrder);
+        return 1;
+    }
+
+    if (std::strcmp(key, "sort_direction") == 0) {
+        lua_pushinteger(L, (lua_Integer)specs->SortDirection);
+        return 1;
+    }
+
+    lua_pushnil(L);
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_column_specs_newindex) {
+    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
+    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+
+    if (key != nullptr && std::strcmp(key, "user_id") == 0) {
+        specs->ColumnUserID = (ImGuiID)lh::num_uint(L, 3);
+        return 0;
+    }
+
+    if (key != nullptr && std::strcmp(key, "column_index") == 0) {
+        specs->ColumnIndex = (ImS16)lh::num_int(L, 3);
+        return 0;
+    }
+
+    if (key != nullptr && std::strcmp(key, "sort_order") == 0) {
+        specs->SortOrder = (ImS16)lh::num_int(L, 3);
+        return 0;
+    }
+
+    if (key != nullptr && std::strcmp(key, "sort_direction") == 0) {
+        return luaL_error(L, "'sort_direction' is a read-only member");
+    }
+
+    return luaL_error(L, "TableColumnSortSpecs has no writable member '%s'", key == nullptr ? "" : key);
+}
+LH_BIND_END(L)
+
+// sol2 published `TableSortSpecs` and `TableColumnSortSpecs` under `imgui` as
+// well as in the metatables, so a member could be read off the type table
+// (`imgui.TableSortSpecs.get_specs`). A type table holds them as the function
+// an instance offers, which is what these two produce.
+LH_BIND(l_specs_get_specs_dirty) {
+    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+
+    lua_pushboolean(L, specs->SpecsDirty);
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_column_specs_get_value) {
+    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
+
+    switch (static_cast<int>(lua_tointeger(L, lua_upvalueindex(1)))) {
+    case 0: lua_pushinteger(L, static_cast<lua_Integer>(specs->ColumnUserID)); break;
+    case 1: lua_pushinteger(L, specs->ColumnIndex); break;
+    case 2: lua_pushinteger(L, specs->SortOrder); break;
+    default: lua_pushinteger(L, static_cast<lua_Integer>(specs->SortDirection)); break;
+    }
+
+    return 1;
+}
+LH_BIND_END(L)
 } // namespace api::imgui
 
 namespace api::draw {
-std::optional<Vector2f> world_to_screen(sol::object world_pos_object) {
-    if (world_pos_object.is<sol::nil_t>()) {
-        return std::nullopt;
+static bool to_world_pos(lua_State* L, int index, Vector3f& out) {
+    if (lh::is<Vector2f>(L, index)) {
+        const auto& v = lh::get_ref<Vector2f>(L, index);
+        out = Vector3f{v.x, v.y, 0.0f};
+        return true;
     }
 
+    if (lh::is<Vector3f>(L, index)) {
+        out = lh::get_ref<Vector3f>(L, index);
+        return true;
+    }
+
+    if (lh::is<Vector4f>(L, index)) {
+        const auto& v = lh::get_ref<Vector4f>(L, index);
+        out = Vector3f{v.x, v.y, v.z};
+        return true;
+    }
+
+    return false;
+}
+
+static bool push_world_to_screen(lua_State* L, int index) {
     Vector3f world_pos{};
 
-    if (world_pos_object.is<Vector2f>()) {
-        auto& v2f = world_pos_object.as<Vector2f&>();
-        world_pos = Vector3f{v2f.x, v2f.y, 0.0f};
-    } else if (world_pos_object.is<Vector3f>()) {
-        world_pos = world_pos_object.as<Vector3f&>();
-    } else if (world_pos_object.is<Vector4f>()) {
-        auto& v4f = world_pos_object.as<Vector4f&>();
-        world_pos = Vector3f{v4f.x, v4f.y, v4f.z};
-    } else {
-        return std::nullopt;
+    if (!to_world_pos(L, index, world_pos)) {
+        lua_pushnil(L);
+        return false;
     }
 
-    return sdk::renderer::world_to_screen(world_pos);
-}
+    const auto result = ::sdk::renderer::world_to_screen(world_pos);
 
-void world_text(const char* text, sol::object world_pos_object, ImU32 color = 0xFFFFFFFF) {
-    auto screen_pos = world_to_screen(world_pos_object);
-
-    if (!screen_pos) {
-        return;
+    if (!result.has_value()) {
+        lua_pushnil(L);
+        return false;
     }
 
-    auto draw_list = ImGui::GetBackgroundDrawList();
-    draw_list->AddText(ImVec2{screen_pos->x, screen_pos->y}, color, text);
+    lh::put(L, *result);
+
+    return true;
 }
 
-void text(const char* text, float x, float y, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddText(ImVec2{x, y}, color, text);
+LH_BIND(l_world_to_screen) {
+    push_world_to_screen(L, 1);
+    return 1;
 }
+LH_BIND_END(L)
 
-void filled_rect(float x, float y, float w, float h, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2{x, y}, ImVec2{x + w, y + h}, color);
+LH_BIND(l_world_text) {
+    const char* text = lh::str(L, 1);
+
+    if (!push_world_to_screen(L, 2)) {
+        lua_pop(L, 1);
+        return 0;
+    }
+
+    const auto pos = lh::get<Vector2f>(L, -1);
+    lua_pop(L, 1);
+
+    ImGui::GetBackgroundDrawList()->AddText(ImVec2{pos.x, pos.y}, (ImU32)lh::opt_uint(L, 3, 0xFFFFFFFFu), text);
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void outline_rect(float x, float y, float w, float h, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddRect(ImVec2{x, y}, ImVec2{x + w, y + h}, color);
+LH_BIND(l_text) {
+    ImGui::GetBackgroundDrawList()->AddText(
+        ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)}, (ImU32)lh::num_uint(L, 4), lh::str(L, 1));
+    return 0;
 }
+LH_BIND_END(L)
 
-void line(float x1, float y1, float x2, float y2, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddLine(ImVec2{x1, y1}, ImVec2{x2, y2}, color);
+LH_BIND(l_filled_rect) {
+    const auto x = lh::num_float(L, 1);
+    const auto y = lh::num_float(L, 2);
+
+    ImGui::GetBackgroundDrawList()->AddRectFilled(
+        ImVec2{x, y}, ImVec2{x + lh::num_float(L, 3), y + lh::num_float(L, 4)}, (ImU32)lh::num_uint(L, 5));
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void outline_circle(float x, float y, float radius, ImU32 color, sol::object num_segments) {
-    auto segments = num_segments.is<sol::nil_t>() ? 32 : num_segments.as<int>();
+LH_BIND(l_outline_rect) {
+    const auto x = lh::num_float(L, 1);
+    const auto y = lh::num_float(L, 2);
 
-    ImGui::GetBackgroundDrawList()->AddCircle(ImVec2{x, y}, radius, color, segments);
+    ImGui::GetBackgroundDrawList()->AddRect(
+        ImVec2{x, y}, ImVec2{x + lh::num_float(L, 3), y + lh::num_float(L, 4)}, (ImU32)lh::num_uint(L, 5));
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void filled_circle(float x, float y, float radius, ImU32 color, sol::object num_segments) {
-    auto segments = num_segments.is<sol::nil_t>() ? 32 : num_segments.as<int>();
+LH_BIND(l_line) {
+    ImGui::GetBackgroundDrawList()->AddLine(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
+        ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, (ImU32)lh::num_uint(L, 5));
 
-    ImGui::GetBackgroundDrawList()->AddCircleFilled(ImVec2{x, y}, radius, color, segments);
+    return 0;
 }
+LH_BIND_END(L)
 
-void outline_quad(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddQuad(ImVec2{x1, y1}, ImVec2{x2, y2}, ImVec2{x3, y3}, ImVec2{x4, y4}, color);
+LH_BIND(l_outline_circle) {
+    ImGui::GetBackgroundDrawList()->AddCircle(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
+        lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::is_none(L, 5) ? 32 : lh::num_int(L, 5));
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void filled_quad(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ImU32 color) {
-    ImGui::GetBackgroundDrawList()->AddQuadFilled(ImVec2{x1, y1}, ImVec2{x2, y2}, ImVec2{x3, y3}, ImVec2{x4, y4}, color);
+LH_BIND(l_filled_circle) {
+    ImGui::GetBackgroundDrawList()->AddCircleFilled(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
+        lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::is_none(L, 5) ? 32 : lh::num_int(L, 5));
+
+    return 0;
 }
+LH_BIND_END(L)
 
-void sphere(sol::object world_pos_object, float radius, ImU32 color, bool outline) {
+LH_BIND(l_outline_quad) {
+    ImGui::GetBackgroundDrawList()->AddQuad(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
+        ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, ImVec2{lh::num_float(L, 5), lh::num_float(L, 6)},
+        ImVec2{lh::num_float(L, 7), lh::num_float(L, 8)}, (ImU32)lh::num_uint(L, 9));
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_filled_quad) {
+    ImGui::GetBackgroundDrawList()->AddQuadFilled(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)},
+        ImVec2{lh::num_float(L, 3), lh::num_float(L, 4)}, ImVec2{lh::num_float(L, 5), lh::num_float(L, 6)},
+        ImVec2{lh::num_float(L, 7), lh::num_float(L, 8)}, (ImU32)lh::num_uint(L, 9));
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_sphere) {
     Vector3f world_pos{};
 
-    if (world_pos_object.is<Vector2f>()) {
-        auto& v2f = world_pos_object.as<Vector2f&>();
-        world_pos = Vector3f{v2f.x, v2f.y, 0.0f};
-    } else if (world_pos_object.is<Vector3f>()) {
-        auto& v3f = world_pos_object.as<Vector3f&>();
-        world_pos = Vector3f{v3f.x, v3f.y, v3f.z};
-    } else if (world_pos_object.is<Vector4f>()) {
-        auto& v4f = world_pos_object.as<Vector4f&>();
-        world_pos = Vector3f{v4f.x, v4f.y, v4f.z};
-    } else {
-        return;
+    if (!to_world_pos(L, 1, world_pos)) {
+        return 0;
     }
 
-    ::imgui::draw_sphere(world_pos, radius, color, outline);
-}
+    ::imgui::draw_sphere(world_pos, lh::num_float(L, 2), (ImU32)lh::num_uint(L, 3), lh::num_bool(L, 4));
 
-void capsule(sol::object start_pos_object, sol::object end_pos_object, float radius, ImU32 color, bool outline) {
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_capsule) {
     Vector3f start_pos{};
-
-    if (start_pos_object.is<Vector2f>()) {
-        auto& v2f = start_pos_object.as<Vector2f&>();
-        start_pos = Vector3f{v2f.x, v2f.y, 0.0f};
-    } else if (start_pos_object.is<Vector3f>()) {
-        auto& v3f = start_pos_object.as<Vector3f&>();
-        start_pos = Vector3f{v3f.x, v3f.y, v3f.z};
-    } else if (start_pos_object.is<Vector4f>()) {
-        auto& v4f = start_pos_object.as<Vector4f&>();
-        start_pos = Vector3f{v4f.x, v4f.y, v4f.z};
-    } else {
-        return;
-    }
-
     Vector3f end_pos{};
 
-    if (end_pos_object.is<Vector2f>()) {
-        auto& v2f = end_pos_object.as<Vector2f&>();
-        end_pos = Vector3f{v2f.x, v2f.y, 0.0f};
-    } else if (end_pos_object.is<Vector3f>()) {
-        auto& v3f = end_pos_object.as<Vector3f&>();
-        end_pos = Vector3f{v3f.x, v3f.y, v3f.z};
-    } else if (end_pos_object.is<Vector4f>()) {
-        auto& v4f = end_pos_object.as<Vector4f&>();
-        end_pos = Vector3f{v4f.x, v4f.y, v4f.z};
-    } else {
-        return;
+    if (!to_world_pos(L, 1, start_pos) || !to_world_pos(L, 2, end_pos)) {
+        return 0;
     }
 
-    ::imgui::draw_capsule(start_pos, end_pos, radius, color, outline);
-}
+    ::imgui::draw_capsule(
+        start_pos, end_pos, lh::num_float(L, 3), (ImU32)lh::num_uint(L, 4), lh::num_bool(L, 5));
 
-sol::variadic_results gizmo(sol::this_state s, int64_t unique_id, Matrix4x4f& transform, sol::object operation_obj, sol::object mode_obj) {
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_gizmo) {
     if (!ImGui::GetIO().MouseDown[0]) {
         ImGuizmo::Enable(false);
         ImGuizmo::Enable(true);
     }
 
-    ImGuizmo::OPERATION operation{};
     ImGuizmo::MODE mode{};
 
-    if (mode_obj.is<sol::nil_t>()) {
+    if (lh::is_none(L, 4)) {
         mode = ImGuizmo::MODE::WORLD;
-    } else if (mode_obj.is<int>()) {
-        mode = (ImGuizmo::MODE)mode_obj.as<int>();
+    } else if (lh::is_int(L, 4)) {
+        mode = (ImGuizmo::MODE)lh::num_int(L, 4);
     } else {
-        throw sol::error("Invalid mode passed to gizmo");
+        throw std::runtime_error("Invalid mode passed to gizmo");
     }
 
-    if (operation_obj.is<sol::nil_t>()) {
+    ImGuizmo::OPERATION operation{};
+
+    if (lh::is_none(L, 3)) {
         operation = ImGuizmo::OPERATION::UNIVERSAL;
-    } else if (operation_obj.is<int>()) {
-        operation = (ImGuizmo::OPERATION)operation_obj.as<int>();
+    } else if (lh::is_int(L, 3)) {
+        operation = (ImGuizmo::OPERATION)lh::num_int(L, 3);
     } else {
-        throw sol::error("Invalid operation passed to gizmo");
+        throw std::runtime_error("Invalid operation passed to gizmo");
     }
 
-    ImGuizmo::SetID(unique_id);
-    bool changed = ::imgui::draw_gizmo(transform, operation, mode);
+    if (!lh::is<Matrix4x4f>(L, 2)) {
+        throw std::runtime_error("Matrix4x4f expected for argument #2");
+    }
 
-    sol::variadic_results results{};
+    auto& transform = lh::get_ref<Matrix4x4f>(L, 2);
 
-    results.push_back(sol::make_object<bool>(s, changed));
-    results.push_back(sol::make_object<Matrix4x4f>(s, transform));
+    ImGuizmo::SetID((int)lh::num_int(L, 1));
 
-    return results;
+    const auto changed = ::imgui::draw_gizmo(transform, operation, mode);
+
+    lua_pushboolean(L, changed);
+    lh::put(L, transform);
+
+    return 2;
 }
+LH_BIND_END(L)
+
+LH_BIND(l_cube) {
+    if (!lh::is<Matrix4x4f>(L, 1)) {
+        throw std::runtime_error("Matrix4x4f expected for argument #1");
+    }
+
+    ::imgui::draw_cube(lh::get_ref<Matrix4x4f>(L, 1));
+
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_grid) {
+    if (!lh::is<Matrix4x4f>(L, 1)) {
+        throw std::runtime_error("Matrix4x4f expected for argument #1");
+    }
+
+    ::imgui::draw_grid(lh::get_ref<Matrix4x4f>(L, 1), lh::num_float(L, 2));
+
+    return 0;
+}
+LH_BIND_END(L)
 } // namespace api::draw
 
 namespace api::imnodes {
@@ -1480,546 +2062,487 @@ int32_t g_input_attribute_counts{0};
 int32_t g_output_attribute_counts{0};
 int32_t g_static_attribute_counts{0};
 
-bool is_editor_hovered() {
-    return ImNodes::IsEditorHovered();
+static int push_id_result(lua_State* L, bool result, int id) {
+    lua_pushboolean(L, result);
+    lua_pushinteger(L, id);
+
+    return 2;
 }
 
-sol::variadic_results is_node_hovered(sol::this_state s) {
+LH_BIND(l_is_editor_hovered) {
+    lua_pushboolean(L, ImNodes::IsEditorHovered());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_is_node_hovered) {
     int id{};
     const auto result = ImNodes::IsNodeHovered(&id);
 
-    sol::variadic_results results{};
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_link_hovered(sol::this_state s) {
+LH_BIND(l_is_link_hovered) {
     int id{};
     const auto result = ImNodes::IsLinkHovered(&id);
 
-    sol::variadic_results results{};
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_pin_hovered(sol::this_state s) {
+LH_BIND(l_is_pin_hovered) {
     int id{};
     const auto result = ImNodes::IsPinHovered(&id);
 
-    sol::variadic_results results{};
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-void begin_node_editor() {
+LH_BIND(l_begin_node_editor) {
     ImNodes::BeginNodeEditor();
     ++g_node_editor_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_node_editor() {
+LH_BIND(l_end_node_editor) {
     ImNodes::EndNodeEditor();
     --g_node_editor_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_node(int id) {
-    ImNodes::BeginNode(id);
+LH_BIND(l_begin_node) {
+    ImNodes::BeginNode(lh::num_int(L, 1));
     ++g_node_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_node() {
+LH_BIND(l_end_node) {
     ImNodes::EndNode();
     --g_node_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_node_titlebar() {
+LH_BIND(l_begin_node_titlebar) {
     ImNodes::BeginNodeTitleBar();
     ++g_node_titlebar_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_node_titlebar() {
+LH_BIND(l_end_node_titlebar) {
     ImNodes::EndNodeTitleBar();
     --g_node_titlebar_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_input_attribute(int attr, ImNodesPinShape shape) {
-    ImNodes::BeginInputAttribute(attr, shape);
+LH_BIND(l_begin_input_attribute) {
+    ImNodes::BeginInputAttribute(lh::num_int(L, 1), (ImNodesPinShape)lh::num_int(L, 2));
     ++g_input_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_input_attribute() {
+LH_BIND(l_end_input_attribute) {
     ImNodes::EndInputAttribute();
     --g_input_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_output_attribute(int attr, ImNodesPinShape shape) {
-    ImNodes::BeginOutputAttribute(attr, shape);
+LH_BIND(l_begin_output_attribute) {
+    ImNodes::BeginOutputAttribute(lh::num_int(L, 1), (ImNodesPinShape)lh::num_int(L, 2));
     ++g_output_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_output_attribute() {
+LH_BIND(l_end_output_attribute) {
     ImNodes::EndOutputAttribute();
     --g_output_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void begin_static_attribute(int attr) {
-    ImNodes::BeginStaticAttribute(attr);
+LH_BIND(l_begin_static_attribute) {
+    ImNodes::BeginStaticAttribute(lh::num_int(L, 1));
     ++g_static_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void end_static_attribute() {
+LH_BIND(l_end_static_attribute) {
     ImNodes::EndStaticAttribute();
     --g_static_attribute_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void minimap(float size_fraction, const ImNodesMiniMapLocation location) {
-    ImNodes::MiniMap(size_fraction, location);
+LH_BIND(l_minimap) {
+    ImNodes::MiniMap(lh::num_float(L, 1), (ImNodesMiniMapLocation)lh::num_int(L, 2));
+    return 0;
 }
+LH_BIND_END(L)
 
-void link(int id, int start_attr_id, int end_attr_id) {
-    ImNodes::Link(id, start_attr_id, end_attr_id);
+LH_BIND(l_link) {
+    ImNodes::Link(lh::num_int(L, 1), lh::num_int(L, 2), lh::num_int(L, 3));
+    return 0;
 }
+LH_BIND_END(L)
 
-Vector2f get_node_dimensions(int id) {
-    const auto result = ImNodes::GetNodeDimensions(id);
+LH_BIND(l_get_node_dimensions) {
+    const auto result = ImNodes::GetNodeDimensions(lh::num_int(L, 1));
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    lh::put(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-void push_color_style(ImNodesCol item, uint32_t color) {
-    ImNodes::PushColorStyle(item, color);
+LH_BIND(l_push_color_style) {
+    ImNodes::PushColorStyle((ImNodesCol)lh::num_int(L, 1), lh::num_uint(L, 2));
     ++g_color_style_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void pop_color_style() {
+LH_BIND(l_pop_color_style) {
     ImNodes::PopColorStyle();
     --g_color_style_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void push_style_var(ImNodesStyleVar item, float value) {
-    ImNodes::PushStyleVar(item, value);
+LH_BIND(l_push_style_var) {
+    ImNodes::PushStyleVar((ImNodesStyleVar)lh::num_int(L, 1), lh::num_float(L, 2));
     ++g_color_style_var_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void push_style_var_vec2(ImNodesStyleVar item, float x, float y) {
-    ImNodes::PushStyleVar(item, ImVec2{x, y});
+LH_BIND(l_push_style_var_vec2) {
+    ImNodes::PushStyleVar(
+        (ImNodesStyleVar)lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
     ++g_color_style_var_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void pop_style_var() {
+LH_BIND(l_pop_style_var) {
     ImNodes::PopStyleVar();
     --g_color_style_var_counts;
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_node_screen_space_pos(int id, float x, float y) {
-    ImNodes::SetNodeScreenSpacePos(id, ImVec2{x, y});
+LH_BIND(l_set_node_screen_space_pos) {
+    ImNodes::SetNodeScreenSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_node_editor_space_pos(int id, float x, float y) {
-    ImNodes::SetNodeEditorSpacePos(id, ImVec2{x, y});
+LH_BIND(l_set_node_editor_space_pos) {
+    ImNodes::SetNodeEditorSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
+    return 0;
 }
+LH_BIND_END(L)
 
-void set_node_grid_space_pos(int id, float x, float y) {
-    ImNodes::SetNodeGridSpacePos(id, ImVec2{x, y});
+LH_BIND(l_set_node_grid_space_pos) {
+    ImNodes::SetNodeGridSpacePos(lh::num_int(L, 1), ImVec2{lh::num_float(L, 2), lh::num_float(L, 3)});
+    return 0;
 }
+LH_BIND_END(L)
 
-Vector2f get_node_screen_space_pos(int id) {
-    const auto result = ImNodes::GetNodeScreenSpacePos(id);
+LH_BIND(l_get_node_screen_space_pos) {
+    const auto result = ImNodes::GetNodeScreenSpacePos(lh::num_int(L, 1));
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    lh::put(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f get_node_editor_space_pos(int id) {
-    const auto result = ImNodes::GetNodeEditorSpacePos(id);
+LH_BIND(l_get_node_editor_space_pos) {
+    const auto result = ImNodes::GetNodeEditorSpacePos(lh::num_int(L, 1));
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    lh::put(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-Vector2f get_node_grid_space_pos(int id) {
-    const auto result = ImNodes::GetNodeGridSpacePos(id);
+LH_BIND(l_get_node_grid_space_pos) {
+    const auto result = ImNodes::GetNodeGridSpacePos(lh::num_int(L, 1));
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    lh::put(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-void clear_node_selection(sol::object id_object) {
-    if (id_object.is<sol::nil_t>()) {
+LH_BIND(l_clear_node_selection) {
+    if (lh::is_none(L, 1)) {
         ImNodes::ClearNodeSelection();
-    } else if (id_object.is<int>()) {
-        ImNodes::ClearNodeSelection(id_object.as<int>());
+    } else if (lh::is_int(L, 1)) {
+        ImNodes::ClearNodeSelection(lh::num_int(L, 1));
     } else {
-        throw sol::error("id_object must be nil or int");
+        throw std::runtime_error("id_object must be nil or int");
     }
-}
 
-void clear_link_selection(sol::object id_object) {
-    if (id_object.is<sol::nil_t>()) {
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_clear_link_selection) {
+    if (lh::is_none(L, 1)) {
         ImNodes::ClearLinkSelection();
-    } else if (id_object.is<int>()) {
-        ImNodes::ClearLinkSelection(id_object.as<int>());
+    } else if (lh::is_int(L, 1)) {
+        ImNodes::ClearLinkSelection(lh::num_int(L, 1));
     } else {
-        throw sol::error("id_object must be nil or int");
+        throw std::runtime_error("id_object must be nil or int");
     }
-}
 
-void editor_reset_panning(float x, float y) {
-    ImNodes::EditorContextResetPanning(ImVec2{x, y});
+    return 0;
 }
+LH_BIND_END(L)
 
-Vector2f editor_get_panning() {
+LH_BIND(l_editor_reset_panning) {
+    ImNodes::EditorContextResetPanning(ImVec2{lh::num_float(L, 1), lh::num_float(L, 2)});
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_editor_get_panning) {
     const auto result = ImNodes::EditorContextGetPanning();
 
-    return Vector2f{
-        result.x,
-        result.y,
-    };
+    lh::put(L, Vector2f{result.x, result.y});
+
+    return 1;
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_link_started(sol::this_state s) {
-    sol::variadic_results results{};
-
+LH_BIND(l_is_link_started) {
     int id{};
-    bool result = ImNodes::IsLinkStarted(&id);
+    const auto result = ImNodes::IsLinkStarted(&id);
 
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_link_dropped(sol::this_state s, bool including_detached_links) {
-    sol::variadic_results results{};
-
+LH_BIND(l_is_link_dropped) {
     int id{};
-    bool result = ImNodes::IsLinkDropped(&id, including_detached_links);
+    const auto result = ImNodes::IsLinkDropped(&id, lh::num_bool(L, 1));
 
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_link_destroyed(sol::this_state s) {
-    sol::variadic_results results{};
-
+LH_BIND(l_is_link_destroyed) {
     int id{};
-    bool result = ImNodes::IsLinkDestroyed(&id);
+    const auto result = ImNodes::IsLinkDestroyed(&id);
 
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, id));
-
-    return results;
+    return push_id_result(L, result, id);
 }
+LH_BIND_END(L)
 
-sol::variadic_results is_link_created(sol::this_state s) {
-    sol::variadic_results results{};
-
+LH_BIND(l_is_link_created) {
     int started_at_node{};
     int started_at_attr{};
     int ended_at_node{};
     int ended_at_attr{};
     bool created_from_snap{};
 
-    bool result = ImNodes::IsLinkCreated(
-        &started_at_node,
-        &started_at_attr,
-        &ended_at_node,
-        &ended_at_attr,
-        &created_from_snap);
+    const auto result = ImNodes::IsLinkCreated(
+        &started_at_node, &started_at_attr, &ended_at_node, &ended_at_attr, &created_from_snap);
 
-    results.push_back(sol::make_object<bool>(s, result));
-    results.push_back(sol::make_object<int>(s, started_at_node));
-    results.push_back(sol::make_object<int>(s, started_at_attr));
-    results.push_back(sol::make_object<int>(s, ended_at_node));
-    results.push_back(sol::make_object<int>(s, ended_at_attr));
-    results.push_back(sol::make_object<bool>(s, created_from_snap));
+    lua_pushboolean(L, result);
+    lua_pushinteger(L, started_at_node);
+    lua_pushinteger(L, started_at_attr);
+    lua_pushinteger(L, ended_at_node);
+    lua_pushinteger(L, ended_at_attr);
+    lua_pushboolean(L, created_from_snap);
 
-    return results;
+    return 6;
 }
+LH_BIND_END(L)
 
-std::vector<int> get_selected_nodes() {
-    std::vector<int> out{};
+LH_BIND(l_get_selected_nodes) {
+    const auto num_selected = ImNodes::NumSelectedNodes();
 
-    const auto num_selected_nodes = ImNodes::NumSelectedNodes();
+    lua_createtable(L, num_selected, 0);
 
-    if (num_selected_nodes > 0) {
-        out.resize(num_selected_nodes);
+    if (num_selected > 0) {
+        std::vector<int> out(num_selected);
         ImNodes::GetSelectedNodes(out.data());
+
+        for (int i = 0; i < num_selected; ++i) {
+            lua_pushinteger(L, out[i]);
+            lua_rawseti(L, -2, i + 1);
+        }
     }
 
-    return out;
+    return 1;
 }
+LH_BIND_END(L)
 
-std::vector<int> get_selected_links() {
-    std::vector<int> out{};
+LH_BIND(l_get_selected_links) {
+    const auto num_selected = ImNodes::NumSelectedLinks();
 
-    const auto num_selected_links = ImNodes::NumSelectedLinks();
+    lua_createtable(L, num_selected, 0);
 
-    if (num_selected_links > 0) {
-        out.resize(num_selected_links);
+    if (num_selected > 0) {
+        std::vector<int> out(num_selected);
         ImNodes::GetSelectedLinks(out.data());
+
+        for (int i = 0; i < num_selected; ++i) {
+            lua_pushinteger(L, out[i]);
+            lua_rawseti(L, -2, i + 1);
+        }
     }
 
-    return out;
+    return 1;
 }
-
+LH_BIND_END(L)
 
 void cleanup() {
     for (auto i = 0; i < g_node_editor_counts; ++i) {
-        end_node_editor();
+        ImNodes::EndNodeEditor();
     }
 
     g_node_editor_counts = 0;
 
     for (auto i = 0; i < g_node_counts; ++i) {
-        end_node();
+        ImNodes::EndNode();
     }
 
     g_node_counts = 0;
 
     for (auto i = 0; i < g_node_titlebar_counts; ++i) {
-        end_node_titlebar();
+        ImNodes::EndNodeTitleBar();
     }
 
     g_node_titlebar_counts = 0;
 
     for (auto i = 0; i < g_color_style_counts; ++i) {
-        pop_color_style();
+        ImNodes::PopColorStyle();
     }
 
     g_color_style_counts = 0;
 
     for (auto i = 0; i < g_color_style_var_counts; ++i) {
-        pop_style_var();
+        ImNodes::PopStyleVar();
     }
 
     g_color_style_var_counts = 0;
 
     for (auto i = 0; i < g_input_attribute_counts; ++i) {
-        end_input_attribute();
+        ImNodes::EndInputAttribute();
     }
 
     g_input_attribute_counts = 0;
 
     for (auto i = 0; i < g_output_attribute_counts; ++i) {
-        end_output_attribute();
+        ImNodes::EndOutputAttribute();
     }
 
     g_output_attribute_counts = 0;
 
     for (auto i = 0; i < g_static_attribute_counts; ++i) {
-        end_static_attribute();
+        ImNodes::EndStaticAttribute();
     }
 
     g_static_attribute_counts = 0;
 }
-} // namespace imnodes
+} // namespace api::imnodes
 
-void bindings::open_imgui(ScriptState* s) {
-    auto& lua = s->lua();
-    auto imgui = lua.create_table();
+LH_BIND(l_imguizmo_is_over) {
+    lua_pushboolean(L, ImGuizmo::IsOver());
+    return 1;
+}
+LH_BIND_END(L)
 
-    imgui["button"] = api::imgui::button;
-    imgui["small_button"] = api::imgui::small_button;
-    imgui["invisible_button"] = api::imgui::invisible_button;
-    imgui["arrow_button"] = api::imgui::arrow_button;
-    imgui["combo"] = api::imgui::combo;
-    imgui["drag_float"] = api::imgui::drag_float;
-    imgui["drag_float2"] = api::imgui::drag_float2;
-    imgui["drag_float3"] = api::imgui::drag_float3;
-    imgui["drag_float4"] = api::imgui::drag_float4;
-    imgui["drag_int"] = api::imgui::drag_int;
-    imgui["slider_float"] = api::imgui::slider_float;
-    imgui["slider_int"] = api::imgui::slider_int;
-    imgui["input_text"] = api::imgui::input_text;
-    imgui["input_text_multiline"] = api::imgui::input_text_multiline;
-    imgui["text"] = api::imgui::text;
-    imgui["text_colored"] = api::imgui::text_colored;
-    imgui["checkbox"] = api::imgui::checkbox;
-    imgui["tree_node"] = api::imgui::tree_node;
-    imgui["tree_node_ptr_id"] = api::imgui::tree_node_ptr_id;
-    imgui["tree_node_str_id"] = api::imgui::tree_node_str_id;
-    imgui["tree_pop"] = api::imgui::tree_pop;
-    imgui["same_line"] = api::imgui::same_line;
-    imgui["is_item_hovered"] = api::imgui::is_item_hovered;
-    imgui["is_item_active"] = api::imgui::is_item_active;
-    imgui["is_item_focused"] = api::imgui::is_item_focused;
-    imgui["begin_window"] = api::imgui::begin_window;
-    imgui["end_window"] = api::imgui::end_window;
-    imgui["begin_child_window"] = api::imgui::begin_child_window;
-    imgui["end_child_window"] = api::imgui::end_child_window;
-    imgui["begin_group"] = api::imgui::begin_group;
-    imgui["end_group"] = api::imgui::end_group;
-    imgui["begin_rect"] = api::imgui::begin_rect;
-    imgui["end_rect"] = api::imgui::end_rect;
-    imgui["begin_disabled"] = api::imgui::begin_disabled;
-    imgui["end_disabled"] = api::imgui::end_disabled;
-    imgui["separator"] = api::imgui::separator;
-    imgui["spacing"] = api::imgui::spacing;
-    imgui["new_line"] = api::imgui::new_line;
-    imgui["collapsing_header"] = api::imgui::collapsing_header;
-    imgui["load_font"] = api::imgui::load_font;
-    imgui["push_font"] = api::imgui::push_font;
-    imgui["pop_font"] = api::imgui::pop_font;
-    imgui["push_font_size"] = api::imgui::push_font_size;
-    imgui["pop_font_size"] = api::imgui::pop_font_size;
-    imgui["get_default_font_size"] = api::imgui::get_default_font_size;
-    imgui["color_picker"] = api::imgui::color_picker;
-    imgui["color_picker_argb"] = api::imgui::color_picker_argb;
-    imgui["color_picker3"] = api::imgui::color_picker3;
-    imgui["color_picker4"] = api::imgui::color_picker4;
-    imgui["color_edit"] = api::imgui::color_edit;
-    imgui["color_edit_argb"] = api::imgui::color_edit_argb;
-    imgui["color_edit3"] = api::imgui::color_edit3;
-    imgui["color_edit4"] = api::imgui::color_edit4;
-    imgui["set_next_window_pos"] = api::imgui::set_next_window_pos;
-    imgui["set_next_window_size"] = api::imgui::set_next_window_size;
-    imgui["push_id"] = api::imgui::push_id;
-    imgui["pop_id"] = api::imgui::pop_id;
-    imgui["get_id"] = api::imgui::get_id;
-    imgui["get_mouse"] = api::imgui::get_mouse;
-    imgui["get_key_index"] = api::imgui::get_key_index;
-    imgui["is_key_down"] = api::imgui::is_key_down;
-    imgui["is_key_pressed"] = api::imgui::is_key_pressed;
-    imgui["is_key_released"] = api::imgui::is_key_released;
-    imgui["is_mouse_down"] = api::imgui::is_mouse_down;
-    imgui["is_mouse_clicked"] = api::imgui::is_mouse_clicked;
-    imgui["is_mouse_released"] = api::imgui::is_mouse_released;
-    imgui["is_mouse_double_clicked"] = api::imgui::is_mouse_double_clicked;
-    imgui["indent"] = api::imgui::indent;
-    imgui["unindent"] = api::imgui::unindent;
-    imgui["begin_tooltip"] = api::imgui::begin_tooltip;
-    imgui["end_tooltip"] = api::imgui::end_tooltip;
-    imgui["set_tooltip"] = api::imgui::set_tooltip;
-    imgui["open_popup"] = api::imgui::open_popup;
-    imgui["begin_popup"] = api::imgui::begin_popup;
-    imgui["begin_popup_context_item"] = api::imgui::begin_popup_context_item;
-    imgui["end_popup"] = api::imgui::end_popup;
-    imgui["close_current_popup"] = api::imgui::close_current_popup;
-    imgui["is_popup_open"] = api::imgui::is_popup_open;
-    imgui["calc_text_size"] = api::imgui::calc_text_size;
-    imgui["get_window_size"] = api::imgui::get_window_size;
-    imgui["get_window_pos"] = api::imgui::get_window_pos;
-    imgui["set_next_item_open"] = api::imgui::set_next_item_open;
-    imgui["begin_list_box"] = api::imgui::begin_list_box;
-    imgui["end_list_box"] = api::imgui::end_list_box;
-    imgui["begin_menu_bar"] = api::imgui::begin_menu_bar;
-    imgui["end_menu_bar"] = api::imgui::end_menu_bar;
-    imgui["begin_main_menu_bar"] = api::imgui::begin_main_menu_bar;
-    imgui["end_main_menu_bar"] = api::imgui::end_main_menu_bar;
-    imgui["begin_menu"] = api::imgui::begin_menu;
-    imgui["end_menu"] = api::imgui::end_menu;
-    imgui["menu_item"] = api::imgui::menu_item;
-    imgui["get_display_size"] = api::imgui::get_display_size;
-    imgui["get_window_draw_list"] = api::imgui::get_window_draw_list;
-    imgui["get_background_draw_list"] = api::imgui::get_background_draw_list;
-    imgui["get_foreground_draw_list"] = api::imgui::get_foreground_draw_list;
+LH_BIND(l_imguizmo_is_using) {
+    lua_pushboolean(L, ImGuizmo::IsUsing());
+    return 1;
+}
+LH_BIND_END(L)
 
-    // Item
-    imgui["push_item_width"] = api::imgui::push_item_width;
-    imgui["pop_item_width"] = api::imgui::pop_item_width;
-    imgui["set_next_item_width"] = api::imgui::set_next_item_width;
-    imgui["calc_item_width"] = api::imgui::calc_item_width;
-    imgui["item_add"] = api::imgui::item_add;
-    imgui["item_size"] = api::imgui::item_size;
+namespace api::imnodes {
+LH_BIND(l_is_node_selected) {
+    lua_pushboolean(L, ImNodes::IsNodeSelected(lh::num_int(L, 1)));
+    return 1;
+}
+LH_BIND_END(L)
 
-    imgui["push_style_color"] = api::imgui::push_style_color;
-    imgui["pop_style_color"] = api::imgui::pop_style_color;
-    imgui["push_style_var"] = api::imgui::push_style_var;
-    imgui["pop_style_var"] = api::imgui::pop_style_var;
-    imgui["get_cursor_pos"] = api::imgui::get_cursor_pos;
-    imgui["set_cursor_pos"] = api::imgui::set_cursor_pos;
-    imgui["get_cursor_start_pos"] = api::imgui::get_cursor_start_pos;
-    imgui["get_cursor_screen_pos"] = api::imgui::get_cursor_screen_pos;
-    imgui["set_cursor_screen_pos"] = api::imgui::set_cursor_screen_pos;
-    imgui["set_item_default_focus"] = api::imgui::set_item_default_focus;
-    imgui["set_clipboard"] = api::imgui::set_clipboard;
-    imgui["get_clipboard"] = api::imgui::get_clipboard;
-    imgui["progress_bar"] = api::imgui::progress_bar;
+LH_BIND(l_is_link_selected) {
+    lua_pushboolean(L, ImNodes::IsLinkSelected(lh::num_int(L, 1)));
+    return 1;
+}
+LH_BIND_END(L)
 
-    // Draw list
-    imgui["draw_list_path_clear"] = api::imgui::draw_list_path_clear;
-    imgui["draw_list_path_line_to"] = api::imgui::draw_list_path_line_to;
-    imgui["draw_list_path_stroke"] = api::imgui::draw_list_path_stroke;
-    
-    // SCROLL APIs
-    imgui["get_scroll_x"] = api::imgui::get_scroll_x;
-    imgui["get_scroll_y"] = api::imgui::get_scroll_y;
-    imgui["set_scroll_x"] = api::imgui::set_scroll_x;
-    imgui["set_scroll_y"] = api::imgui::set_scroll_y;
-    imgui["get_scroll_max_x"] = api::imgui::get_scroll_max_x;
-    imgui["get_scroll_max_y"] = api::imgui::get_scroll_max_y;
-    imgui["set_scroll_here_x"] = api::imgui::set_scroll_here_x;
-    imgui["set_scroll_here_y"] = api::imgui::set_scroll_here_y;
-    imgui["set_scroll_from_pos_x"] = api::imgui::set_scroll_from_pos_x;
-    imgui["set_scroll_from_pos_y"] = api::imgui::set_scroll_from_pos_y;
+LH_BIND(l_num_selected_nodes) {
+    lua_pushinteger(L, ImNodes::NumSelectedNodes());
+    return 1;
+}
+LH_BIND_END(L)
 
+LH_BIND(l_num_selected_links) {
+    lua_pushinteger(L, ImNodes::NumSelectedLinks());
+    return 1;
+}
+LH_BIND_END(L)
 
-    // TABLE APIS
-    imgui["begin_table"] = api::imgui::begin_table;
-    imgui["end_table"] = api::imgui::end_table;
-    imgui["table_next_row"] = api::imgui::table_next_row;
-    imgui["table_next_column"] = api::imgui::table_next_column;
-    imgui["table_set_column_index"] = api::imgui::table_set_column_index;
-    imgui["table_setup_column"] = api::imgui::table_setup_column;
-    imgui["table_setup_scroll_freeze"] = api::imgui::table_setup_scroll_freeze;
-    imgui["table_headers_row"] = api::imgui::table_headers_row;
-    imgui["table_header"] = api::imgui::table_header;
-    imgui["table_get_sort_specs"] = api::imgui::table_get_sort_specs;
-    imgui["table_get_column_count"] = api::imgui::table_get_column_count;
-    imgui["table_get_column_index"] = api::imgui::table_get_column_index;
-    imgui["table_get_row_index"] = api::imgui::table_get_row_index;
-    imgui["table_get_column_name"] = api::imgui::table_get_column_name;
-    imgui["table_get_column_flags"] = api::imgui::table_get_column_flags;
-    imgui["table_set_bg_color"] = api::imgui::table_set_bg_color;
-    imgui.new_enum<int>("ImGuizmoOperation", std::initializer_list<std::pair<std::string_view, int>>{
+LH_BIND(l_select_node) {
+    ImNodes::SelectNode(lh::num_int(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_select_link) {
+    ImNodes::SelectLink(lh::num_int(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_is_attribute_active) {
+    lua_pushboolean(L, ImNodes::IsAttributeActive());
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_snap_node_to_grid) {
+    ImNodes::SnapNodeToGrid(lh::num_int(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_editor_move_to_node) {
+    ImNodes::EditorContextMoveToNode(lh::num_int(L, 1));
+    return 0;
+}
+LH_BIND_END(L)
+
+} // namespace api::imnodes
+
+static const std::pair<const char*, lua_Integer> IMGUIZMO_OPERATION[]{
         { "TRANSLATE", ImGuizmo::OPERATION::TRANSLATE },
         { "ROTATE", ImGuizmo::OPERATION::ROTATE },
         { "SCALE", ImGuizmo::OPERATION::SCALE },
         { "SCALEU", ImGuizmo::OPERATION::SCALEU },
         { "UNIVERSAL", ImGuizmo::OPERATION::UNIVERSAL },
-    });
-    imgui.new_enum<int>("ImGuizmoMode", std::initializer_list<std::pair<std::string_view, int>>{
+};
+
+static const std::pair<const char*, lua_Integer> IMGUIZMO_MODE[]{
         { "WORLD", ImGuizmo::MODE::WORLD },
         { "LOCAL", ImGuizmo::MODE::LOCAL },
-    });
-    imgui.new_usertype<ImGuiTableSortSpecs>("TableSortSpecs",
-        "specs_dirty", &ImGuiTableSortSpecs::SpecsDirty,
-        "get_specs", [](ImGuiTableSortSpecs* specs) {
-            std::vector<ImGuiTableColumnSortSpecs*> out {};
+};
 
-            for (int i = 0; i < specs->SpecsCount; ++i) {
-                out.push_back(const_cast<ImGuiTableColumnSortSpecs*>(specs->Specs + i));
-            }
-
-            return out;
-        }
-    );
-    imgui.new_usertype<ImGuiTableColumnSortSpecs>("TableColumnSortSpecs", 
-        "user_id", &ImGuiTableColumnSortSpecs::ColumnUserID,
-        "column_index", &ImGuiTableColumnSortSpecs::ColumnIndex,
-        "sort_order", &ImGuiTableColumnSortSpecs::SortOrder,
-        "sort_direction", sol::readonly_property([](ImGuiTableColumnSortSpecs* specs){
-            return specs->SortDirection;
-        })
-    );
-    imgui.new_enum<int>("TableFlags", std::initializer_list<std::pair<std::string_view, int>>{
+static const std::pair<const char*, lua_Integer> IMGUI_TABLE_FLAGS[]{
         { "None", ImGuiTableFlags_None },
         { "Resizable", ImGuiTableFlags_Resizable },
         { "Reorderable", ImGuiTableFlags_Reorderable },
@@ -2055,8 +2578,9 @@ void bindings::open_imgui(ScriptState* s) {
         { "ScrollY", ImGuiTableFlags_ScrollY },
         { "SortMulti", ImGuiTableFlags_SortMulti },
         { "SortTristate", ImGuiTableFlags_SortTristate },
-    });
-    imgui.new_enum<int>("ColumnFlags", std::initializer_list<std::pair<std::string_view, int>>{
+};
+
+static const std::pair<const char*, lua_Integer> IMGUI_COLUMN_FLAGS[]{
         { "None", ImGuiTableColumnFlags_None },
         { "DefaultHide", ImGuiTableColumnFlags_DefaultHide },
         { "DefaultSort", ImGuiTableColumnFlags_DefaultSort },
@@ -2078,9 +2602,9 @@ void bindings::open_imgui(ScriptState* s) {
         { "IsVisible", ImGuiTableColumnFlags_IsVisible },
         { "IsSorted", ImGuiTableColumnFlags_IsSorted },
         { "IsHovered", ImGuiTableColumnFlags_IsHovered },
-    });
+};
 
-    imgui.new_enum<int>("ImGuiKey", std::initializer_list<std::pair<std::string_view, int>>{
+static const std::pair<const char*, lua_Integer> IMGUI_KEY[]{
         // Keys
         { "Key_None", ImGuiKey_None },
         { "Key_Tab", ImGuiKey_Tab },
@@ -2241,9 +2765,9 @@ void bindings::open_imgui(ScriptState* s) {
         { "Mod_Alt", ImGuiMod_Alt },
         { "Mod_Super", ImGuiMod_Super },
         { "Mod_Mask_", ImGuiMod_Mask_ },
-    });
-    
-    imgui.new_enum<int>("ImGuiStyleVar", std::initializer_list<std::pair<std::string_view, int>>{
+};
+
+static const std::pair<const char*, lua_Integer> IMGUI_STYLE_VAR[]{
         { "Alpha", ImGuiStyleVar_Alpha },
         { "DisabledAlpha", ImGuiStyleVar_DisabledAlpha },
         { "WindowPadding", ImGuiStyleVar_WindowPadding },
@@ -2278,183 +2802,379 @@ void bindings::open_imgui(ScriptState* s) {
         { "SeparatorTextBorderSize", ImGuiStyleVar_SeparatorTextBorderSize },
         { "SeparatorTextAlign", ImGuiStyleVar_SeparatorTextAlign },
         { "SeparatorTextPadding", ImGuiStyleVar_SeparatorTextPadding },
-    });
+};
 
-    imgui.new_usertype<ImDrawList>("ImDrawList", 
-        "push_clip_rect", [](ImDrawList* draw_list, sol::object min, sol::object max, bool intersect_with_current_clip_rect) {
-            draw_list->PushClipRect(::api::imgui::create_imvec2(min), ::api::imgui::create_imvec2(max), intersect_with_current_clip_rect);
-        },
-        "push_clip_rect_fullscreen", &ImDrawList::PushClipRectFullScreen,
-        "pop_clip_rect", &ImDrawList::PopClipRect,
+static const luaL_Reg IMGUI_FUNCS[]{
+    {"button", api::imgui::l_button},
+    {"small_button", api::imgui::l_small_button},
+    {"invisible_button", api::imgui::l_invisible_button},
+    {"arrow_button", api::imgui::l_arrow_button},
+    {"combo", api::imgui::l_combo},
+    {"drag_float", api::imgui::l_drag_float},
+    {"drag_float2", api::imgui::l_drag_float2},
+    {"drag_float3", api::imgui::l_drag_float3},
+    {"drag_float4", api::imgui::l_drag_float4},
+    {"drag_int", api::imgui::l_drag_int},
+    {"slider_float", api::imgui::l_slider_float},
+    {"slider_int", api::imgui::l_slider_int},
+    {"input_text", api::imgui::l_input_text},
+    {"input_text_multiline", api::imgui::l_input_text_multiline},
+    {"text", api::imgui::l_text},
+    {"text_colored", api::imgui::l_text_colored},
+    {"checkbox", api::imgui::l_checkbox},
+    {"tree_node", api::imgui::l_tree_node},
+    {"tree_node_ptr_id", api::imgui::l_tree_node_ptr_id},
+    {"tree_node_str_id", api::imgui::l_tree_node_str_id},
+    {"tree_pop", api::imgui::l_tree_pop},
+    {"same_line", api::imgui::l_same_line},
+    {"is_item_hovered", api::imgui::l_is_item_hovered},
+    {"is_item_active", api::imgui::l_is_item_active},
+    {"is_item_focused", api::imgui::l_is_item_focused},
+    {"begin_window", api::imgui::l_begin_window},
+    {"end_window", api::imgui::l_end_window},
+    {"begin_child_window", api::imgui::l_begin_child_window},
+    {"end_child_window", api::imgui::l_end_child_window},
+    {"begin_group", api::imgui::l_begin_group},
+    {"end_group", api::imgui::l_end_group},
+    {"begin_rect", api::imgui::l_begin_rect},
+    {"end_rect", api::imgui::l_end_rect},
+    {"begin_disabled", api::imgui::l_begin_disabled},
+    {"end_disabled", api::imgui::l_end_disabled},
+    {"separator", api::imgui::l_separator},
+    {"spacing", api::imgui::l_spacing},
+    {"new_line", api::imgui::l_new_line},
+    {"collapsing_header", api::imgui::l_collapsing_header},
+    {"load_font", api::imgui::l_load_font},
+    {"push_font", api::imgui::l_push_font},
+    {"pop_font", api::imgui::l_pop_font},
+    {"push_font_size", api::imgui::l_push_font_size},
+    {"pop_font_size", api::imgui::l_pop_font_size},
+    {"get_default_font_size", api::imgui::l_get_default_font_size},
+    {"color_picker", api::imgui::l_color_picker},
+    {"color_picker_argb", api::imgui::l_color_picker_argb},
+    {"color_picker3", api::imgui::l_color_picker3},
+    {"color_picker4", api::imgui::l_color_picker4},
+    {"color_edit", api::imgui::l_color_edit},
+    {"color_edit_argb", api::imgui::l_color_edit_argb},
+    {"color_edit3", api::imgui::l_color_edit3},
+    {"color_edit4", api::imgui::l_color_edit4},
+    {"set_next_window_pos", api::imgui::l_set_next_window_pos},
+    {"set_next_window_size", api::imgui::l_set_next_window_size},
+    {"push_id", api::imgui::l_push_id},
+    {"pop_id", api::imgui::l_pop_id},
+    {"get_id", api::imgui::l_get_id},
+    {"get_mouse", api::imgui::l_get_mouse},
+    {"get_key_index", api::imgui::l_get_key_index},
+    {"is_key_down", api::imgui::l_is_key_down},
+    {"is_key_pressed", api::imgui::l_is_key_pressed},
+    {"is_key_released", api::imgui::l_is_key_released},
+    {"is_mouse_down", api::imgui::l_is_mouse_down},
+    {"is_mouse_clicked", api::imgui::l_is_mouse_clicked},
+    {"is_mouse_released", api::imgui::l_is_mouse_released},
+    {"is_mouse_double_clicked", api::imgui::l_is_mouse_double_clicked},
+    {"indent", api::imgui::l_indent},
+    {"unindent", api::imgui::l_unindent},
+    {"begin_tooltip", api::imgui::l_begin_tooltip},
+    {"end_tooltip", api::imgui::l_end_tooltip},
+    {"set_tooltip", api::imgui::l_set_tooltip},
+    {"open_popup", api::imgui::l_open_popup},
+    {"begin_popup", api::imgui::l_begin_popup},
+    {"begin_popup_context_item", api::imgui::l_begin_popup_context_item},
+    {"end_popup", api::imgui::l_end_popup},
+    {"close_current_popup", api::imgui::l_close_current_popup},
+    {"is_popup_open", api::imgui::l_is_popup_open},
+    {"calc_text_size", api::imgui::l_calc_text_size},
+    {"get_window_size", api::imgui::l_get_window_size},
+    {"get_window_pos", api::imgui::l_get_window_pos},
+    {"set_next_item_open", api::imgui::l_set_next_item_open},
+    {"begin_list_box", api::imgui::l_begin_list_box},
+    {"end_list_box", api::imgui::l_end_list_box},
+    {"begin_menu_bar", api::imgui::l_begin_menu_bar},
+    {"end_menu_bar", api::imgui::l_end_menu_bar},
+    {"begin_main_menu_bar", api::imgui::l_begin_main_menu_bar},
+    {"end_main_menu_bar", api::imgui::l_end_main_menu_bar},
+    {"begin_menu", api::imgui::l_begin_menu},
+    {"end_menu", api::imgui::l_end_menu},
+    {"menu_item", api::imgui::l_menu_item},
+    {"get_display_size", api::imgui::l_get_display_size},
+    {"get_window_draw_list", api::imgui::l_get_window_draw_list},
+    {"get_background_draw_list", api::imgui::l_get_background_draw_list},
+    {"get_foreground_draw_list", api::imgui::l_get_foreground_draw_list},
+    {"push_item_width", api::imgui::l_push_item_width},
+    {"pop_item_width", api::imgui::l_pop_item_width},
+    {"set_next_item_width", api::imgui::l_set_next_item_width},
+    {"calc_item_width", api::imgui::l_calc_item_width},
+    {"item_add", api::imgui::l_item_add},
+    {"item_size", api::imgui::l_item_size},
+    {"push_style_color", api::imgui::l_push_style_color},
+    {"pop_style_color", api::imgui::l_pop_style_color},
+    {"push_style_var", api::imgui::l_push_style_var},
+    {"pop_style_var", api::imgui::l_pop_style_var},
+    {"get_cursor_pos", api::imgui::l_get_cursor_pos},
+    {"set_cursor_pos", api::imgui::l_set_cursor_pos},
+    {"get_cursor_start_pos", api::imgui::l_get_cursor_start_pos},
+    {"get_cursor_screen_pos", api::imgui::l_get_cursor_screen_pos},
+    {"set_cursor_screen_pos", api::imgui::l_set_cursor_screen_pos},
+    {"set_item_default_focus", api::imgui::l_set_item_default_focus},
+    {"set_clipboard", api::imgui::l_set_clipboard},
+    {"get_clipboard", api::imgui::l_get_clipboard},
+    {"progress_bar", api::imgui::l_progress_bar},
+    {"draw_list_path_clear", api::imgui::l_draw_list_path_clear},
+    {"draw_list_path_line_to", api::imgui::l_draw_list_path_line_to},
+    {"draw_list_path_stroke", api::imgui::l_draw_list_path_stroke},
+    {"get_scroll_x", api::imgui::l_get_scroll_x},
+    {"get_scroll_y", api::imgui::l_get_scroll_y},
+    {"set_scroll_x", api::imgui::l_set_scroll_x},
+    {"set_scroll_y", api::imgui::l_set_scroll_y},
+    {"get_scroll_max_x", api::imgui::l_get_scroll_max_x},
+    {"get_scroll_max_y", api::imgui::l_get_scroll_max_y},
+    {"set_scroll_here_x", api::imgui::l_set_scroll_here_x},
+    {"set_scroll_here_y", api::imgui::l_set_scroll_here_y},
+    {"set_scroll_from_pos_x", api::imgui::l_set_scroll_from_pos_x},
+    {"set_scroll_from_pos_y", api::imgui::l_set_scroll_from_pos_y},
+    {"begin_table", api::imgui::l_begin_table},
+    {"end_table", api::imgui::l_end_table},
+    {"table_next_row", api::imgui::l_table_next_row},
+    {"table_next_column", api::imgui::l_table_next_column},
+    {"table_set_column_index", api::imgui::l_table_set_column_index},
+    {"table_setup_column", api::imgui::l_table_setup_column},
+    {"table_setup_scroll_freeze", api::imgui::l_table_setup_scroll_freeze},
+    {"table_headers_row", api::imgui::l_table_headers_row},
+    {"table_header", api::imgui::l_table_header},
+    {"table_get_sort_specs", api::imgui::l_table_get_sort_specs},
+    {"table_get_column_count", api::imgui::l_table_get_column_count},
+    {"table_get_column_index", api::imgui::l_table_get_column_index},
+    {"table_get_row_index", api::imgui::l_table_get_row_index},
+    {"table_get_column_name", api::imgui::l_table_get_column_name},
+    {"table_get_column_flags", api::imgui::l_table_get_column_flags},
+    {"table_set_bg_color", api::imgui::l_table_set_bg_color},
+    {nullptr, nullptr},
+};
 
-        "add_line", [](ImDrawList* draw_list, sol::object p1, sol::object p2, uint32_t col, float thickness) {
-            draw_list->AddLine(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), col, thickness);
-        },
-        "add_rect", [](ImDrawList* draw_list, sol::object min, sol::object max, uint32_t col, float rounding, ImDrawFlags flags, float thickness) {
-            draw_list->AddRect(::api::imgui::create_imvec2(min), ::api::imgui::create_imvec2(max), col, rounding, flags, thickness);
-        },
-        "add_rect_filled", [](ImDrawList* draw_list, sol::object min, sol::object max, uint32_t col, float rounding, ImDrawFlags flags) {
-            draw_list->AddRectFilled(::api::imgui::create_imvec2(min), ::api::imgui::create_imvec2(max), col, rounding, flags);
-        },
-        "add_rect_filled_multi_color", [](ImDrawList* draw_list, sol::object min, sol::object max, uint32_t col_upr_left, uint32_t col_upr_right,
-            uint32_t col_bot_right, uint32_t col_bot_left) {
-            draw_list->AddRectFilledMultiColor(::api::imgui::create_imvec2(min), ::api::imgui::create_imvec2(max), col_upr_left, col_upr_right, col_bot_right, col_bot_left);
-        },
-        "add_quad", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, sol::object p4, uint32_t col, float thickness) {
-            draw_list->AddQuad(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), ::api::imgui::create_imvec2(p4), col, thickness);
-        },
-        "add_quad_filled", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, sol::object p4, uint32_t col) {
-            draw_list->AddQuadFilled(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), ::api::imgui::create_imvec2(p4), col);
-        },
-        "add_triangle", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, uint32_t col, float thickness) {
-            draw_list->AddTriangle(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), col, thickness);
-        },
-        "add_triangle_filled", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, uint32_t col) {
-            draw_list->AddTriangleFilled(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), col);
-        },
-        "add_circle", [](ImDrawList* draw_list, sol::object center, float radius, uint32_t col, int num_segments, float thickness) {
-            draw_list->AddCircle(::api::imgui::create_imvec2(center), radius, col, num_segments, thickness);
-        },
-        "add_circle_filled", [](ImDrawList* draw_list, sol::object center, float radius, uint32_t col, int num_segments) {
-            draw_list->AddCircleFilled(::api::imgui::create_imvec2(center), radius, col, num_segments);
-        },
-        "add_ngon", [](ImDrawList* draw_list, sol::object center, float radius, uint32_t col, int num_segments, float thickness) {
-            draw_list->AddNgon(::api::imgui::create_imvec2(center), radius, col, num_segments, thickness);
-        },
-        "add_ngon_filled", [](ImDrawList* draw_list, sol::object center, float radius, uint32_t col, int num_segments) {
-            draw_list->AddNgonFilled(::api::imgui::create_imvec2(center), radius, col, num_segments);
-        },
-        "add_ellipse", [](ImDrawList* draw_list, sol::object center, sol::object radius, uint32_t col, float rot, int num_segments, float thickness) {
-            draw_list->AddEllipse(::api::imgui::create_imvec2(center), ::api::imgui::create_imvec2(radius), col, num_segments, rot, thickness);
-        },
-        "add_ellipse_filled", [](ImDrawList* draw_list, sol::object center, sol::object radius, uint32_t col, float rot, int num_segments) {
-            draw_list->AddEllipseFilled(::api::imgui::create_imvec2(center), ::api::imgui::create_imvec2(radius), col, rot, num_segments);
-        },
-        "add_text", [](ImDrawList* draw_list, sol::object pos, uint32_t col, const std::string& text) {
-            draw_list->AddText(::api::imgui::create_imvec2(pos), col, text.c_str());
-        },
-        "add_bezier_cubic", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, sol::object p4, uint32_t col, float thickness) {
-            draw_list->AddBezierCubic(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), ::api::imgui::create_imvec2(p4), col, thickness);
-        },
-        "add_bezier_quadratic", [](ImDrawList* draw_list, sol::object p1, sol::object p2, sol::object p3, uint32_t col, float thickness) {
-            draw_list->AddBezierQuadratic(::api::imgui::create_imvec2(p1), ::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), col, thickness);
-        },
+static const luaL_Reg DRAW_LIST_METHODS[]{
+    {"push_clip_rect", api::imgui::l_dl_push_clip_rect},
+    {"push_clip_rect_fullscreen", api::imgui::l_dl_push_clip_rect_fullscreen},
+    {"pop_clip_rect", api::imgui::l_dl_pop_clip_rect},
+    {"add_line", api::imgui::l_dl_add_line},
+    {"add_rect", api::imgui::l_dl_add_rect},
+    {"add_rect_filled", api::imgui::l_dl_add_rect_filled},
+    {"add_rect_filled_multi_color", api::imgui::l_dl_add_rect_filled_multi_color},
+    {"add_quad", api::imgui::l_dl_add_quad},
+    {"add_quad_filled", api::imgui::l_dl_add_quad_filled},
+    {"add_triangle", api::imgui::l_dl_add_triangle},
+    {"add_triangle_filled", api::imgui::l_dl_add_triangle_filled},
+    {"add_circle", api::imgui::l_dl_add_circle},
+    {"add_circle_filled", api::imgui::l_dl_add_circle_filled},
+    {"add_ngon", api::imgui::l_dl_add_ngon},
+    {"add_ngon_filled", api::imgui::l_dl_add_ngon_filled},
+    {"add_ellipse", api::imgui::l_dl_add_ellipse},
+    {"add_ellipse_filled", api::imgui::l_dl_add_ellipse_filled},
+    {"add_text", api::imgui::l_dl_add_text},
+    {"add_bezier_cubic", api::imgui::l_dl_add_bezier_cubic},
+    {"add_bezier_quadratic", api::imgui::l_dl_add_bezier_quadratic},
+    {"path_clear", api::imgui::l_dl_path_clear},
+    {"path_line_to", api::imgui::l_dl_path_line_to},
+    {"path_line_to_merge_duplicate", api::imgui::l_dl_path_line_to_merge_duplicate},
+    {"path_fill_convex", api::imgui::l_dl_path_fill_convex},
+    {"path_fill_concave", api::imgui::l_dl_path_fill_concave},
+    {"path_stroke", api::imgui::l_dl_path_stroke},
+    {"path_arc_to", api::imgui::l_dl_path_arc_to},
+    {"path_arc_to_fast", api::imgui::l_dl_path_arc_to_fast},
+    {"path_elliptical_arc_to", api::imgui::l_dl_path_elliptical_arc_to},
+    {"path_bezier_cubic_curve_to", api::imgui::l_dl_path_bezier_cubic_curve_to},
+    {"path_bezier_quadratic_curve_to", api::imgui::l_dl_path_bezier_quadratic_curve_to},
+    {"path_rect", api::imgui::l_dl_path_rect},
+    {nullptr, nullptr},
+};
 
-        // Path APIs
-        "path_clear", &ImDrawList::PathClear, 
-        "path_line_to", [](ImDrawList* draw_list, sol::object pos) { draw_list->PathLineTo(::api::imgui::create_imvec2(pos)); }, 
-        "path_line_to_merge_duplicate", [](ImDrawList* draw_list, sol::object pos) {
-            draw_list->PathLineToMergeDuplicate(::api::imgui::create_imvec2(pos));
-        }, 
-        "path_fill_convex", &ImDrawList::PathFillConvex,
-        "path_fill_concave", &ImDrawList::PathFillConcave,
-        "path_stroke", [](ImDrawList* draw_list, uint32_t col, ImDrawFlags flags, float thickness) {
-            draw_list->PathStroke(col, flags, thickness);
-        },
-        "path_arc_to", [](ImDrawList* draw_list, sol::object center, float radius, float a_min, float a_max, int num_segments) {
-            draw_list->PathArcTo(::api::imgui::create_imvec2(center), radius, a_min, a_max, num_segments);
-        },
-        "path_arc_to_fast",
-        [](ImDrawList* draw_list, sol::object center, float radius, int a_min_of_12, int a_max_of_12) {
-            draw_list->PathArcToFast(::api::imgui::create_imvec2(center), radius, a_min_of_12, a_max_of_12);
-        },
-        "path_elliptical_arc_to", [](ImDrawList* draw_list, sol::object center, sol::object radius, float a_min, float a_max, int num_segments) {
-            draw_list->PathEllipticalArcTo(::api::imgui::create_imvec2(center), ::api::imgui::create_imvec2(radius), a_min, a_max, num_segments);
-        },
-        "path_bezier_cubic_curve_to", [](ImDrawList* draw_list, sol::object p2, sol::object p3, sol::object p4, int num_segments) {
-            draw_list->PathBezierCubicCurveTo(::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), ::api::imgui::create_imvec2(p4), num_segments);
-        },
-        "path_bezier_quadratic_curve_to", [](ImDrawList* draw_list, sol::object p2, sol::object p3, int num_segments) {
-            draw_list->PathBezierQuadraticCurveTo(::api::imgui::create_imvec2(p2), ::api::imgui::create_imvec2(p3), num_segments);
-        },
-        "path_rect", [](ImDrawList* draw_list, sol::object min, sol::object max, float rounding, ImDrawFlags flags) {
-            draw_list->PathRect(::api::imgui::create_imvec2(min), ::api::imgui::create_imvec2(max), rounding, flags);
-        }
-    );
+static const luaL_Reg DRAW_FUNCS[]{
+    {"world_to_screen", api::draw::l_world_to_screen},
+    {"world_text", api::draw::l_world_text},
+    {"text", api::draw::l_text},
+    {"filled_rect", api::draw::l_filled_rect},
+    {"outline_rect", api::draw::l_outline_rect},
+    {"line", api::draw::l_line},
+    {"outline_circle", api::draw::l_outline_circle},
+    {"filled_circle", api::draw::l_filled_circle},
+    {"outline_quad", api::draw::l_outline_quad},
+    {"filled_quad", api::draw::l_filled_quad},
+    {"sphere", api::draw::l_sphere},
+    {"capsule", api::draw::l_capsule},
+    {"gizmo", api::draw::l_gizmo},
+    {"cube", api::draw::l_cube},
+    {"grid", api::draw::l_grid},
+    {nullptr, nullptr},
+};
 
-    lua["imgui"] = imgui;
+static const luaL_Reg IMNODES_FUNCS[]{
+    {"is_editor_hovered", api::imnodes::l_is_editor_hovered},
+    {"is_node_hovered", api::imnodes::l_is_node_hovered},
+    {"is_link_hovered", api::imnodes::l_is_link_hovered},
+    {"is_pin_hovered", api::imnodes::l_is_pin_hovered},
+    {"begin_node_editor", api::imnodes::l_begin_node_editor},
+    {"end_node_editor", api::imnodes::l_end_node_editor},
+    {"begin_node", api::imnodes::l_begin_node},
+    {"end_node", api::imnodes::l_end_node},
+    {"begin_node_titlebar", api::imnodes::l_begin_node_titlebar},
+    {"end_node_titlebar", api::imnodes::l_end_node_titlebar},
+    {"begin_input_attribute", api::imnodes::l_begin_input_attribute},
+    {"end_input_attribute", api::imnodes::l_end_input_attribute},
+    {"begin_output_attribute", api::imnodes::l_begin_output_attribute},
+    {"end_output_attribute", api::imnodes::l_end_output_attribute},
+    {"begin_static_attribute", api::imnodes::l_begin_static_attribute},
+    {"end_static_attribute", api::imnodes::l_end_static_attribute},
+    {"minimap", api::imnodes::l_minimap},
+    {"link", api::imnodes::l_link},
+    {"get_node_dimensions", api::imnodes::l_get_node_dimensions},
+    {"push_color_style", api::imnodes::l_push_color_style},
+    {"pop_color_style", api::imnodes::l_pop_color_style},
+    {"push_style_var", api::imnodes::l_push_style_var},
+    {"push_style_var_vec2", api::imnodes::l_push_style_var_vec2},
+    {"pop_style_var", api::imnodes::l_pop_style_var},
+    {"set_node_screen_space_pos", api::imnodes::l_set_node_screen_space_pos},
+    {"set_node_editor_space_pos", api::imnodes::l_set_node_editor_space_pos},
+    {"set_node_grid_space_pos", api::imnodes::l_set_node_grid_space_pos},
+    {"get_node_screen_space_pos", api::imnodes::l_get_node_screen_space_pos},
+    {"get_node_editor_space_pos", api::imnodes::l_get_node_editor_space_pos},
+    {"get_node_grid_space_pos", api::imnodes::l_get_node_grid_space_pos},
+    {"is_node_selected", api::imnodes::l_is_node_selected},
+    {"is_link_selected", api::imnodes::l_is_link_selected},
+    {"num_selected_nodes", api::imnodes::l_num_selected_nodes},
+    {"num_selected_links", api::imnodes::l_num_selected_links},
+    {"clear_node_selection", api::imnodes::l_clear_node_selection},
+    {"clear_link_selection", api::imnodes::l_clear_link_selection},
+    {"select_node", api::imnodes::l_select_node},
+    {"select_link", api::imnodes::l_select_link},
+    {"is_attribute_active", api::imnodes::l_is_attribute_active},
+    {"snap_node_to_grid", api::imnodes::l_snap_node_to_grid},
+    {"editor_move_to_node", api::imnodes::l_editor_move_to_node},
+    {"editor_reset_panning", api::imnodes::l_editor_reset_panning},
+    {"editor_get_panning", api::imnodes::l_editor_get_panning},
+    {"is_link_started", api::imnodes::l_is_link_started},
+    {"is_link_dropped", api::imnodes::l_is_link_dropped},
+    {"is_link_created", api::imnodes::l_is_link_created},
+    {"is_link_destroyed", api::imnodes::l_is_link_destroyed},
+    {"get_selected_nodes", api::imnodes::l_get_selected_nodes},
+    {"get_selected_links", api::imnodes::l_get_selected_links},
+    {nullptr, nullptr},
+};
 
-    auto imguizmo = lua.create_table();
+static void open_draw_list_mt(lua_State* L) {
+    luaL_newmetatable(L, DRAW_LIST_MT);
 
-    imguizmo["is_over"] = [] { return ImGuizmo::IsOver(); };
-    imguizmo["is_using"] = [] { return ImGuizmo::IsUsing(); };
+    luaL_setfuncs(L, DRAW_LIST_METHODS, 0);
 
-    lua["imguizmo"] = imguizmo;
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
 
-    auto draw = lua.create_table();
+    lua_pushliteral(L, "ImDrawList");
+    lua_setfield(L, -2, "__name");
 
-    draw["world_to_screen"] = api::draw::world_to_screen;
-    draw["world_text"] = api::draw::world_text;
-    draw["text"] = api::draw::text;
-    draw["filled_rect"] = api::draw::filled_rect;
-    draw["outline_rect"] = api::draw::outline_rect;
-    draw["line"] = api::draw::line;
-    draw["outline_circle"] = api::draw::outline_circle;
-    draw["filled_circle"] = api::draw::filled_circle;
-    draw["outline_quad"] = api::draw::outline_quad;
-    draw["filled_quad"] = api::draw::filled_quad;
-    draw["sphere"] = api::draw::sphere;
-    draw["capsule"] = api::draw::capsule;
-    draw["gizmo"] = api::draw::gizmo;
-    draw["cube"] = [](const Matrix4x4f& mat) { ::imgui::draw_cube(mat); };
-    draw["grid"] = [](const Matrix4x4f& mat, float size) { ::imgui::draw_grid(mat, size); };
-    lua["draw"] = draw;
+    lua_pop(L, 1);
+}
 
-    auto imnodes = lua.create_table();
+static void open_sort_specs_mt(lua_State* L) {
+    luaL_newmetatable(L, SORT_SPECS_MT);
 
-    imnodes["is_editor_hovered"] = &api::imnodes::is_editor_hovered;
-    imnodes["is_node_hovered"] = &api::imnodes::is_node_hovered;
-    imnodes["is_link_hovered"] = &api::imnodes::is_link_hovered;
-    imnodes["is_pin_hovered"] = &api::imnodes::is_pin_hovered;
-    imnodes["begin_node_editor"] = &api::imnodes::begin_node_editor;
-    imnodes["end_node_editor"] = &api::imnodes::end_node_editor;
-    imnodes["begin_node"] = &api::imnodes::begin_node;
-    imnodes["end_node"] = &api::imnodes::end_node;
-    imnodes["begin_node_titlebar"] = &api::imnodes::begin_node_titlebar;
-    imnodes["end_node_titlebar"] = &api::imnodes::end_node_titlebar;
-    imnodes["begin_input_attribute"] = &api::imnodes::begin_input_attribute;
-    imnodes["end_input_attribute"] = &api::imnodes::end_input_attribute;
-    imnodes["begin_output_attribute"] = &api::imnodes::begin_output_attribute;
-    imnodes["end_output_attribute"] = &api::imnodes::end_output_attribute;
-    imnodes["begin_static_attribute"] = &api::imnodes::begin_static_attribute;
-    imnodes["end_static_attribute"] = &api::imnodes::end_static_attribute;
-    imnodes["minimap"] = &api::imnodes::minimap;
-    imnodes["link"] = &api::imnodes::link;
-    imnodes["get_node_dimensions"] = &api::imnodes::get_node_dimensions;
-    imnodes["push_color_style"] = &api::imnodes::push_color_style;
-    imnodes["pop_color_style"] = &api::imnodes::pop_color_style;
-    imnodes["push_style_var"] = &api::imnodes::push_style_var;
-    imnodes["push_style_var_vec2"] = &api::imnodes::push_style_var_vec2;
-    imnodes["pop_style_var"] = &api::imnodes::pop_style_var;
-    imnodes["set_node_screen_space_pos"] = &api::imnodes::set_node_screen_space_pos;
-    imnodes["set_node_editor_space_pos"] = &api::imnodes::set_node_editor_space_pos;
-    imnodes["set_node_grid_space_pos"] = &api::imnodes::set_node_grid_space_pos;
-    imnodes["get_node_screen_space_pos"] = &api::imnodes::get_node_screen_space_pos;
-    imnodes["get_node_editor_space_pos"] = &api::imnodes::get_node_editor_space_pos;
-    imnodes["get_node_grid_space_pos"] = &api::imnodes::get_node_grid_space_pos;
-    imnodes["is_editor_hovered"] = &ImNodes::IsEditorHovered;
-    imnodes["is_node_selected"] = &ImNodes::IsNodeSelected;
-    imnodes["is_link_selected"] = &ImNodes::IsLinkSelected;
-    imnodes["num_selected_nodes"] = &ImNodes::NumSelectedNodes;
-    imnodes["num_selected_links"] = &ImNodes::NumSelectedLinks;
-    imnodes["clear_node_selection"] = &api::imnodes::clear_node_selection;
-    imnodes["clear_link_selection"] = &api::imnodes::clear_link_selection;
-    imnodes["select_node"] = &ImNodes::SelectNode;
-    imnodes["select_link"] = &ImNodes::SelectLink;
-    imnodes["is_attribute_active"] = &ImNodes::IsAttributeActive;
-    imnodes["snap_node_to_grid"] = &ImNodes::SnapNodeToGrid;
+    lua_pushcfunction(L, api::imgui::l_specs_index);
+    lua_setfield(L, -2, "__index");
 
-    imnodes["editor_move_to_node"] = &ImNodes::EditorContextMoveToNode;
-    imnodes["editor_reset_panning"] = &api::imnodes::editor_reset_panning;
-    imnodes["editor_get_panning"] = &api::imnodes::editor_get_panning;
-    
-    imnodes["is_link_started"] = &api::imnodes::is_link_started;
-    imnodes["is_link_dropped"] = &api::imnodes::is_link_dropped;
-    imnodes["is_link_created"] = &api::imnodes::is_link_created;
-    imnodes["is_link_destroyed"] = &api::imnodes::is_link_destroyed;
+    lua_pushcfunction(L, api::imgui::l_specs_newindex);
+    lua_setfield(L, -2, "__newindex");
 
-    imnodes["get_selected_nodes"] = &api::imnodes::get_selected_nodes;
-    imnodes["get_selected_links"] = &api::imnodes::get_selected_links;
+    lua_pushliteral(L, "ImGuiTableSortSpecs");
+    lua_setfield(L, -2, "__name");
 
-    lua["imnodes"] = imnodes;
+    lua_pop(L, 1);
+}
+
+static void open_column_sort_specs_mt(lua_State* L) {
+    luaL_newmetatable(L, COLUMN_SORT_SPECS_MT);
+
+    lua_pushcfunction(L, api::imgui::l_column_specs_index);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcfunction(L, api::imgui::l_column_specs_newindex);
+    lua_setfield(L, -2, "__newindex");
+
+    lua_pushliteral(L, "ImGuiTableColumnSortSpecs");
+    lua_setfield(L, -2, "__name");
+
+    lua_pop(L, 1);
+}
+
+static void put_imgui_enums(lua_State* L) {
+    lh::put_enum(L, "ImGuizmoOperation", IMGUIZMO_OPERATION);
+    lh::put_enum(L, "ImGuizmoMode", IMGUIZMO_MODE);
+    lh::put_enum(L, "TableFlags", IMGUI_TABLE_FLAGS);
+    lh::put_enum(L, "ColumnFlags", IMGUI_COLUMN_FLAGS);
+    lh::put_enum(L, "ImGuiKey", IMGUI_KEY);
+    lh::put_enum(L, "ImGuiStyleVar", IMGUI_STYLE_VAR);
+}
+
+static void push_sort_specs_type(lua_State* L) {
+    lua_createtable(L, 0, 2);
+
+    lua_pushcfunction(L, api::imgui::l_specs_get_specs);
+    lua_setfield(L, -2, "get_specs");
+
+    lua_pushcfunction(L, api::imgui::l_specs_get_specs_dirty);
+    lua_setfield(L, -2, "specs_dirty");
+}
+
+static void push_column_sort_specs_type(lua_State* L) {
+    static const std::pair<const char*, lua_Integer> MEMBERS[]{
+        { "user_id", 0 },
+        { "column_index", 1 },
+        { "sort_order", 2 },
+        { "sort_direction", 3 },
+    };
+
+    lua_createtable(L, 0, 4);
+
+    for (const auto& member : MEMBERS) {
+        lua_pushinteger(L, member.second);
+        lua_pushcclosure(L, api::imgui::l_column_specs_get_value, 1);
+        lua_setfield(L, -2, member.first);
+    }
+}
+
+void bindings::open_imgui(ScriptState* s) {
+    auto L = s->lua().lua_state();
+
+    open_draw_list_mt(L);
+    open_sort_specs_mt(L);
+    open_column_sort_specs_mt(L);
+
+    lua_newtable(L);
+    luaL_setfuncs(L, IMGUI_FUNCS, 0);
+    put_imgui_enums(L);
+
+    // sol2 published each of the three usertypes under `imgui` as well, so a
+    // member is reachable off the table itself: `imgui.ImDrawList.add_text`.
+    luaL_getmetatable(L, DRAW_LIST_MT);
+    lua_setfield(L, -2, "ImDrawList");
+
+    push_sort_specs_type(L);
+    lua_setfield(L, -2, "TableSortSpecs");
+
+    push_column_sort_specs_type(L);
+    lua_setfield(L, -2, "TableColumnSortSpecs");
+
+    lua_setglobal(L, "imgui");
+
+    lua_newtable(L);
+    luaL_setfuncs(L, DRAW_FUNCS, 0);
+    lua_setglobal(L, "draw");
+
+    lua_newtable(L);
+    luaL_setfuncs(L, IMNODES_FUNCS, 0);
+    lua_setglobal(L, "imnodes");
+
+    lua_newtable(L);
+    lua_pushcfunction(L, l_imguizmo_is_over);
+    lua_setfield(L, -2, "is_over");
+    lua_pushcfunction(L, l_imguizmo_is_using);
+    lua_setfield(L, -2, "is_using");
+    lua_setglobal(L, "imguizmo");
 }

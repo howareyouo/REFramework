@@ -45,7 +45,7 @@ jobs:
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           where ninja >nul 2>&1 || choco install ninja -y
           set PATH=C:\ProgramData\chocolatey\bin;%SCCACHE_BIN%;%PATH%
-          cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DDEVELOPER_MODE=ON "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake -S ${{github.workspace}} -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DDEVELOPER_MODE=ON "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache "-DCMAKE_SHARED_LINKER_FLAGS=/MAP:${{github.workspace}}/build/bin/${{matrix.target}}/dinput8.map"
           call MakeCommitHash.bat
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target ${{matrix.target}}
 
@@ -55,4 +55,11 @@ jobs:
           name: ${{matrix.target}}
           path: ${{github.workspace}}/build/bin/${{matrix.target}}/dinput8.dll
           if-no-files-found: error
+
+      - name: Upload link map
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{matrix.target}}-map
+          path: ${{github.workspace}}/build/bin/${{matrix.target}}/dinput8.map
+          if-no-files-found: warn
 

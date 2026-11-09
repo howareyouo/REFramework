@@ -1,7 +1,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
+#include <stdexcept>
 #include <string>
+
+#include <lua.hpp> // wraps the C headers in extern "C"; lua.h alone mismatches the C-built runtime
 
 #include <json.hpp>
 #include <spdlog/spdlog.h>
@@ -9,6 +13,7 @@
 #include "../ScriptRunner.hpp"
 
 #include "Json.hpp"
+#include "LuaBind.hpp"
 
 namespace api::json {
 using json = nlohmann::json;
@@ -27,48 +32,62 @@ const fs::path& datadir() {
 // visible to the script. `api` only names the caller in the error message.
 fs::path resolve_path(const std::string& filepath, const char* api) {
     if (filepath.find("..") != std::string::npos) {
-        throw sol::error{std::string{api} + " does not allow access to parent directories"};
+        throw std::runtime_error{std::string{api} + " does not allow access to parent directories"};
     }
 
     if (fs::path{filepath}.is_absolute()) {
-        throw sol::error{std::string{api} + " does not allow absolute paths"};
+        throw std::runtime_error{std::string{api} + " does not allow absolute paths"};
     }
 
     return datadir() / filepath;
 }
 
 // Only a number overrides the default; nil and anything else keep it.
-int indent_of(const sol::object& obj, int fallback) {
-    return obj.get_type() == sol::type::number ? obj.as<int>() : fallback;
+int indent_of(lua_State* L, int index, int fallback) {
+    return lua_type(L, index) == LUA_TNUMBER ? static_cast<int>(lua_tointeger(L, index)) : fallback;
+}
+
+// A key copied off the stack as text. luaL_tolstring pushes its own string
+// instead of converting in place, so the key stays valid for the next lua_next.
+std::string key_string(lua_State* L, int index) {
+    size_t length = 0;
+    const auto text = luaL_tolstring(L, index, &length);
+    std::string out{text, length};
+
+    lua_pop(L, 1);
+
+    return out;
 }
 
 // A table whose keys are 1..n becomes an array, anything else an object.
 // Deciding that while walking means the table is visited once: the elements
 // collected so far are folded into an object the first time a key breaks the
 // sequence.
-json encode(const sol::object& obj) {
-    switch (obj.get_type()) {
-    case sol::type::boolean:
-        return obj.as<bool>();
-    case sol::type::number: {
-        // The only place that needs the Lua stack: an integer has to stay an
-        // integer, and lua_isinteger reads the value off the stack.
-        lua_State* L = obj.lua_state();
-        obj.push();
-        // Parentheses, not braces: nlohmann reads json{5} as a one-element array.
-        const json number = lua_isinteger(L, -1) != 0 ? json(lua_tointeger(L, -1)) : json(lua_tonumber(L, -1));
-        lua_pop(L, 1);
+json encode(lua_State* L, int index) {
+    index = lua_absindex(L, index);
 
-        return number;
+    switch (lua_type(L, index)) {
+    case LUA_TBOOLEAN:
+        return lua_toboolean(L, index) != 0;
+    case LUA_TNUMBER:
+        // Parentheses, not braces: nlohmann reads json{5} as a one-element array.
+        return lua_isinteger(L, index) != 0 ? json(lua_tointeger(L, index)) : json(lua_tonumber(L, index));
+    case LUA_TSTRING: {
+        size_t length = 0;
+        const auto text = lua_tolstring(L, index, &length);
+
+        return std::string{text, length};
     }
-    case sol::type::string:
-        return obj.as<std::string>();
-    case sol::type::table: {
+    case LUA_TTABLE: {
         json result = json::array();
         int next = 1;
 
-        for (const auto& [key, value] : obj.as<sol::table>()) {
-            if (result.is_array() && (key.get_type() != sol::type::number || key.as<int>() != next)) {
+        lua_pushnil(L);
+
+        while (lua_next(L, index) != 0) {
+            // The key stays under the value on the stack; it is inspected before
+            // the value so a nested table cannot disturb it.
+            if (result.is_array() && (lua_type(L, -2) != LUA_TNUMBER || lua_tointeger(L, -2) != next)) {
                 json object = json::object();
 
                 for (size_t i = 0; i < result.size(); ++i) {
@@ -79,11 +98,13 @@ json encode(const sol::object& obj) {
             }
 
             if (result.is_array()) {
-                result.push_back(encode(value));
+                result.push_back(encode(L, -1));
                 ++next;
             } else {
-                result[key.as<std::string>()] = encode(value);
+                result[key_string(L, -2)] = encode(L, -1);
             }
+
+            lua_pop(L, 1);
         }
 
         return result;
@@ -94,27 +115,37 @@ json encode(const sol::object& obj) {
 }
 
 // Leaves the Lua value for `j` on top of the stack. Pushing straight onto the
-// stack keeps the stack use at the nesting depth and saves the temporary
-// sol::object (a registry reference) that a sol2 round trip spends per node.
+// stack keeps the stack use at the nesting depth.
 void push_value(lua_State* L, const json& j) {
     switch (j.type()) {
     case json::value_t::boolean:
-        sol::stack::push(L, j.get<bool>());
+        lua_pushboolean(L, j.get<bool>() ? 1 : 0);
         return;
     case json::value_t::number_integer:
-        sol::stack::push(L, j.get<int64_t>());
+        lua_pushinteger(L, static_cast<lua_Integer>(j.get<int64_t>()));
         return;
-    case json::value_t::number_unsigned:
-        // sol2 pushes a float for values that do not fit a Lua integer.
-        sol::stack::push(L, j.get<uint64_t>());
+    case json::value_t::number_unsigned: {
+        const auto value = j.get<uint64_t>();
+
+        // Lua integers are signed, so only the top of the uint64 range loses
+        // precision by becoming a float.
+        if (value <= static_cast<uint64_t>(std::numeric_limits<lua_Integer>::max())) {
+            lua_pushinteger(L, static_cast<lua_Integer>(value));
+        } else {
+            lua_pushnumber(L, static_cast<lua_Number>(value));
+        }
+
         return;
+    }
     case json::value_t::number_float:
-        sol::stack::push(L, j.get<double>());
+        lua_pushnumber(L, j.get<double>());
         return;
-    case json::value_t::string:
+    case json::value_t::string: {
         // get_ref() hands out the stored string instead of copying it.
-        sol::stack::push(L, j.get_ref<const std::string&>());
+        const auto& text = j.get_ref<const std::string&>();
+        lua_pushlstring(L, text.data(), text.size());
         return;
+    }
     case json::value_t::array: {
         lua_createtable(L, static_cast<int>(j.size()), 0);
         lua_Integer index = 0;
@@ -145,24 +176,33 @@ void push_value(lua_State* L, const json& j) {
 }
 } // namespace
 
-sol::object load_string(sol::this_state l, const std::string& s) {
-    try {
-        push_value(l, json::parse(s));
-        return sol::stack::pop<sol::object>(l);
-    } catch (const std::exception&) {
-        return sol::nil;
-    }
-}
+LH_BIND(l_load_string) {
+    const std::string text{luaL_checkstring(L, 1)};
 
-std::string dump_string(sol::object obj, sol::object indent_obj) {
     try {
-        return encode(obj).dump(indent_of(indent_obj, -1));
+        push_value(L, json::parse(text));
     } catch (const std::exception&) {
-        return {};
+        lua_pushnil(L);
     }
-}
 
-sol::object load_file(sol::this_state l, const std::string& filepath) {
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dump_string) {
+    try {
+        const auto result = encode(L, 1).dump(indent_of(L, 2, -1));
+        lua_pushlstring(L, result.data(), result.size());
+    } catch (const std::exception&) {
+        lua_pushliteral(L, "");
+    }
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_load_file) {
+    const std::string filepath{luaL_checkstring(L, 1)};
     const auto path = resolve_path(filepath, "json.load_file");
 
     try {
@@ -171,36 +211,76 @@ sol::object load_file(sol::this_state l, const std::string& filepath) {
         // so the file is read in one go and parsed from memory.
         const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
-        push_value(l, json::parse(text));
-        return sol::stack::pop<sol::object>(l);
+        push_value(L, json::parse(text));
     } catch (const std::exception& e) {
         spdlog::error("[JSON] Failed to load file {}: {}", filepath, e.what());
-        return sol::nil;
+        lua_pushnil(L);
     }
-}
 
-bool dump_file(const std::string& filepath, sol::object obj, sol::object indent_obj) {
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_dump_file) {
+    const std::string filepath{luaL_checkstring(L, 1)};
     const auto path = resolve_path(filepath, "json.dump_file");
 
     try {
+        // Serialize before touching the file: dump() can throw (e.g. invalid
+        // UTF-8), and opening the target first would already have truncated it.
+        const auto contents = encode(L, 2).dump(indent_of(L, 3, 4));
+
         fs::create_directories(path.parent_path());
-        std::ofstream{path} << encode(obj).dump(indent_of(indent_obj, 4));
-        return true;
+
+        // Write to a temporary file and swap it in, so a crash or kill mid-write
+        // never leaves the target empty or partially written.
+        auto tmp_path = path;
+        tmp_path += ".tmp";
+
+        {
+            std::ofstream f{tmp_path, std::ios::out | std::ios::trunc};
+            f << contents;
+            f.close();
+
+            if (!f) {
+                std::error_code ec{};
+                fs::remove(tmp_path, ec);
+                throw std::runtime_error{"failed to write temporary file"};
+            }
+        }
+
+        try {
+            fs::rename(tmp_path, path);
+        } catch (...) {
+            std::error_code ec{};
+            fs::remove(tmp_path, ec);
+            throw;
+        }
+
+        lua_pushboolean(L, 1);
     } catch (const std::exception& e) {
         spdlog::error("[JSON] Failed to dump file {}: {}", filepath, e.what());
-        return false;
+        lua_pushboolean(L, 0);
     }
+
+    return 1;
 }
+LH_BIND_END(L)
 
 } // namespace api::json
 
-void bindings::open_json(ScriptState* s) {
-    auto& lua = s->lua();
-    auto json = lua.create_table();
+static const luaL_Reg JSON_FUNCS[]{
+    {"load_string", api::json::l_load_string},
+    {"dump_string", api::json::l_dump_string},
+    {"load_file", api::json::l_load_file},
+    {"dump_file", api::json::l_dump_file},
+    {nullptr, nullptr},
+};
 
-    json["load_string"] = api::json::load_string;
-    json["dump_string"] = api::json::dump_string;
-    json["load_file"] = api::json::load_file;
-    json["dump_file"] = api::json::dump_file;
-    lua["json"] = json;
+void bindings::open_json(ScriptState* s) {
+    auto L = s->lua().lua_state();
+
+    lua_newtable(L);
+    luaL_setfuncs(L, JSON_FUNCS, 0);
+    lua_setglobal(L, "json");
 }

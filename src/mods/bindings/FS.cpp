@@ -1,15 +1,20 @@
+#include <algorithm>
 #include <filesystem>
-#include <regex>
 #include <fstream>
-#include <optional>
+#include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+#include <lua.hpp> // wraps the C headers in extern "C"; lua.h alone mismatches the C-built runtime
 
 #include "../ScriptRunner.hpp"
 
 #include "FS.hpp"
+#include "LuaBind.hpp"
 
 namespace fs = std::filesystem;
-
-std::optional<::fs::path> get_correct_subpath(sol::this_state l, const std::string& filepath, bool allow_dll = false);
 
 namespace api::fs {
 namespace detail {
@@ -65,24 +70,134 @@ namespace detail {
 
     return out;
 }
+
+// Rejects any path that would escape the data directory. Every rejection is
+// raised as an exception so the enclosing thunk turns it into a Lua error with
+// the stack already unwound.
+::fs::path correct_subpath(const std::string& filepath, bool allow_dll) {
+    if (filepath.find("..") != std::string::npos) {
+        throw std::runtime_error{"This API does not allow access to parent directories"};
+    }
+
+    if (::fs::path(filepath).is_absolute()) {
+        throw std::runtime_error{"This API does not allow the use of absolute paths"};
+    }
+
+    const auto corrected_subpath = fix_subdir(::fs::path{filepath});
+
+    if (corrected_subpath.string().find("..") != std::string::npos) {
+        throw std::runtime_error{"This API does not allow access to parent directories"};
+    }
+
+    if (corrected_subpath.is_absolute()) {
+        throw std::runtime_error{"This API does not allow the use of absolute paths"};
+    }
+
+    const auto path = get_datadir(filepath) / corrected_subpath;
+
+    if (!allow_dll) {
+        auto extension = path.extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+        // it's not a good idea to allow DLLs to be written to disk from Lua scripts.
+        if (extension == ".dll" || extension == ".exe") {
+            throw std::runtime_error{"This API does not allow interacting with executables or DLLs"};
+        }
+    }
+
+    return path;
 }
 
-sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
-    sol::state_view state{l};
+// The original stdlib functions stay in the registry: the wrappers below
+// forward to them once the path has been checked.
+constexpr const char* OLD_IO_OPEN = "REFramework.io_open";
+constexpr const char* OLD_IO_LINES = "REFramework.io_lines";
+constexpr const char* OLD_IO_INPUT = "REFramework.io_input";
+constexpr const char* OLD_IO_OUTPUT = "REFramework.io_output";
+constexpr const char* OLD_REQUIRE = "REFramework.require";
+constexpr const char* OLD_LOADLIB = "REFramework.loadlib";
 
-    std::optional<std::regex> filter_regex;
+void save_field(lua_State* L, int index, const char* key, const char* registry_key) {
+    lua_getfield(L, index, key);
+    lua_setfield(L, LUA_REGISTRYINDEX, registry_key);
+}
+
+// io.open keeps no default when the path is missing, so the argument is required.
+int forward_file(lua_State* L, const char* registry_key) {
+    const auto path = correct_subpath(luaL_checkstring(L, 1), false);
+
+    ::fs::create_directories(path.parent_path());
+
+    lua_getfield(L, LUA_REGISTRYINDEX, registry_key);
+    lua_pushstring(L, path.string().c_str());
+    lua_call(L, 1, 1);
+
+    return 1;
+}
+
+// io.lines/input/output take nil to mean the standard handles, and only a path
+// has to be redirected through the data directory.
+int forward_file_or_nil(lua_State* L, const char* registry_key, const char* api) {
+    lua_getfield(L, LUA_REGISTRYINDEX, registry_key);
+
+    if (lh::is_none(L, 1)) {
+        lua_pushnil(L);
+        lua_call(L, 1, 1);
+
+        return 1;
+    }
+
+    if (!lh::is_str(L, 1)) {
+        throw std::runtime_error{std::string{api} + ": expected a string or nil as the first argument"};
+    }
+
+    const auto path = correct_subpath(lua_tostring(L, 1), false);
+
+    ::fs::create_directories(path.parent_path());
+
+    lua_pushstring(L, path.string().c_str());
+    lua_call(L, 1, 1);
+
+    return 1;
+}
+
+// Copies every key/value pair from the table at `src` into the table at `dst`.
+void copy_table(lua_State* L, int dst, int src) {
+    dst = lua_absindex(L, dst);
+    src = lua_absindex(L, src);
+
+    lua_pushnil(L);
+
+    while (lua_next(L, src) != 0) {
+        lua_pushvalue(L, -2);
+        lua_insert(L, -2);
+        lua_settable(L, dst);
+    }
+}
+} // namespace detail
+
+using namespace detail;
+
+LH_BIND(l_glob) {
+    // A non-string argument is treated as an absent one, which is what the
+    // typed sol2 parameters did for nil.
+    const char* filter = lh::opt_str(L, 1, nullptr);
+    const char* modifier = lh::opt_str(L, 2, nullptr);
+
+    std::regex filter_regex;
+
     try {
-        filter_regex.emplace(filter != nullptr ? filter : ".*");
+        filter_regex = std::regex{filter != nullptr ? filter : ".*"};
     } catch (const std::regex_error& e) {
         // An invalid pattern would otherwise throw std::regex_error across the Lua
         // boundary; turn it into a Lua error so a script typo can't crash the game.
-        luaL_error(l, "fs.glob: invalid pattern: %s", e.what());
-        return state.create_table();
+        throw std::runtime_error{std::string{"fs.glob: invalid pattern: "} + e.what()};
     }
 
-    auto results = state.create_table();
-    auto datadir = detail::get_datadir(modifier != nullptr ? modifier : "");
-    auto i = 0;
+    const auto datadir = get_datadir(modifier != nullptr ? modifier : "");
+
+    lua_createtable(L, 0, 0);
+    lua_Integer i = 0;
 
     for (const auto& entry : ::fs::recursive_directory_iterator{datadir}) {
         if (!entry.is_regular_file() && !entry.is_symlink()) {
@@ -91,283 +206,194 @@ sol::table glob(sol::this_state l, const char* filter, const char* modifier) {
 
         // Entries come straight from the iterator, so the relative path is a pure
         // string operation here (fs::relative would canonicalize on disk).
-        auto relpath = entry.path().lexically_relative(datadir).string();
+        const auto relpath = entry.path().lexically_relative(datadir).string();
 
-        if (std::regex_match(relpath, *filter_regex)) {
-            results[++i] = relpath;
+        if (std::regex_match(relpath, filter_regex)) {
+            lua_pushlstring(L, relpath.data(), relpath.size());
+            lua_rawseti(L, -2, ++i);
         }
     }
 
-    return results;
+    return 1;
 }
+LH_BIND_END(L)
 
-void write(sol::this_state l, const std::string& filepath, const std::string& data) {
-    const auto path = get_correct_subpath(l, filepath);
+LH_BIND(l_write) {
+    size_t length = 0;
+    const auto data = luaL_checklstring(L, 2, &length);
+    const auto path = correct_subpath(luaL_checkstring(L, 1), false);
 
-    if (!path) {
-        lua_pushstring(l, "fs.write: unknown error");
-        lua_error(l);
-    }
+    ::fs::create_directories(path.parent_path());
 
-    ::fs::create_directories(path->parent_path());
+    std::ofstream file{path};
 
-    std::ofstream file{*path};
+    file.write(data, static_cast<std::streamsize>(length));
 
-    file << data;
+    return 0;
 }
+LH_BIND_END(L)
 
-std::string read(sol::this_state l, const std::string& filepath) {
-    const auto path = get_correct_subpath(l, filepath);
+LH_BIND(l_read) {
+    const auto path = correct_subpath(luaL_checkstring(L, 1), false);
 
-    if (!path) {
-        lua_pushstring(l, "fs.read: unknown error");
-        lua_error(l);
+    if (!::fs::exists(path)) {
+        lua_pushliteral(L, "");
+
+        return 1;
     }
 
-    if (!exists(*path)) {
-        return "";
-    }
+    ::fs::create_directories(path.parent_path());
 
-    ::fs::create_directories(path->parent_path());
-
-    std::ifstream file{*path};
+    std::ifstream file{path};
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return buffer.str();
+
+    const auto text = buffer.str();
+    lua_pushlstring(L, text.data(), text.size());
+
+    return 1;
 }
+LH_BIND_END(L)
+
+LH_BIND(l_io_open) {
+    forward_file(L, OLD_IO_OPEN);
+
+    return 1;
 }
+LH_BIND_END(L)
 
-std::optional<::fs::path> get_correct_subpath(sol::this_state l, const std::string& filepath, bool allow_dll) {
-    if (filepath.find("..") != std::string::npos) {
-        lua_pushstring(l, "This API does not allow access to parent directories");
-        lua_error(l);
-        return {};
-    }
+LH_BIND(l_io_lines) {
+    forward_file_or_nil(L, OLD_IO_LINES, "io.lines");
 
-    if (std::filesystem::path(filepath).is_absolute()) {
-        lua_pushstring(l, "This API does not allow the use of absolute paths");
-        lua_error(l);
-        return {};
-    }
-
-    const auto corrected_subpath = api::fs::detail::fix_subdir(::fs::path{filepath});
-
-    if (corrected_subpath.string().find("..") != std::string::npos) {
-        lua_pushstring(l, "This API does not allow access to parent directories");
-        lua_error(l);
-        return {};
-    }
-
-    if (corrected_subpath.is_absolute()) {
-        lua_pushstring(l, "This API does not allow the use of absolute paths");
-        lua_error(l);
-        return {};
-    }
-
-    const auto path = api::fs::detail::get_datadir(filepath) / corrected_subpath;
-    const auto extension_lower = [&]() {
-        auto ext = path.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        return ext;
-    }();
-
-    if (!allow_dll) {
-        // it's not a good idea to allow DLLs to be written to disk from Lua scripts.
-        if (extension_lower == ".dll" || extension_lower == ".exe") {
-            lua_pushstring(l, "This API does not allow interacting with executables or DLLs");
-            lua_error(l);
-            return {};
-        }
-    }
-
-    return path;
+    return 1;
 }
+LH_BIND_END(L)
+
+LH_BIND(l_io_input) {
+    forward_file_or_nil(L, OLD_IO_INPUT, "io.input");
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_io_output) {
+    forward_file_or_nil(L, OLD_IO_OUTPUT, "io.output");
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_require) {
+    const std::string_view filepath{luaL_checkstring(L, 1)};
+
+    if (filepath.find("..") != std::string_view::npos) {
+        throw std::runtime_error{"require does not allow access to parent directories"};
+    }
+
+    if (::fs::path{filepath}.is_absolute()) {
+        throw std::runtime_error{"require does not allow the use of absolute paths"};
+    }
+
+    // Do not allow modification of the package path or cpath. We restore it to a pristine value before calling the original require.
+    lua_getglobal(L, "package");
+
+    lua_getfield(L, LUA_REGISTRYINDEX, "package_path");
+    lua_setfield(L, -2, "path");
+
+    lua_getfield(L, LUA_REGISTRYINDEX, "package_cpath");
+    lua_setfield(L, -2, "cpath");
+
+    lua_newtable(L);
+    lua_getfield(L, LUA_REGISTRYINDEX, "package_searchers");
+    copy_table(L, -2, -1);
+    lua_pop(L, 1);
+    lua_setfield(L, -2, "searchers");
+
+    lua_pop(L, 1);
+
+    lua_getfield(L, LUA_REGISTRYINDEX, OLD_REQUIRE);
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 1);
+
+    return 1;
+}
+LH_BIND_END(L)
+
+LH_BIND(l_loadlib) {
+    const std::string_view filepath{luaL_checkstring(L, 1)};
+    const auto path = correct_subpath(std::string{filepath}, true);
+
+    auto extension = path.extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+    if (extension != ".dll") {
+        throw std::runtime_error{"package.loadlib: only DLLs are allowed"};
+    }
+
+    // The original filepath is forwarded, not the resolved one, matching what
+    // this wrapper has always passed through.
+    lua_getfield(L, LUA_REGISTRYINDEX, OLD_LOADLIB);
+    lua_pushvalue(L, 1);
+    lua_pushvalue(L, 2);
+    lua_call(L, 2, 1);
+
+    return 1;
+}
+LH_BIND_END(L)
+} // namespace api::fs
+
+static const luaL_Reg FS_FUNCS[]{
+    {"glob", api::fs::l_glob},
+    {"write", api::fs::l_write},
+    {"read", api::fs::l_read},
+    {nullptr, nullptr},
+};
 
 void bindings::open_fs(ScriptState* s) {
-    auto& lua = s->lua();
-    auto fs = lua.create_table();
+    auto L = s->lua().lua_state();
 
-    fs["glob"] = api::fs::glob;
-    fs["write"] = api::fs::write;
-    fs["read"] = api::fs::read;
-    lua["fs"] = fs;
+    lua_newtable(L);
+    luaL_setfuncs(L, FS_FUNCS, 0);
+    lua_setglobal(L, "fs");
 
-    lua.open_libraries(sol::lib::io);
+    luaL_requiref(L, LUA_IOLIBNAME, luaopen_io, 1);
+    lua_pop(L, 1);
 
     // Replace the io functions with safe versions that can't be used to access parent directories and can't be used to open files outside of the data directory.
     // Addendum: Now io APIs can access the "natives" directory relative to the executable.
-    auto io = lua["io"];
+    lua_getglobal(L, "io");
 
-    sol::function old_open = io["open"];
+    api::fs::detail::save_field(L, -1, "open", api::fs::detail::OLD_IO_OPEN);
+    lua_pushcfunction(L, api::fs::l_io_open);
+    lua_setfield(L, -2, "open");
 
-    io["open"] = [=](sol::this_state l, const std::string& filepath, sol::object mode) -> sol::object {
-        auto path = get_correct_subpath(l, filepath);
+    api::fs::detail::save_field(L, -1, "lines", api::fs::detail::OLD_IO_LINES);
+    lua_pushcfunction(L, api::fs::l_io_lines);
+    lua_setfield(L, -2, "lines");
 
-        if (!path) {
-            lua_pushstring(l, "io.open: unknown error");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
+    api::fs::detail::save_field(L, -1, "input", api::fs::detail::OLD_IO_INPUT);
+    lua_pushcfunction(L, api::fs::l_io_input);
+    lua_setfield(L, -2, "input");
 
-        ::fs::create_directories(path->parent_path());
-
-        return old_open(path->string().c_str(), mode);
-    };
-
-    /*sol::function old_popen = io["popen"];
-
-    io["popen"] = [=](sol::this_state l, const std::string& filepath, sol::object mode) -> sol::object {
-        if (filepath.find("..") != std::string::npos) {
-            lua_pushstring(l, "io.popen does not allow access to parent directories");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        auto path = api::fs::detail::get_datadir() / filepath;
-        auto warning = (std::stringstream{} << "A script wants to run an executable named \"reframework/data/" << filepath << "\". Allow this?").str();
-
-        auto ret = MessageBoxA(nullptr, warning.c_str(), "REFramework", MB_YESNO | MB_ICONWARNING);
-
-        if (ret == IDYES) {
-            return old_popen(path.string().c_str(), mode);
-        }
-
-        return sol::make_object(l, sol::nil);
-    };*/
-
-    io["popen"] = sol::make_object(lua, sol::nil); // on second thought, I don't want to allow this. If someone really wants this functionality, they can just make a C++ plugin and use the C++ API.
+    api::fs::detail::save_field(L, -1, "output", api::fs::detail::OLD_IO_OUTPUT);
+    lua_pushcfunction(L, api::fs::l_io_output);
+    lua_setfield(L, -2, "output");
 
     // These functions can take nil as the first argument and they will return the default filehandle associated with stdin, stdout, or stderr.
     // So they should be safe in that respect.
-    sol::function old_lines = io["lines"];
+    lua_pushnil(L); // on second thought, I don't want to allow popen. If someone really wants this functionality, they can just make a C++ plugin and use the C++ API.
+    lua_setfield(L, -2, "popen");
 
-    io["lines"] = [=](sol::this_state l, sol::object filepath_or_nil) -> sol::object {
-        if (filepath_or_nil.is<sol::nil_t>()) {
-            return old_lines(l, sol::make_object(l, sol::nil));
-        }
+    lua_pop(L, 1);
 
-        if (!filepath_or_nil.is<std::string>()) {
-            lua_pushstring(l, "io.lines: expected a string or nil as the first argument");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
+    lua_getglobal(L, "require");
+    lua_setfield(L, LUA_REGISTRYINDEX, api::fs::detail::OLD_REQUIRE);
+    lua_pushcfunction(L, api::fs::l_require);
+    lua_setglobal(L, "require");
 
-        auto filepath = filepath_or_nil.as<std::string>();
-        auto path = get_correct_subpath(l, filepath);
-
-        if (!path) {
-            lua_pushstring(l, "io.lines: unknown error");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        ::fs::create_directories(path->parent_path());
-
-        return old_lines(path->string().c_str());
-    };
-
-    sol::function old_input = io["input"];
-
-    io["input"] = [=](sol::this_state l, sol::object filepath_or_nil) -> sol::object {
-        if (filepath_or_nil.is<sol::nil_t>()) {
-             return old_input(l, sol::make_object(l, sol::nil));
-        }
-
-        if (!filepath_or_nil.is<std::string>()) {
-            lua_pushstring(l, "io.input: expected a string or nil as the first argument");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        auto filepath = filepath_or_nil.as<std::string>();
-        auto path = get_correct_subpath(l, filepath);
-
-        if (!path) {
-            lua_pushstring(l, "io.input: unknown error");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        ::fs::create_directories(path->parent_path());
-
-        return old_input(path->string().c_str());
-    };
-
-    sol::function old_output = io["output"];
-
-    io["output"] = [=](sol::this_state l, sol::object filepath_or_nil) -> sol::object {
-        if (filepath_or_nil.is<sol::nil_t>()) {
-             return old_output(l, sol::make_object(l, sol::nil));
-        }
-
-        if (!filepath_or_nil.is<std::string>()) {
-            lua_pushstring(l, "io.output: expected a string or nil as the first argument");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        auto filepath = filepath_or_nil.as<std::string>();
-        auto path = get_correct_subpath(l, filepath);
-
-        if (!path) {
-            lua_pushstring(l, "io.output: unknown error");
-            lua_error(l);
-            return sol::make_object(l, sol::nil);
-        }
-
-        ::fs::create_directories(path->parent_path());
-
-        return old_output(path->string().c_str());
-    };
-
-    sol::function old_require = lua["require"];
-
-    lua["require"] = [=](sol::this_state l, const std::string& filepath) -> sol::object {
-        if (filepath.find("..") != std::string::npos) {
-            lua_pushstring(l, "require does not allow access to parent directories");
-            lua_error(l);
-        }
-
-        if (std::filesystem::path(filepath).is_absolute()) {
-            lua_pushstring(l, "require does not allow the use of absolute paths");
-            lua_error(l);
-        }
-
-        // Do not allow modification of the package path or cpath. We restore it to a pristine value before calling the original require.
-        auto lua = sol::state_view{l};
-        lua["package"]["path"] = lua.registry()["package_path"];
-        lua["package"]["cpath"] = lua.registry()["package_cpath"];
-        lua["package"]["searchers"] = lua.create_table();
-
-        sol::table searchers = lua.registry()["package_searchers"];
-        for (auto&& [k, v] : searchers) {
-            lua["package"]["searchers"][k] = v;
-        }
-
-        return old_require(filepath.c_str());
-    };
-
-    sol::function old_loadlib = lua["package"]["loadlib"];
-
-    lua["package"]["loadlib"] = [=](sol::this_state l, const std::string& filepath, const std::string& funcname) -> sol::object {
-        const auto path = get_correct_subpath(l, filepath, true);
-
-        if (!path) {
-            lua_pushstring(l, "package.loadlib: unknown error");
-            lua_error(l);
-        }
-
-        const auto extension_lower = [&]() {
-            auto ext = path->extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            return ext;
-        }();
-
-        if (extension_lower != ".dll") {
-            lua_pushstring(l, "package.loadlib: only DLLs are allowed");
-            lua_error(l);
-        }
-
-        return old_loadlib(filepath.c_str(), funcname.c_str());
-    };
+    lua_getglobal(L, "package");
+    api::fs::detail::save_field(L, -1, "loadlib", api::fs::detail::OLD_LOADLIB);
+    lua_pushcfunction(L, api::fs::l_loadlib);
+    lua_setfield(L, -2, "loadlib");
+    lua_pop(L, 1);
 }
