@@ -1516,6 +1516,13 @@ bool ScriptState::should_remove_hook(const lua_stack::protected_function_result&
         return false;
     }
 
+    // A callback that returned nothing is the common case, and it cannot name a
+    // next action. Answering it here keeps a reference to the empty slot above
+    // the results from being built at all.
+    if (result.return_count() <= 0) {
+        return false;
+    }
+
     auto result_obj = result.get<lua_stack::object>();
 
     if (!result_obj.valid() || result_obj.is<lua_stack::nil_t>() || !result_obj.is<ReCallbackNextAction>()) {

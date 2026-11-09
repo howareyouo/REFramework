@@ -24,6 +24,10 @@
 namespace api {
 namespace sdk {
 static std::unordered_map<::sdk::RETypeDefinition*, uint32_t> s_fnv_cache{};
+// Memo for type_dispatch_hash. get_full_name() copies a string under a shared
+// lock, and parse_data asks for the hash on every field read and every native
+// return, so the answer is kept per type the way s_fnv_cache keeps its own.
+static std::unordered_map<::sdk::RETypeDefinition*, size_t> s_dispatch_hash_cache{};
 
 struct BehaviorTreeCoreHandle : public ::REManagedObject {
     int unused;
@@ -364,7 +368,6 @@ std::vector<void*>& build_args(lua_stack::variadic_args va);
 lua_stack::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_type, bool from_method);
 lua_stack::object get_native_field(lua_stack::object obj, ::sdk::RETypeDefinition* ty, const char* name);
 lua_stack::object get_native_field_from_field(lua_stack::object obj, ::sdk::RETypeDefinition* ty, ::sdk::REField* field);
-lua_stack::object get_field_or_method(lua_stack::object obj, const char* name);
 void set_native_field(lua_State* s, lua_stack::object obj, ::sdk::RETypeDefinition* ty, const char* name, lua_stack::object value);
 
 struct ValueType {
@@ -960,19 +963,29 @@ void* get_real_obj(lua_stack::object obj) {
 }
 
 // Hash used to dispatch on a type's full name; enums hash by their underlying
-// type so they marshal like their primitive representation.
+// type so they marshal like their primitive representation. The answer depends
+// only on the type definition, so it is memoized -- get_full_name() copies a
+// string under a shared lock, which parse_data would otherwise pay on every
+// marshalled value.
 static size_t type_dispatch_hash(::sdk::RETypeDefinition* data_type) {
+    if (auto it = api::sdk::s_dispatch_hash_cache.find(data_type); it != api::sdk::s_dispatch_hash_cache.end()) {
+        return it->second;
+    }
+
+    size_t dispatch_hash = 0;
+
     if (data_type->is_enum()) {
         auto underlying_type = data_type->get_underlying_type();
 
         if (underlying_type != nullptr) {
-            return utility::hash(underlying_type->get_full_name());
+            dispatch_hash = utility::hash(underlying_type->get_full_name());
         }
-
-        return 0;
+    } else {
+        dispatch_hash = utility::hash(data_type->get_full_name());
     }
 
-    return utility::hash(data_type->get_full_name());
+    api::sdk::s_dispatch_hash_cache[data_type] = dispatch_hash;
+    return dispatch_hash;
 }
 
 lua_stack::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_type, bool from_method) {
@@ -1468,20 +1481,40 @@ lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::vari
     if (type_def == nullptr) {
         return lua_stack::make_object(s, lua_stack::lua_nil);
     }
-    std::string name;
+
+    // The name lookup takes the Lua string itself: lua_tolstring hands out a
+    // NUL-terminated pointer into the interned string, so no copy is made here.
+    // The reference `index` holds keeps it alive for the whole call.
+    const char* name = nullptr;
+
     if (index.is<const char*>()) {
         name = index.as<const char*>();
-        auto field = type_def->get_field(name.c_str());
+    }
+
+    if (name != nullptr) {
+        auto field = type_def->get_field(name);
         if (field != nullptr) {
             return api::sdk::get_native_field_from_field(lua_obj, type_def, field);
         }
-        auto method = type_def->get_method(name.c_str());
+        auto method = type_def->get_method(name);
         if (method != nullptr) {
             return lua_stack::make_object(s, method);
         }
     }
 
-    if (auto fn = type_def->get_method("get_Item"); fn != nullptr) {
+    // get_Item is resolved by name on every read that reaches this far, and the
+    // type definition it belongs to never changes, so the answer for the last
+    // type is kept: indexing the same object type repeatedly then costs a
+    // pointer comparison instead of a method-table lookup.
+    static thread_local ::sdk::RETypeDefinition* item_type = nullptr;
+    static thread_local ::sdk::REMethodDefinition* item_fn = nullptr;
+
+    if (item_type != type_def) {
+        item_type = type_def;
+        item_fn = type_def->get_method("get_Item");
+    }
+
+    if (auto fn = item_fn; fn != nullptr) {
         try {
             const auto params = fn->get_param_types();
 
@@ -1493,7 +1526,7 @@ lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::vari
 
                 // If it's a System.Object it's always okay, our arg will get auto converted.
                 if (first_param != nullptr && first_param != system_object) {
-                    if (index.is<const char*>()) {
+                    if (name != nullptr) {
                         if (first_param != system_string) {
                             return lua_stack::make_object(s, lua_stack::lua_nil);
                         }

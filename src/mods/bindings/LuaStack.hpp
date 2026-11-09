@@ -443,6 +443,15 @@ inline const std::string& container_qualified_name() {
     return name;
 }
 
+// The registry key sol2's container wrapper lived under: "sol." plus the
+// demangled form above. Held as a static like the other metatable names so a
+// check never builds it on the stack.
+template <typename T>
+inline const std::string& container_metatable() {
+    static const std::string name = std::string("sol.") + container_qualified_name<T>();
+    return name;
+}
+
 // The __pairs refusal of a type sol2 did not treat as a container. Raised with
 // lua_error so the text reaches Lua without a position prefix, exactly as the
 // stub sol2 generated did.
@@ -586,7 +595,7 @@ inline bool check_userdata(lua_State* L, int index, bool accept_nil) {
         has_name(value_metatable<T>());
         has_name(pointer_metatable<T>());
         has_name(unique_metatable<T>());
-        has_name(std::string("sol.") + container_qualified_name<T>());
+        has_name(container_metatable<T>());
 
         if (!matched) {
             // The base chain. sol2 only asked it when the requested type was
