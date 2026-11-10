@@ -54,7 +54,6 @@ bool ResourceCopier::setup(const wchar_t* name) {
 void ResourceCopier::reset() {
     std::scoped_lock _{this->mtx};
     this->wait(2000);
-    //this->on_post_present(VR::get().get());
 
     this->cmd_allocator.Reset();
     this->cmd_list.Reset();

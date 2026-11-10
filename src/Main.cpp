@@ -82,9 +82,6 @@ void startup_thread(HMODULE reframework_module) {
 
     if (load_dinput8()) {
         g_framework = std::make_unique<REFramework>(reframework_module);
-
-        const auto our_dll = utility::get_module_within(&load_dinput8);
-
     }
 }
 

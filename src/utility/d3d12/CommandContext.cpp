@@ -57,7 +57,6 @@ bool CommandContext::setup(const wchar_t* name) {
 void CommandContext::reset() {
     std::scoped_lock _{this->mtx};
     this->wait(2000);
-    //this->on_post_present(VR::get().get());
 
     this->cmd_allocator.Reset();
     this->cmd_list.Reset();
@@ -127,6 +126,18 @@ void CommandContext::wait(uint32_t ms) {
     }
 }
 
+bool CommandContext::ensure_open_for_record() {
+    if (this->cmd_list == nullptr || !this->list_open) {
+        if (!this->warned_list_closed) {
+            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
+            this->warned_list_closed = true;
+        }
+        return false;
+    }
+
+    return true;
+}
+
 void CommandContext::copy(ID3D12Resource* src, ID3D12Resource* dst, D3D12_RESOURCE_STATES src_state, D3D12_RESOURCE_STATES dst_state) {
     std::scoped_lock _{this->mtx};
 
@@ -135,11 +146,7 @@ void CommandContext::copy(ID3D12Resource* src, ID3D12Resource* dst, D3D12_RESOUR
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_open_for_record()) {
         return;
     }
 
@@ -192,11 +199,7 @@ void CommandContext::copy_region(ID3D12Resource* src, ID3D12Resource* dst, D3D12
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_open_for_record()) {
         return;
     }
 
@@ -263,11 +266,7 @@ void CommandContext::transition(ID3D12Resource* dst, D3D12_RESOURCE_STATES befor
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_open_for_record()) {
         return;
     }
 
@@ -291,11 +290,7 @@ void CommandContext::clear_rtv(ID3D12Resource* dst, D3D12_CPU_DESCRIPTOR_HANDLE 
         return;
     }
 
-    if (this->cmd_list == nullptr || !this->list_open) {
-        if (!this->warned_list_closed) {
-            spdlog::warn("[d3d12] Command list not open for recording ({}); a previous fence wait likely timed out", utility::narrow(this->internal_name));
-            this->warned_list_closed = true;
-        }
+    if (!this->ensure_open_for_record()) {
         return;
     }
 

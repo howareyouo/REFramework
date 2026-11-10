@@ -20,7 +20,6 @@ public:
 	typedef std::function<void(D3D12Hook&)> OnPresentFn;
 	typedef std::function<void(D3D12Hook&)> OnResizeBuffersFn;
     typedef std::function<void(D3D12Hook&)> OnResizeTargetFn;
-    typedef std::function<void(D3D12Hook&)> OnCreateSwapChainFn;
 
 	D3D12Hook() = default;
 	virtual ~D3D12Hook();
@@ -47,10 +46,6 @@ public:
     void on_resize_target(OnResizeTargetFn fn) {
         m_on_resize_target = fn;
     }
-
-    /*void on_create_swap_chain(OnCreateSwapChainFn fn) {
-        m_on_create_swap_chain = fn;
-    }*/
 
     ID3D12Device4* get_device() const {
         return m_device.Get();
@@ -87,10 +82,6 @@ public:
         return m_inside_present;
     }
 
-    bool is_proton_swapchain() const {
-        return m_using_proton_swapchain;
-    }
-    
     bool is_framegen_swapchain() const {
         return m_using_frame_generation_swapchain;
     }
@@ -145,8 +136,7 @@ protected:
     OnPresentFn m_on_post_present{ nullptr };
     OnResizeBuffersFn m_on_resize_buffers{ nullptr };
     OnResizeTargetFn m_on_resize_target{ nullptr };
-    //OnCreateSwapChainFn m_on_create_swap_chain{ nullptr };
-    
+
     static HRESULT WINAPI present(IDXGISwapChain3* swap_chain, uint64_t sync_interval, uint64_t flags, void* r9);
     static HRESULT WINAPI resize_buffers(IDXGISwapChain3* swap_chain, UINT buffer_count, UINT width, UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags);
     static HRESULT WINAPI resize_target(IDXGISwapChain3* swap_chain, const DXGI_MODE_DESC* new_target_parameters);

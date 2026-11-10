@@ -48,5 +48,8 @@ struct CommandContext {
     bool warned_list_closed{false};
 
     std::wstring internal_name{L"CommandContext object"};
+
+private:
+    bool ensure_open_for_record();
 };
 }

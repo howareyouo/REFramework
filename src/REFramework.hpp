@@ -97,8 +97,6 @@ public:
 
     bool is_valid() const { return m_valid; }
 
-    bool is_dx11() const { return false; }
-
     bool is_dx12() const { return m_is_d3d12; }
 
     const auto& get_mods() const { return m_mods; }
@@ -136,10 +134,8 @@ public:
     void remove_set_cursor_pos_patch();
 
     bool on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param);
-    void on_direct_input_keys(const std::array<uint8_t, 256>& keys);
 
     static inline bool s_fallback_appdata{false};
-    static inline bool s_checked_file_permissions{false};
     static std::filesystem::path get_persistent_dir();
     static std::filesystem::path get_persistent_dir(const std::string& dir) {
         return get_persistent_dir() / dir;
@@ -150,16 +146,13 @@ public:
     }
 
     enum class RendererType : uint8_t {
-        D3D11,
         D3D12
     };
-    
+
     auto get_renderer_type() const { return m_renderer_type; }
     auto& get_d3d12_hook() const { return m_d3d12_hook; }
 
     auto get_window() const { return m_wnd; }
-    auto get_last_window_pos() const { return m_last_window_pos; } // REFramework imgui window
-    auto get_last_window_size() const { return m_last_window_size; } // REFramework imgui window
 
     static const char* get_game_name() {
         return "re4";
@@ -248,8 +241,7 @@ private:
     bool m_started_game_data_thread{false};
     std::atomic<bool> m_terminating{false}; // Destructor is called
     std::atomic<bool> m_game_data_initialized{false};
-    std::atomic<bool> m_mods_fully_initialized{false};
-    
+
     // UI
     bool m_has_frame{false};
     bool m_wants_device_object_cleanup{false};
@@ -259,9 +251,6 @@ private:
     bool m_is_ui_focused{false};
     bool m_cursor_state{false};
     bool m_cursor_state_changed{true};
-    
-    ImVec2 m_last_window_pos{};
-    ImVec2 m_last_window_size{};
 
     struct AdditionalFont {
         std::filesystem::path filepath{};
@@ -424,11 +413,6 @@ private: // D3D12 members
                     (SIZE_T)srv * (SIZE_T)device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)};
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_srv(ID3D12Device* device, SRV srv) {
-            return {srv_desc_heap->GetGPUDescriptorHandleForHeapStart().ptr +
-                    (SIZE_T)srv * (SIZE_T)device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)};
-        }
-
         uint32_t rt_width{};
         uint32_t rt_height{};
 
@@ -437,7 +421,6 @@ private: // D3D12 members
     } m_d3d12{};
 
 public:
-    auto& get_blank_rendertarget_d3d12() { return m_d3d12.get_rt(D3D12::RTV::BLANK); }
     auto& get_rendertarget_d3d12() { return m_d3d12.get_rt(D3D12::RTV::IMGUI); }
     auto get_rendertarget_width_d3d12() { return m_d3d12.rt_width; }
     auto get_rendertarget_height_d3d12() { return m_d3d12.rt_height; }

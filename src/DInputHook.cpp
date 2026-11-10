@@ -101,11 +101,6 @@ HRESULT DInputHook::get_device_state_internal(IDirectInputDevice* device, DWORD 
 
     auto res = original_get_device_state(device, size, data);
 
-    // Feed keys back to the framework
-    if (res == DI_OK && !m_is_ignoring_input && data != nullptr && size == 256) {
-        g_framework->on_direct_input_keys(*(std::array<uint8_t, 256>*)data);
-    }
-
     return res;
 }
 

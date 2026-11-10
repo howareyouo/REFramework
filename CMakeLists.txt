@@ -448,7 +448,6 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		"src/Mods.hpp"
 		"src/REFramework.cpp"
 		"src/REFramework.hpp"
-		"src/Tool.hpp"
 		"src/WindowFilter.cpp"
 		"src/WindowFilter.hpp"
 		"src/WindowsMessageHook.cpp"

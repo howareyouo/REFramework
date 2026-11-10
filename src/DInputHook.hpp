@@ -28,10 +28,6 @@ public:
         return m_is_ignoring_input;
     }
 
-    auto is_valid() const {
-        return m_get_device_state_hook->is_valid();
-    }
-
     void set_window(HWND wnd) {
         m_wnd = wnd;
     }

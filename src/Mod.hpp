@@ -254,9 +254,7 @@ public:
         : ModValue{ config_name, default_value },
         m_options_stdstr{ options }
     {
-        for (auto& o : m_options_stdstr) {
-            m_options.push_back(o.c_str());
-        }
+        rebuild_option_ptrs();
     }
 
     bool draw(std::string_view name) override {
@@ -278,11 +276,7 @@ public:
 
     void recreate_options(const std::vector<std::string>& options) {
         m_options_stdstr = options;
-        m_options.clear();
-
-        for (auto& o : m_options_stdstr) {
-            m_options.push_back(o.c_str());
-        }
+        rebuild_option_ptrs();
     }
 
     void config_load(const utility::Config& cfg) override {
@@ -308,6 +302,14 @@ public:
 protected:
     std::vector<const char*> m_options{};
     std::vector<std::string> m_options_stdstr{};
+
+    void rebuild_option_ptrs() {
+        m_options.clear();
+
+        for (auto& o : m_options_stdstr) {
+            m_options.push_back(o.c_str());
+        }
+    }
 };
 
 class ModComboString : public ModValue<std::string> {
@@ -321,9 +323,7 @@ public:
     ModComboString(std::string_view config_name, const std::vector<std::string>& options, std::string default_value)
         : ModValue{config_name, default_value}
         , m_options_stdstr{options} {
-        for (auto& o : m_options_stdstr) {
-            m_options.push_back(o.c_str());
-        }
+        rebuild_option_ptrs();
     }
 
     void config_load(const utility::Config& cfg) override {
@@ -361,11 +361,7 @@ public:
 
     void recreate_options(const std::vector<std::string>& options) {
         m_options_stdstr = options;
-        m_options.clear();
-
-        for (auto& o : m_options_stdstr) {
-            m_options.push_back(o.c_str());
-        }
+        rebuild_option_ptrs();
     }
 
     const auto& options() const { return m_options; }
@@ -374,6 +370,14 @@ protected:
     int index;
     std::vector<const char*> m_options{};
     std::vector<std::string> m_options_stdstr{};
+
+    void rebuild_option_ptrs() {
+        m_options.clear();
+
+        for (auto& o : m_options_stdstr) {
+            m_options.push_back(o.c_str());
+        }
+    }
 };
 
 // Free-form text field (ImGui::InputText), for values that are typed rather than

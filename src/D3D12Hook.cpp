@@ -728,7 +728,6 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
         // if we globally hook the vtable pointers, it causes all sorts of weird conflicts with other hooks
         // dont hook present though via this hook so other hooks dont get confused
         d3d12->m_swapchain_hook = std::make_unique<VtableHook>(swap_chain);
-        //d3d12->m_swapchain_hook->hook_method(2, (uintptr_t)&D3D12Hook::release);
         d3d12->m_swapchain_hook->hook_method(8, (uintptr_t)&D3D12Hook::present);
         d3d12->m_swapchain_hook->hook_method(13, (uintptr_t)&D3D12Hook::resize_buffers);
         d3d12->m_swapchain_hook->hook_method(14, (uintptr_t)&D3D12Hook::resize_target);

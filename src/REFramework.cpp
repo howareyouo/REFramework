@@ -46,9 +46,28 @@ static constexpr auto CHANCE_TIMEOUT      = std::chrono::seconds{1};
 static constexpr auto MESSAGE_TIMEOUT     = std::chrono::seconds{5};
 static constexpr auto SENDMESSAGE_TIMEOUT = std::chrono::seconds{1};
 static constexpr auto INIT_FRAME_DELAY    = 60;
-static constexpr auto MAX_SCAN_RETRIES    = 10;
 static constexpr auto VM_INIT_TIMEOUT     = std::chrono::seconds{30};
 static constexpr auto NUM_COMMAND_CONTEXTS = 3;
+
+static void wait_for_vm(std::chrono::seconds timeout, std::chrono::milliseconds sleep_interval) {
+    const auto start_time = std::chrono::high_resolution_clock::now();
+
+    while (true) {
+        try {
+            if (sdk::VM::get() != nullptr) {
+                break;
+            }
+        } catch(...) {
+        }
+
+        if (std::chrono::high_resolution_clock::now() - start_time > timeout) {
+            spdlog::error("Timed out waiting for VM to initialize.");
+            throw std::runtime_error("Timed out waiting for VM to initialize.");
+        }
+
+        std::this_thread::sleep_for(sleep_interval);
+    }
+}
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 DEFINE_GUID(GUID_DEVINTERFACE_HID, 0x4D1E55B2L, 0xF16F, 0x11CF, 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30);
@@ -445,20 +464,7 @@ void REFramework::load_config() {
 
 void REFramework::wait_for_vm_and_renderer() {
     // Wait for TDB and render device to be initialized before allowing D3D hooking.
-    const auto start_time = std::chrono::high_resolution_clock::now();
-
-    while (true) {
-        try {
-            if (sdk::VM::get() != nullptr) break;
-        } catch(...) {}
-
-        if (std::chrono::high_resolution_clock::now() - start_time > VM_INIT_TIMEOUT) {
-            spdlog::error("Timed out waiting for VM to initialize.");
-            throw std::runtime_error("Timed out waiting for VM to initialize.");
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    wait_for_vm(VM_INIT_TIMEOUT, std::chrono::milliseconds(1));
 
     spdlog::info("VM initialized, waiting for renderer to initialize...");
     sdk::RETypeDefinition* renderer_t = nullptr;
@@ -951,11 +957,6 @@ void REFramework::on_reset() {
 
     spdlog::info("Reset!");
 
-    if (m_initialized) {
-        // fixes text boxes not being able to receive input
-        //imgui::reset_keystates();
-    }
-
     // Crashes if we don't release it at this point.
     if (m_is_d3d12) {
         deinit_d3d12();
@@ -1163,19 +1164,6 @@ bool REFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_pa
     return !any_false;
 }
 
-// this is unfortunate.
-void REFramework::on_direct_input_keys(const std::array<uint8_t, 256>& keys) {
-    /*const auto menu_key = REFrameworkConfig::get()->get_menu_key()->value();
-
-    if (keys[menu_key] && m_last_keys[menu_key] == 0) {
-        std::lock_guard _{m_input_mutex};
-
-        set_draw_ui(!m_draw_ui);
-    }
-
-    m_last_keys = keys;*/
-}
-
 std::filesystem::path REFramework::get_persistent_dir() {
     // Determine the persistent directory once, thread-safely, and cache it.
     static const auto cached_dir = []() -> std::filesystem::path {
@@ -1213,7 +1201,6 @@ std::filesystem::path REFramework::get_persistent_dir() {
         }
     }();
 
-    s_checked_file_permissions = true;
     return cached_dir;
 }
 
@@ -1480,9 +1467,6 @@ void REFramework::draw_ui() {
         ImGui::TextWrapped("REFramework error: %s", m_error.c_str());
     }
 
-    m_last_window_pos = ImGui::GetWindowPos();
-    m_last_window_size = ImGui::GetWindowSize();
-
     ImGui::PopFont();
     ImGui::End();
 
@@ -1574,7 +1558,7 @@ bool REFramework::initialize() {
         m_first_initialize = false;
     }
 
-    if (m_frames_since_init < 60) {
+    if (m_frames_since_init < INIT_FRAME_DELAY) {
         m_frames_since_init++;
         return false;
     }
@@ -1687,21 +1671,7 @@ bool REFramework::initialize_game_data() {
 
             const auto start_time = std::chrono::high_resolution_clock::now();
 
-            while (true) {
-                try {
-                    if (sdk::VM::get() != nullptr) {
-                        break;
-                    }
-                } catch(...) {
-                }
-
-                if (std::chrono::high_resolution_clock::now() - start_time > std::chrono::seconds(30)) {
-                    spdlog::error("Timed out waiting for VM to initialize.");
-                    throw std::runtime_error("Timed out waiting for VM to initialize.");
-                }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            wait_for_vm(std::chrono::seconds(30), std::chrono::milliseconds(100));
 
             while (true) {
                 try {
@@ -1807,12 +1777,10 @@ bool REFramework::first_frame_initialize() {
 
         spdlog::error("Initialization of mods failed. Reason: {}", m_error);
         m_game_data_initialized = false;
-        m_mods_fully_initialized = false;
         return false;
     } else {
         // Do an initial config save to set the default values for the frontend
         save_config();
-        m_mods_fully_initialized = true;
     }
 
     // Troubleshooting by logging loaded modules
@@ -1844,6 +1812,30 @@ void REFramework::call_on_frame() {
 
 // DirectX 12 Initialization methods
 
+// The template tag keeps one independent static descriptor counter per backend
+// (each instantiation's AllocFn lambda gets its own `static int next_descriptor`).
+template <int Backend>
+static ImGui_ImplDX12_InitInfo make_imgui_dx12_init_info(ID3D12Device* device, ID3D12CommandQueue* command_queue, DXGI_FORMAT rtv_format, UINT num_frames_in_flight, ID3D12DescriptorHeap* srv_descriptor_heap) {
+    ImGui_ImplDX12_InitInfo init_info{};
+    init_info.Device = device;
+    init_info.CommandQueue = command_queue;
+    init_info.NumFramesInFlight = num_frames_in_flight;
+    init_info.RTVFormat = rtv_format;
+    init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    init_info.SrvDescriptorHeap = srv_descriptor_heap;
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
+        auto* device = info->Device;
+        auto* heap = info->SrvDescriptorHeap;
+        static int next_descriptor = 0;
+        int index = next_descriptor++;
+        SIZE_T increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        *out_cpu_handle = {heap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+        *out_gpu_handle = {heap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
+    };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
+    return init_info;
+}
+
 bool REFramework::init_d3d12() {
     deinit_d3d12();
     
@@ -1859,7 +1851,7 @@ bool REFramework::init_d3d12() {
 
     m_d3d12.cmd_ctxs.clear();
 
-    for (auto i = 0; i < 3; ++i) {
+    for (auto i = 0; i < NUM_COMMAND_CONTEXTS; ++i) {
         auto& ctx = m_d3d12.cmd_ctxs.emplace_back(std::make_unique<d3d12::CommandContext>());
 
         if (!ctx->setup(L"Framework::m_d3d12.cmd_ctx")) {
@@ -2003,23 +1995,9 @@ bool REFramework::init_d3d12() {
     auto& bb = m_d3d12.get_rt(D3D12::RTV::BACKBUFFER_0);
     auto bb_desc = bb->GetDesc();
 
-    ImGui_ImplDX12_InitInfo init_info{};
-    init_info.Device = device;
-    init_info.CommandQueue = g_framework->get_d3d12_hook()->get_command_queue();
-    init_info.NumFramesInFlight = swapchain_desc.BufferCount;
-    init_info.RTVFormat = bb_desc.Format;
-    init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    init_info.SrvDescriptorHeap = m_d3d12.srv_desc_heap.Get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
-        auto* device = info->Device;
-        auto* heap = info->SrvDescriptorHeap;
-        static int next_descriptor = 0;
-        int index = next_descriptor++;
-        SIZE_T increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        *out_cpu_handle = {heap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-        *out_gpu_handle = {heap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-    };
-    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
+    ImGui_ImplDX12_InitInfo init_info = make_imgui_dx12_init_info<0>(device,
+        g_framework->get_d3d12_hook()->get_command_queue(), bb_desc.Format, swapchain_desc.BufferCount,
+        m_d3d12.srv_desc_heap.Get());
 
     if (!ImGui_ImplDX12_Init(&init_info)) {
         spdlog::error("[D3D12] Failed to initialize ImGui.");
@@ -2034,23 +2012,9 @@ bool REFramework::init_d3d12() {
     auto& bb_vr = m_d3d12.get_rt(D3D12::RTV::IMGUI);
     auto bb_vr_desc = bb_vr->GetDesc();
 
-    ImGui_ImplDX12_InitInfo init_info_vr{};
-    init_info_vr.Device = device;
-    init_info_vr.CommandQueue = g_framework->get_d3d12_hook()->get_command_queue();
-    init_info_vr.NumFramesInFlight = swapchain_desc.BufferCount;
-    init_info_vr.RTVFormat = bb_vr_desc.Format;
-    init_info_vr.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    init_info_vr.SrvDescriptorHeap = m_d3d12.srv_desc_heap.Get();
-    init_info_vr.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) {
-        auto* device = info->Device;
-        auto* heap = info->SrvDescriptorHeap;
-        static int next_descriptor = 0;
-        int index = next_descriptor++;
-        SIZE_T increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        *out_cpu_handle = {heap->GetCPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-        *out_gpu_handle = {heap->GetGPUDescriptorHandleForHeapStart().ptr + (SIZE_T)index * increment};
-    };
-    init_info_vr.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
+    ImGui_ImplDX12_InitInfo init_info_vr = make_imgui_dx12_init_info<1>(device,
+        g_framework->get_d3d12_hook()->get_command_queue(), bb_vr_desc.Format, swapchain_desc.BufferCount,
+        m_d3d12.srv_desc_heap.Get());
 
     if (!ImGui_ImplDX12_Init(&init_info_vr)) {
         spdlog::error("[D3D12] Failed to initialize ImGui.");
