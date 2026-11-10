@@ -135,23 +135,11 @@ inline int put(lua_State* L, const lua_stack::nil_t&) {
 // A reference carries whatever identity the function it came from made, so it
 // is pushed through its own accessor instead of the value pusher.
 inline int put(lua_State* L, const lua_stack::object& value) {
-    if (!value.valid()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    value.push();
-    return 1;
+    return lua_stack::put(L, value);
 }
 
 inline int put(lua_State* L, const lua_stack::table& value) {
-    if (!value.valid()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    value.push();
-    return 1;
+    return lua_stack::put(L, value);
 }
 
 template <typename T>
@@ -365,13 +353,25 @@ inline int call_free(lua_State* L, std::index_sequence<I...>) {
     }
 }
 
+template <typename F>
+inline int guarded(lua_State* L, F&& body) {
+    try {
+        return body();
+    } catch (const std::exception& e) {
+        return luaL_error(L, "%s", e.what());
+    } catch (...) {
+        lua_pushliteral(L, "caught (...) exception");
+        return lua_error(L);
+    }
+}
+
 template <auto F>
 struct method_thunk {
     static int call(lua_State* L) {
         using traits = callable_traits<decltype(F)>;
         using cls = typename traits::cls;
 
-        try {
+        return guarded(L, [&] {
             cls* self = get_self<cls>(L);
 
             if (self == nullptr) {
@@ -379,12 +379,7 @@ struct method_thunk {
             }
 
             return call_method<F>(L, self, std::make_index_sequence<std::tuple_size_v<typename traits::args>>{});
-        } catch (const std::exception& e) {
-            return luaL_error(L, "%s", e.what());
-        } catch (...) {
-            lua_pushliteral(L, "caught (...) exception");
-            return lua_error(L);
-        }
+        });
     }
 };
 
@@ -393,14 +388,9 @@ struct function_thunk {
     static int call(lua_State* L) {
         using traits = callable_traits<decltype(F)>;
 
-        try {
+        return guarded(L, [&] {
             return call_free<F>(L, std::make_index_sequence<std::tuple_size_v<typename traits::args>>{});
-        } catch (const std::exception& e) {
-            return luaL_error(L, "%s", e.what());
-        } catch (...) {
-            lua_pushliteral(L, "caught (...) exception");
-            return lua_error(L);
-        }
+        });
     }
 };
 
@@ -425,7 +415,7 @@ struct member_reader {
         using traits = callable_traits<decltype(M)>;
         using cls = typename traits::cls;
 
-        try {
+        return guarded(L, [&] {
             cls* self = get_self<cls>(L);
 
             if (self == nullptr) {
@@ -433,12 +423,7 @@ struct member_reader {
             }
 
             return lh::put(L, self->*M);
-        } catch (const std::exception& e) {
-            return luaL_error(L, "%s", e.what());
-        } catch (...) {
-            lua_pushliteral(L, "caught (...) exception");
-            return lua_error(L);
-        }
+        });
     }
 };
 
@@ -458,7 +443,7 @@ struct constructor_thunk {
 
         static_assert(std::tuple_size_v<args> == 1, "a constructor is called with exactly one argument");
 
-        try {
+        return guarded(L, [&] {
             void* storage = lua_newuserdatauv(L, sizeof(cls), 0);
 
             new (storage) cls(get_param<std::tuple_element_t<0, args>>(L, 1));
@@ -467,12 +452,7 @@ struct constructor_thunk {
             lua_setmetatable(L, -2);
 
             return 1;
-        } catch (const std::exception& e) {
-            return luaL_error(L, "%s", e.what());
-        } catch (...) {
-            lua_pushliteral(L, "caught (...) exception");
-            return lua_error(L);
-        }
+        });
     }
 };
 
@@ -659,7 +639,7 @@ inline void* type_cast_with(void* data, const std::string_view& wanted) {
 // A relative index follows the stack top, and every helper below pushes before
 // it writes, so each one has to resolve its target while the top is unchanged.
 inline int absolute_index(lua_State* L, int index) {
-    return index < 0 && index > LUA_REGISTRYINDEX ? lua_gettop(L) + index + 1 : index;
+    return lua_stack::absolute_index(L, index);
 }
 
 // Sets __index on the metatable at `index`. Without a fallback the member table
@@ -790,9 +770,7 @@ inline int pairs_members(lua_State* L) {
 // so a script saw "sol.<type>: 0x...". The index is made absolute because the
 // value has to be pushed before it can be stored.
 inline void set_name(lua_State* L, int index, const std::string& key) {
-    if (index < 0) {
-        index = lua_gettop(L) + index + 1;
-    }
+    index = absolute_index(L, index);
 
     lua_pushlstring(L, key.data(), key.size());
     lua_setfield(L, index, "__name");
@@ -1052,14 +1030,7 @@ inline void install_borrowed(lua_State* L, const char* name, const methods& m) {
 // translated a throwing binding.
 #define LH_BIND(name)                                                                                                  \
     static int name(lua_State* L) {                                                                                    \
-        try {
+        return lh::guarded(L, [&]() -> int {
 #define LH_BIND_END(L)                                                                                                 \
-        }                                                                                                              \
-        catch (const std::exception& e) {                                                                              \
-            return luaL_error(L, "%s", e.what());                                                                      \
-        }                                                                                                              \
-        catch (...) {                                                                                                  \
-            lua_pushliteral(L, "caught (...) exception");                                                              \
-            return lua_error(L);                                                                                       \
-        }                                                                                                              \
+        });                                                                                                            \
     }

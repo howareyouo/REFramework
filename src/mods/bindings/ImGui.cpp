@@ -93,9 +93,40 @@ static void put_vec2(lua_State* L, Vector2f value) {
     lh::put(L, value);
 }
 
-static int put_changed(lua_State* L, bool changed) {
-    lua_pushboolean(L, changed);
-    return 1;
+static void rgba_to_floats(unsigned color, bool argb, float out[4]) {
+    if (argb) {
+        out[0] = (float)((color >> 16) & 0xFF) / 255.0f;
+        out[1] = (float)((color >> 8) & 0xFF) / 255.0f;
+        out[2] = (float)(color & 0xFF) / 255.0f;
+    } else {
+        out[0] = (float)(color & 0xFF) / 255.0f;
+        out[1] = (float)((color >> 8) & 0xFF) / 255.0f;
+        out[2] = (float)((color >> 16) & 0xFF) / 255.0f;
+    }
+
+    out[3] = (float)((color >> 24) & 0xFF) / 255.0f;
+}
+
+static unsigned rgba_pack(const float col[4], bool argb) {
+    const auto r = (unsigned)(col[0] * 255.0f);
+    const auto g = (unsigned)(col[1] * 255.0f);
+    const auto b = (unsigned)(col[2] * 255.0f);
+    const auto a = (unsigned)(col[3] * 255.0f);
+
+    unsigned new_color = 0;
+
+    if (argb) {
+        new_color |= r << 16;
+        new_color |= b;
+    } else {
+        new_color |= r;
+        new_color |= b << 16;
+    }
+
+    new_color |= g << 8;
+    new_color |= a << 24;
+
+    return new_color;
 }
 
 LH_BIND(l_button) {
@@ -346,14 +377,10 @@ LH_BIND(l_text) {
 LH_BIND_END(L)
 
 LH_BIND(l_text_colored) {
-    const auto color = (unsigned)lh::num_int(L, 2);
+    float col[4];
+    rgba_to_floats((unsigned)lh::num_int(L, 2), false, col);
 
-    const auto r = color & 0xFF;
-    const auto g = (color >> 8) & 0xFF;
-    const auto b = (color >> 16) & 0xFF;
-    const auto a = (color >> 24) & 0xFF;
-
-    ImGui::TextColored(ImVec4{(float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f}, "%s", lh::str(L, 1));
+    ImGui::TextColored(ImVec4{col[0], col[1], col[2], col[3]}, "%s", lh::str(L, 1));
 
     return 0;
 }
@@ -618,30 +645,14 @@ LH_BIND_END(L)
 
 LH_BIND(l_color_picker) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
-    const auto color = (unsigned)lh::num_int(L, 2);
 
-    auto r = color & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = (color >> 16) & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    float col[4];
+    rgba_to_floats((unsigned)lh::num_int(L, 2), false, col);
 
     const auto changed = ImGui::ColorPicker4(lh::str(L, 1), col, flags);
 
-    r = (unsigned)(col[0] * 255.0f);
-    g = (unsigned)(col[1] * 255.0f);
-    b = (unsigned)(col[2] * 255.0f);
-    a = (unsigned)(col[3] * 255.0f);
-
-    unsigned new_color = 0;
-    new_color |= r;
-    new_color |= g << 8;
-    new_color |= b << 16;
-    new_color |= a << 24;
-
     lua_pushboolean(L, changed);
-    lua_pushinteger(L, new_color);
+    lua_pushinteger(L, rgba_pack(col, false));
 
     return 2;
 }
@@ -649,30 +660,14 @@ LH_BIND_END(L)
 
 LH_BIND(l_color_picker_argb) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
-    const auto color = (unsigned)lh::num_int(L, 2);
 
-    auto r = (color >> 16) & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = color & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    float col[4];
+    rgba_to_floats((unsigned)lh::num_int(L, 2), true, col);
 
     const auto changed = ImGui::ColorPicker4(lh::str(L, 1), col, flags);
 
-    r = (unsigned)(col[0] * 255.0f);
-    g = (unsigned)(col[1] * 255.0f);
-    b = (unsigned)(col[2] * 255.0f);
-    a = (unsigned)(col[3] * 255.0f);
-
-    unsigned new_color = 0;
-    new_color |= r << 16;
-    new_color |= g << 8;
-    new_color |= b;
-    new_color |= a << 24;
-
     lua_pushboolean(L, changed);
-    lua_pushinteger(L, new_color);
+    lua_pushinteger(L, rgba_pack(col, true));
 
     return 2;
 }
@@ -704,30 +699,14 @@ LH_BIND_END(L)
 
 LH_BIND(l_color_edit) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
-    const auto color = (unsigned)lh::num_int(L, 2);
 
-    auto r = color & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = (color >> 16) & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    float col[4];
+    rgba_to_floats((unsigned)lh::num_int(L, 2), false, col);
 
     const auto changed = ImGui::ColorEdit4(lh::str(L, 1), col, flags);
 
-    r = (unsigned)(col[0] * 255.0f);
-    g = (unsigned)(col[1] * 255.0f);
-    b = (unsigned)(col[2] * 255.0f);
-    a = (unsigned)(col[3] * 255.0f);
-
-    unsigned new_color = 0;
-    new_color |= r;
-    new_color |= g << 8;
-    new_color |= b << 16;
-    new_color |= a << 24;
-
     lua_pushboolean(L, changed);
-    lua_pushinteger(L, new_color);
+    lua_pushinteger(L, rgba_pack(col, false));
 
     return 2;
 }
@@ -735,30 +714,14 @@ LH_BIND_END(L)
 
 LH_BIND(l_color_edit_argb) {
     const auto flags = (ImGuiColorEditFlags)lh::opt_int(L, 3, 0);
-    const auto color = (unsigned)lh::num_int(L, 2);
 
-    auto r = (color >> 16) & 0xFF;
-    auto g = (color >> 8) & 0xFF;
-    auto b = color & 0xFF;
-    auto a = (color >> 24) & 0xFF;
-
-    float col[4]{r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    float col[4];
+    rgba_to_floats((unsigned)lh::num_int(L, 2), true, col);
 
     const auto changed = ImGui::ColorEdit4(lh::str(L, 1), col, flags);
 
-    r = (unsigned)(col[0] * 255.0f);
-    g = (unsigned)(col[1] * 255.0f);
-    b = (unsigned)(col[2] * 255.0f);
-    a = (unsigned)(col[3] * 255.0f);
-
-    unsigned new_color = 0;
-    new_color |= r << 16;
-    new_color |= g << 8;
-    new_color |= b;
-    new_color |= a << 24;
-
     lua_pushboolean(L, changed);
-    lua_pushinteger(L, new_color);
+    lua_pushinteger(L, rgba_pack(col, true));
 
     return 2;
 }
@@ -1059,21 +1022,35 @@ LH_BIND(l_get_display_size) {
 }
 LH_BIND_END(L)
 
-static int push_draw_list(lua_State* L, ImDrawList* draw_list) {
-    if (draw_list == nullptr) {
+template <typename T>
+static int push_udata(lua_State* L, T* value, const char* mt) {
+    if (value == nullptr) {
         lua_pushnil(L);
         return 1;
     }
 
-    auto out = static_cast<ImDrawList**>(lua_newuserdatauv(L, sizeof(ImDrawList*), 0));
-    *out = draw_list;
-    luaL_setmetatable(L, DRAW_LIST_MT);
+    auto out = static_cast<T**>(lua_newuserdatauv(L, sizeof(T*), 0));
+    *out = value;
+    luaL_setmetatable(L, mt);
 
     return 1;
 }
 
+static int push_draw_list(lua_State* L, ImDrawList* draw_list) {
+    return push_udata(L, draw_list, DRAW_LIST_MT);
+}
+
 static ImDrawList* check_draw_list(lua_State* L, int index) {
     return *static_cast<ImDrawList**>(luaL_checkudata(L, index, DRAW_LIST_MT));
+}
+
+static const char* key_arg(lua_State* L, int index) {
+    return lua_type(L, index) == LUA_TSTRING ? lua_tostring(L, index) : nullptr;
+}
+
+template <typename T>
+static T* check_udata_ptr(lua_State* L, int index, const char* mt) {
+    return *static_cast<T**>(luaL_checkudata(L, index, mt));
 }
 
 LH_BIND(l_get_window_draw_list) {
@@ -1440,29 +1417,11 @@ LH_BIND(l_table_set_bg_color) {
 LH_BIND_END(L)
 
 static int push_sort_specs(lua_State* L, ImGuiTableSortSpecs* specs) {
-    if (specs == nullptr) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    auto out = static_cast<ImGuiTableSortSpecs**>(lua_newuserdatauv(L, sizeof(ImGuiTableSortSpecs*), 0));
-    *out = specs;
-    luaL_setmetatable(L, SORT_SPECS_MT);
-
-    return 1;
+    return push_udata(L, specs, SORT_SPECS_MT);
 }
 
 static int push_column_sort_specs(lua_State* L, ImGuiTableColumnSortSpecs* specs) {
-    if (specs == nullptr) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    auto out = static_cast<ImGuiTableColumnSortSpecs**>(lua_newuserdatauv(L, sizeof(ImGuiTableColumnSortSpecs*), 0));
-    *out = specs;
-    luaL_setmetatable(L, COLUMN_SORT_SPECS_MT);
-
-    return 1;
+    return push_udata(L, specs, COLUMN_SORT_SPECS_MT);
 }
 
 LH_BIND(l_table_get_sort_specs) {
@@ -1684,7 +1643,7 @@ LH_BIND(l_dl_path_rect) {
 LH_BIND_END(L)
 
 LH_BIND(l_specs_get_specs) {
-    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+    const auto specs = check_udata_ptr<ImGuiTableSortSpecs>(L, 1, SORT_SPECS_MT);
 
     lua_createtable(L, specs->SpecsCount, 0);
 
@@ -1698,8 +1657,8 @@ LH_BIND(l_specs_get_specs) {
 LH_BIND_END(L)
 
 LH_BIND(l_specs_index) {
-    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
-    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+    const auto specs = check_udata_ptr<ImGuiTableSortSpecs>(L, 1, SORT_SPECS_MT);
+    const char* key = key_arg(L, 2);
 
     if (key == nullptr) {
         lua_pushnil(L);
@@ -1722,8 +1681,8 @@ LH_BIND(l_specs_index) {
 LH_BIND_END(L)
 
 LH_BIND(l_specs_newindex) {
-    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
-    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+    const auto specs = check_udata_ptr<ImGuiTableSortSpecs>(L, 1, SORT_SPECS_MT);
+    const char* key = key_arg(L, 2);
 
     if (key != nullptr && std::strcmp(key, "specs_dirty") == 0) {
         specs->SpecsDirty = lua_toboolean(L, 3) != 0;
@@ -1735,8 +1694,8 @@ LH_BIND(l_specs_newindex) {
 LH_BIND_END(L)
 
 LH_BIND(l_column_specs_index) {
-    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
-    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+    const auto specs = check_udata_ptr<ImGuiTableColumnSortSpecs>(L, 1, COLUMN_SORT_SPECS_MT);
+    const char* key = key_arg(L, 2);
 
     if (key == nullptr) {
         lua_pushnil(L);
@@ -1769,8 +1728,8 @@ LH_BIND(l_column_specs_index) {
 LH_BIND_END(L)
 
 LH_BIND(l_column_specs_newindex) {
-    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
-    const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+    const auto specs = check_udata_ptr<ImGuiTableColumnSortSpecs>(L, 1, COLUMN_SORT_SPECS_MT);
+    const char* key = key_arg(L, 2);
 
     if (key != nullptr && std::strcmp(key, "user_id") == 0) {
         specs->ColumnUserID = (ImGuiID)lh::num_uint(L, 3);
@@ -1800,7 +1759,7 @@ LH_BIND_END(L)
 // (`imgui.TableSortSpecs.get_specs`). A type table holds them as the function
 // an instance offers, which is what these two produce.
 LH_BIND(l_specs_get_specs_dirty) {
-    const auto specs = *static_cast<ImGuiTableSortSpecs**>(luaL_checkudata(L, 1, SORT_SPECS_MT));
+    const auto specs = check_udata_ptr<ImGuiTableSortSpecs>(L, 1, SORT_SPECS_MT);
 
     lua_pushboolean(L, specs->SpecsDirty);
     return 1;
@@ -1808,7 +1767,7 @@ LH_BIND(l_specs_get_specs_dirty) {
 LH_BIND_END(L)
 
 LH_BIND(l_column_specs_get_value) {
-    const auto specs = *static_cast<ImGuiTableColumnSortSpecs**>(luaL_checkudata(L, 1, COLUMN_SORT_SPECS_MT));
+    const auto specs = check_udata_ptr<ImGuiTableColumnSortSpecs>(L, 1, COLUMN_SORT_SPECS_MT);
 
     switch (static_cast<int>(lua_tointeger(L, lua_upvalueindex(1)))) {
     case 0: lua_pushinteger(L, static_cast<lua_Integer>(specs->ColumnUserID)); break;

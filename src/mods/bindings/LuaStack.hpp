@@ -898,87 +898,6 @@ inline int push_pointer(lua_State* L, T* obj) {
     }
 }
 
-// The container table the borrowed cache lives in: one weak-valued table per
-// type, keyed by the value-form name. It is owned here instead of the
-// "_sol_lua_push_usertypes" global sol2's pusher managed, so the container is
-// reachable only through the registry and cannot collide with a script global.
-inline constexpr const char* kBorrowedContainerKey = "\x01lua_stack.push_usertypes";
-
-// Leaves the per-type weak table on the stack.
-inline void push_borrowed_cache(lua_State* L, const char* key) {
-    lua_getfield(L, LUA_REGISTRYINDEX, kBorrowedContainerKey);
-
-    if (lua_type(L, -1) != LUA_TTABLE) {
-        lua_pop(L, 1);
-        lua_createtable(L, 0, 0);
-        lua_pushvalue(L, -1);
-        lua_setfield(L, LUA_REGISTRYINDEX, kBorrowedContainerKey);
-    }
-
-    lua_pushstring(L, key);
-    lua_rawget(L, -2);
-
-    if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-
-        lua_createtable(L, 0, 0);
-        lua_createtable(L, 0, 1);
-        lua_pushstring(L, "v");
-        lua_setfield(L, -2, "__mode");
-        lua_setmetatable(L, -2);
-
-        lua_pushstring(L, key);
-        lua_pushvalue(L, -2);
-        lua_rawset(L, -4);
-    }
-
-    // Leaves the weak table on the stack and drops the container.
-    lua_remove(L, -2);
-}
-
-// Pushes a pointer to memory the state does not own, cached per address so a
-// repeated read yields the same userdata and comparing two reads is a pointer
-// comparison. The cache is weak-valued: an unreferenced element can be
-// collected, and the next read makes a fresh userdata. No reference counting
-// happens here -- engine pointers that must be counted go through the
-// managed pusher in Sdk.cpp, which is where that bookkeeping lives.
-template <typename T>
-inline int push_borrowed(lua_State* L, T* obj) {
-    if (obj == nullptr) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    push_borrowed_cache(L, value_metatable<T>().c_str());
-
-    // Absolute, because the relative index would shift as the stack grows.
-    const int cache = lua_gettop(L);
-
-    lua_pushlightuserdata(L, reinterpret_cast<void*>(obj));
-    lua_rawget(L, cache);
-
-    if (!lua_isnil(L, -1)) {
-        // The cached userdata replaces the cache table below it.
-        lua_replace(L, cache);
-        lua_settop(L, cache);
-        return 1;
-    }
-
-    lua_pop(L, 1);
-
-    push_pointer_plain<T>(L, obj);
-
-    // The new userdata becomes the result while a second reference goes into
-    // the cache under the address that produced it.
-    lua_pushlightuserdata(L, reinterpret_cast<void*>(obj));
-    lua_pushvalue(L, -2);
-    lua_rawset(L, cache);
-
-    lua_replace(L, cache);
-    lua_settop(L, cache);
-    return 1;
-}
-
 // Builds a value the state owns the way a constructor does: the value in place
 // in the userdata block, under the owned-value metatable the installer gave a
 // __gc. This is the shape the hand-written constructors already produce; it
@@ -1082,13 +1001,6 @@ public:
 
     int push() const noexcept { return push(m_L); }
 
-    int type() const noexcept {
-        push();
-        const int actual = lua_type(m_L, -1);
-        lua_pop(m_L, 1);
-        return actual;
-    }
-
     // Drops the reference without running the destructor's unref, for a
     // reference handed to Lua or to another owner.
     void abandon() noexcept {
@@ -1137,11 +1049,7 @@ public:
         if constexpr (std::is_same_v<std::remove_const_t<std::remove_reference_t<T>>, nil_t>) {
             return m_ref == LUA_REFNIL;
         } else {
-            if (m_ref == LUA_REFNIL) {
-                return false;
-            }
-
-            if (m_ref == LUA_NOREF) {
+            if (is_nil()) {
                 return false;
             }
 
@@ -1171,9 +1079,9 @@ inline object make_object(lua_State* L, T&& value) {
     return made;
 }
 
-// Pushes what an object holds. An invalid object lands as nil, which is the
+// Pushes what a reference holds. An invalid one lands as nil, which is the
 // shape every sol::object return of the bindings relied on.
-inline int put(lua_State* L, const object& value) {
+inline int put_reference_value(lua_State* L, const reference& value) {
     if (!value.valid()) {
         lua_pushnil(L);
         return 1;
@@ -1183,14 +1091,14 @@ inline int put(lua_State* L, const object& value) {
     return 1;
 }
 
-inline int put(lua_State* L, const reference& value) {
-    if (!value.valid()) {
-        lua_pushnil(L);
-        return 1;
-    }
+// Pushes what an object holds. An invalid object lands as nil, which is the
+// shape every sol::object return of the bindings relied on.
+inline int put(lua_State* L, const object& value) {
+    return put_reference_value(L, value);
+}
 
-    value.push();
-    return 1;
+inline int put(lua_State* L, const reference& value) {
+    return put_reference_value(L, value);
 }
 
 // One element of a variadic argument list, answering the same questions a
@@ -1605,13 +1513,13 @@ inline protected_function_result script_default_on_error(lua_State* L, protected
     static const char* status_names[8] = {"ok", "yielded", "runtime", "syntax", "memory", "gc", "handler", "file"};
 
     const int status = result.status();
-    const char* status_name = "CRITICAL_INDETERMINATE_STATE_FAILURE";
+    const char* name = "CRITICAL_INDETERMINATE_STATE_FAILURE";
 
     if (status >= call_status::ok && status <= call_status::file) {
-        status_name = status_names[status];
+        name = status_names[status];
     }
 
-    std::string message = std::string("sol: ") + status_name + " error";
+    std::string message = std::string("sol: ") + name + " error";
 
     if (const char* reported = lua_tostring(L, result.stack_index()); reported != nullptr) {
         message += ": ";
@@ -1762,13 +1670,7 @@ private:
 };
 
 inline int put(lua_State* L, const table& value) {
-    if (!value.valid()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    value.push();
-    return 1;
+    return put_reference_value(L, value);
 }
 
 // A fresh table held by reference, for code that has a lua_State but no state

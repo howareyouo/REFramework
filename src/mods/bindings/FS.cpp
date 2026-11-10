@@ -363,21 +363,22 @@ void bindings::open_fs(ScriptState* s) {
     // Addendum: Now io APIs can access the "natives" directory relative to the executable.
     lua_getglobal(L, "io");
 
-    api::fs::detail::save_field(L, -1, "open", api::fs::detail::OLD_IO_OPEN);
-    lua_pushcfunction(L, api::fs::l_io_open);
-    lua_setfield(L, -2, "open");
+    static constexpr struct {
+        const char* key;
+        const char* registry_key;
+        lua_CFunction cfn;
+    } io_replacements[]{
+        {"open", api::fs::detail::OLD_IO_OPEN, api::fs::l_io_open},
+        {"lines", api::fs::detail::OLD_IO_LINES, api::fs::l_io_lines},
+        {"input", api::fs::detail::OLD_IO_INPUT, api::fs::l_io_input},
+        {"output", api::fs::detail::OLD_IO_OUTPUT, api::fs::l_io_output},
+    };
 
-    api::fs::detail::save_field(L, -1, "lines", api::fs::detail::OLD_IO_LINES);
-    lua_pushcfunction(L, api::fs::l_io_lines);
-    lua_setfield(L, -2, "lines");
-
-    api::fs::detail::save_field(L, -1, "input", api::fs::detail::OLD_IO_INPUT);
-    lua_pushcfunction(L, api::fs::l_io_input);
-    lua_setfield(L, -2, "input");
-
-    api::fs::detail::save_field(L, -1, "output", api::fs::detail::OLD_IO_OUTPUT);
-    lua_pushcfunction(L, api::fs::l_io_output);
-    lua_setfield(L, -2, "output");
+    for (const auto& replacement : io_replacements) {
+        api::fs::detail::save_field(L, -1, replacement.key, replacement.registry_key);
+        lua_pushcfunction(L, replacement.cfn);
+        lua_setfield(L, -2, replacement.key);
+    }
 
     // These functions can take nil as the first argument and they will return the default filehandle associated with stdin, stdout, or stderr.
     // So they should be safe in that respect.

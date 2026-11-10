@@ -15,7 +15,7 @@
 #include "utility/Memory.hpp"
 
 #include "../ScriptRunner.hpp"
-#include <lstate.h> // weird include order because of sol
+#include <lstate.h> // lua internals: lstate.h/lgc.h are used directly below
 #include <lgc.h>
 
 #include "Sdk.hpp"
@@ -44,12 +44,6 @@ namespace detail {
 constexpr uintptr_t FAKE_OBJECT_ADDR = 12345;
 }
 
-namespace api::cached_usertype {
-namespace detail {
-    
-}
-}
-
 namespace api::re_managed_object {
 namespace detail {
 void add_ref(lua_State* l, ::REManagedObject* obj, bool force = false) {
@@ -67,8 +61,6 @@ void add_ref(lua_State* l, ::REManagedObject* obj, bool force = false) {
     // addendum: maybe figured it out
 
     // only add a reference if it's a "local" object, indicated by a negative reference count
-    //if ((int32_t)obj->referenceCount < 0 || (current_ref_count && *current_ref_count > 0)) {
-    // addendum: only do it when reference count is > 0, local objects seem buggy...
     if (force || (int32_t)obj->referenceCount > 0) {
         if (!force) {
             utility::re_managed_object::add_ref(obj);
@@ -143,19 +135,16 @@ void add_ref(lua_State* l, ::REManagedObject* obj, bool force = false) {
 }
 
 void release(lua_State* s, ::REManagedObject* obj, bool force = false) {
-    auto l = s;
     const auto key = static_cast<lua_Integer>(reinterpret_cast<uintptr_t>(obj));
 
-    lua_stack::table objects = lua_stack::global_table(l, "_sol_lua_push_objects");
-    lua_stack::table ref_counts = lua_stack::global_table(l, "_sol_lua_push_ref_counts");
-    lua_stack::table ephemeral_counts = lua_stack::global_table(l, "_sol_lua_push_ephemeral_counts");
+    lua_stack::table objects = lua_stack::global_table(s, "_sol_lua_push_objects");
+    lua_stack::table ref_counts = lua_stack::global_table(s, "_sol_lua_push_ref_counts");
+    lua_stack::table ephemeral_counts = lua_stack::global_table(s, "_sol_lua_push_ephemeral_counts");
 
     if (std::optional<int> ref_count = ref_counts.get_optional<int>(key); ref_count && *ref_count > 0) {
         // because of our internal refcount keeping, we shouldn't need to double check
         // whether it's an actual object or not. hopefully?
-        //if (utility::re_managed_object::is_managed_object(obj)) {
-            utility::re_managed_object::release(obj);
-        //}
+        utility::re_managed_object::release(obj);
 
         int new_ref_count = *ref_count - 1;
 
@@ -366,6 +355,7 @@ void new_index(lua_State* s, ::sdk::Delegate* delegate, lua_stack::object lua_ob
 namespace api::sdk {
 std::vector<void*>& build_args(lua_stack::variadic_args va);
 lua_stack::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* data_type, bool from_method);
+lua_stack::object invoke_and_parse(lua_State* l, ::sdk::REMethodDefinition* def, void* real_obj, std::vector<void*>& args, ::sdk::RETypeDefinition* ret_ty);
 lua_stack::object get_native_field(lua_stack::object obj, ::sdk::RETypeDefinition* ty, const char* name);
 lua_stack::object get_native_field_from_field(lua_stack::object obj, ::sdk::RETypeDefinition* ty, ::sdk::REField* field);
 void set_native_field(lua_State* s, lua_stack::object obj, ::sdk::RETypeDefinition* ty, const char* name, lua_stack::object value);
@@ -442,16 +432,9 @@ struct ValueType {
         }
 
         auto vec_args = ::api::sdk::build_args(va);
-        auto ret_val = def->invoke(real_obj, std::span(vec_args));
-
-        if (ret_val.exception_thrown) {
-            throw lua_stack::error("Invoke threw an exception");
-        }
-
-        // Convert return values to the correct Lua types.
         auto ret_ty = def->get_return_type();
 
-        return ::api::sdk::parse_data(l, &ret_val, ret_ty, true);
+        return ::api::sdk::invoke_and_parse(l, def, real_obj, vec_args, ret_ty);
     }
 
     lua_stack::object get_field(lua_State* l, const char* name) {
@@ -610,6 +593,30 @@ lua_stack::object create_managed_string(lua_State* s, const char* text) {
 
 // Length is read as int64_t, not uint32_t: a negative Lua number wrapped to
 // ~4e9 and the VM attempted a multi-GB allocation that hung the process.
+static ::REManagedObject* resolve_runtime_type(lua_stack::object t_obj, const char* api_name) {
+    ::REManagedObject* t{nullptr};
+
+    if (t_obj.is<::REManagedObject*>()) {
+        t = t_obj.as<::REManagedObject*>();
+    } else if (t_obj.is<::sdk::RETypeDefinition*>()) {
+        t = t_obj.as<::sdk::RETypeDefinition*>()->get_runtime_type();
+    } else if (t_obj.is<const char*>()) {
+        const auto tdef = ::sdk::find_type_definition(t_obj.as<const char*>());
+
+        if (tdef != nullptr) {
+            t = tdef->get_runtime_type();
+        }
+    } else {
+        throw lua_stack::error(std::string{"Invalid type passed to "} + api_name + ". Must be a runtime type, a type definition, or a type name.");
+    }
+
+    if (t == nullptr) {
+        throw lua_stack::error(std::string{"Type passed to "} + api_name + " resolved to null.");
+    }
+
+    return t;
+}
+
 lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, int64_t length) {
     constexpr int64_t max_length = 0x1000000; // 16.7M elements
 
@@ -622,25 +629,7 @@ lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, in
             + " exceeds the maximum of " + std::to_string(max_length));
     }
 
-    ::REManagedObject* t{nullptr};
-
-    if (t_obj.is<::REManagedObject*>()) {
-        t = t_obj.as<::REManagedObject*>();
-    } else if (t_obj.is<::sdk::RETypeDefinition*>()) {
-        t = t_obj.as<::sdk::RETypeDefinition*>()->get_runtime_type();
-    } else if (t_obj.is<const char*>()) {
-        const auto tdef = ::sdk::find_type_definition(t_obj.as<const char*>());
-
-        if (tdef != nullptr) {
-            t = tdef->get_runtime_type();
-        }
-    } else {
-        throw lua_stack::error("Invalid type passed to create_managed_array. Must be a runtime type, a type definition, or a type name.");
-    }
-
-    if (t == nullptr) {
-        throw lua_stack::error("Type passed to create_managed_array resolved to null.");
-    }
+    auto t = resolve_runtime_type(t_obj, "create_managed_array");
 
     auto out = ::sdk::VM::create_managed_array(t, (uint32_t)length);
 
@@ -652,25 +641,7 @@ lua_stack::object create_managed_array(lua_State* s, lua_stack::object t_obj, in
 }
 
 lua_stack::object create_delegate(lua_State* s, lua_stack::object t_obj, uint32_t num_methods) {
-    ::REManagedObject* t{nullptr};
-
-    if (t_obj.is<::REManagedObject*>()) {
-        t = t_obj.as<::REManagedObject*>();
-    } else if (t_obj.is<::sdk::RETypeDefinition*>()) {
-        t = t_obj.as<::sdk::RETypeDefinition*>()->get_runtime_type();
-    } else if (t_obj.is<const char*>()) {
-        const auto tdef = ::sdk::find_type_definition(t_obj.as<const char*>());
-
-        if (tdef != nullptr) {
-            t = tdef->get_runtime_type();
-        }
-    } else {
-        throw lua_stack::error("Invalid type passed to create_delegate. Must be a runtime type, a type definition, or a type name.");
-    }
-
-    if (t == nullptr) {
-        throw lua_stack::error("Type passed to create_delegate resolved to null.");
-    }
+    auto t = resolve_runtime_type(t_obj, "create_delegate");
 
     auto out = ::sdk::VM::create_delegate(t, num_methods);
 
@@ -681,105 +652,29 @@ lua_stack::object create_delegate(lua_State* s, lua_stack::object t_obj, uint32_
     return lua_stack::make_object(s, out);
 }
 
-lua_stack::object create_sbyte(lua_State* s, int8_t value) {
-    auto new_obj = ::sdk::VM::create_sbyte(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
+#define LH_CREATE_NUMERIC(NAME, T) \
+    lua_stack::object NAME(lua_State* s, T value) { \
+        auto new_obj = ::sdk::VM::NAME(value); \
+\
+        if (new_obj == nullptr) { \
+            return lua_stack::make_object(s, lua_stack::lua_nil); \
+        } \
+\
+        return lua_stack::make_object(s, (::REManagedObject*)new_obj); \
     }
 
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
+LH_CREATE_NUMERIC(create_sbyte, int8_t)
+LH_CREATE_NUMERIC(create_byte, uint8_t)
+LH_CREATE_NUMERIC(create_int16, int16_t)
+LH_CREATE_NUMERIC(create_uint16, uint16_t)
+LH_CREATE_NUMERIC(create_int32, int32_t)
+LH_CREATE_NUMERIC(create_uint32, int32_t)
+LH_CREATE_NUMERIC(create_int64, int64_t)
+LH_CREATE_NUMERIC(create_uint64, int64_t)
+LH_CREATE_NUMERIC(create_single, float)
+LH_CREATE_NUMERIC(create_double, double)
 
-lua_stack::object create_byte(lua_State* s, uint8_t value) {
-    auto new_obj = ::sdk::VM::create_byte(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_int16(lua_State* s, int16_t value)  {
-    auto new_obj = ::sdk::VM::create_int16(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_uint16(lua_State* s, uint16_t value)  {
-    auto new_obj = ::sdk::VM::create_uint16(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_int32(lua_State* s, int32_t value)  {
-    auto new_obj = ::sdk::VM::create_int32(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_uint32(lua_State* s, int32_t value)  {
-    auto new_obj = ::sdk::VM::create_uint32(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_int64(lua_State* s, int64_t value)  {
-    auto new_obj = ::sdk::VM::create_int64(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_uint64(lua_State* s, int64_t value)  {
-    auto new_obj = ::sdk::VM::create_uint64(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_single(lua_State* s, float value)  {
-    auto new_obj = ::sdk::VM::create_single(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
-
-lua_stack::object create_double(lua_State* s, double value)  {
-    auto new_obj = ::sdk::VM::create_double(value);
-
-    if (new_obj == nullptr) {
-        return lua_stack::make_object(s, lua_stack::lua_nil);
-    }
-
-    return lua_stack::make_object(s, (::REManagedObject*)new_obj);
-}
+#undef LH_CREATE_NUMERIC
 
 lua_stack::object create_resource(lua_State* s, std::string type_name, std::string name) {
     auto& types = reframework::get_types();
@@ -1134,6 +1029,17 @@ lua_stack::object parse_data(lua_State* l, void* data, ::sdk::RETypeDefinition* 
     return lua_stack::make_object(l, *(void**)data);
 }
 
+lua_stack::object invoke_and_parse(lua_State* l, ::sdk::REMethodDefinition* def, void* real_obj, std::vector<void*>& args, ::sdk::RETypeDefinition* ret_ty) {
+    auto ret_val = def->invoke(real_obj, args);
+
+    if (ret_val.exception_thrown) {
+        throw lua_stack::error("Invoke threw an exception");
+    }
+
+    // Convert return values to the correct Lua types.
+    return parse_data(l, &ret_val, ret_ty, true);
+}
+
 void set_data(void* data, ::sdk::RETypeDefinition* data_type, lua_stack::object& value) {
     if (data_type != nullptr) {
         const auto full_name_hash = type_dispatch_hash(data_type);
@@ -1274,7 +1180,6 @@ void set_native_field(lua_State* s, lua_stack::object obj, ::sdk::RETypeDefiniti
     const auto field = ty->get_field(name);
     if (field == nullptr) {
         auto l = s;
-        //throw lua_stack::error("Attempted to set invalid REManagedObject field:" + std::string(name));
         luaL_traceback(l, l, ("Attempted to set invalid REManagedObject field:" + std::string(name)).c_str(), 1);
         std::string traceback_err = lua_tostring(l, -1);
         lua_pop(l, 1);
@@ -1393,13 +1298,8 @@ lua_stack::object call_native_func_direct(lua_stack::object obj, ::sdk::REMethod
     }
 
     auto real_obj = get_real_obj(obj);
-    auto ret_val = fn->invoke(real_obj, build_args(va));
 
-    if (ret_val.exception_thrown) {
-        throw lua_stack::error("Invoke threw an exception");
-    }
-
-    return parse_data(l, &ret_val, ret_ty, true);
+    return invoke_and_parse(l, fn, real_obj, build_args(va), ret_ty);
 }
 
 lua_stack::object call_native_func(lua_stack::object obj, ::sdk::RETypeDefinition* ty, const char* name, lua_stack::variadic_args va) {
@@ -1452,7 +1352,6 @@ void hook(lua_State* s, ::sdk::REMethodDefinition* fn, lua_stack::protected_func
 void hook_vtable(lua_State* s, ::REManagedObject* obj, ::sdk::REMethodDefinition* fn, lua_stack::protected_function pre_cb, lua_stack::protected_function post_cb) {
     if (obj == nullptr) {
         throw lua_stack::error("Object is null");
-        return;
     }
     
     auto state = lua_stack::registry_get<ScriptState*>(s, "state");
@@ -1470,6 +1369,28 @@ int32_t checked_array_index(lua_State* s, int index, ::sdk::SystemArray* arr);
 }
 
 namespace api::re_managed_object {
+static bool item_param_accepts(::sdk::REMethodDefinition* fn, bool key_is_string) {
+    const auto params = fn->get_param_types();
+
+    if (params.empty()) {
+        return true;
+    }
+
+    static auto system_object = sdk::find_type_definition("System.Object");
+    static auto system_string = sdk::find_type_definition("System.String");
+
+    const auto first_param = params[0];
+
+    // If it's a System.Object it's always okay, our arg will get auto converted.
+    if (first_param != nullptr && first_param != system_object) {
+        if (key_is_string) {
+            return first_param == system_string;
+        }
+    }
+
+    return true;
+}
+
 lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args args) {
     auto obj = lua_obj.as<REManagedObject*>();
     if (obj == nullptr) {
@@ -1516,31 +1437,16 @@ lua_stack::object index(lua_State* s, lua_stack::object lua_obj, lua_stack::vari
 
     if (auto fn = item_fn; fn != nullptr) {
         try {
-            const auto params = fn->get_param_types();
-
-            if (!params.empty()) {
-                static auto system_object = sdk::find_type_definition("System.Object");
-                static auto system_string = sdk::find_type_definition("System.String");
-
-                const auto first_param = params[0];
-
-                // If it's a System.Object it's always okay, our arg will get auto converted.
-                if (first_param != nullptr && first_param != system_object) {
-                    if (name != nullptr) {
-                        if (first_param != system_string) {
-                            return lua_stack::make_object(s, lua_stack::lua_nil);
-                        }
-                    }
-                }
+            if (item_param_accepts(fn, name != nullptr)) {
+                return ::api::sdk::call_native_func_direct(lua_obj, fn, args);
             }
 
-            return ::api::sdk::call_native_func_direct(lua_obj, fn, args);
+            return lua_stack::make_object(s, lua_stack::lua_nil);
         } catch (...) {
-            
+
         }
     }
 
-    //throw lua_stack::error("Attempted to index invalid REManagedObject field: " + name);
     return lua_stack::make_object(s, lua_stack::lua_nil);
 }
 
@@ -1586,26 +1492,12 @@ void new_index(lua_State* s, lua_stack::object lua_obj, lua_stack::variadic_args
     }
 
     if (auto fn = type_def->get_method("set_Item"); fn != nullptr) {
-        const auto params = fn->get_param_types();
-
-        if (!params.empty()) {
-            static auto system_object = sdk::find_type_definition("System.Object");
-            static auto system_string = sdk::find_type_definition("System.String");
-            
-            const auto first_param = params[0];
-
-            // If it's a System.Object it's always okay, our arg will get auto converted.
-            if (first_param != nullptr && first_param != system_object) {
-                if (index.is<const char*>()) {
-                    if (first_param != system_string) {
-                        throw lua_stack::error("Attempted to new_index invalid REManagedObject field: " + name);
-                    }
-                }
-            }
+        if (item_param_accepts(fn, index.is<const char*>())) {
+            ::api::sdk::call_native_func_direct(lua_obj, fn, args);
+            return;
         }
 
-        ::api::sdk::call_native_func_direct(lua_obj, fn, args);
-        return;
+        throw lua_stack::error("Attempted to new_index invalid REManagedObject field: " + name);
     }
 
     // System.Int32 -> object
@@ -1812,16 +1704,8 @@ LH_BIND(sdk_hand_method_call)
     lua_stack::variadic_args va{L, 3};
 
     auto real_obj = ::api::sdk::get_real_obj(obj);
-    auto ret_val = def->invoke(real_obj, ::api::sdk::build_args(va));
 
-    if (ret_val.exception_thrown) {
-        throw lua_stack::error("Invoke threw an exception");
-    }
-
-    // Convert return values to the correct Lua types.
-    auto ret_ty = def->get_return_type();
-
-    return lh::put(L, ::api::sdk::parse_data(L, &ret_val, ret_ty, true));
+    return lh::put(L, ::api::sdk::invoke_and_parse(L, def, real_obj, ::api::sdk::build_args(va), def->get_return_type()));
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_field_get_data)
@@ -2078,40 +1962,22 @@ static int sdk_hand_dyn_tnd_next(lua_State* L);
 static int sdk_hand_dyn_u8_next(lua_State* L);
 static int sdk_hand_dyn_i32_next(lua_State* L);
 static int sdk_hand_dyn_u32_next(lua_State* L);
+static int sdk_hand_dyn_u32_size(lua_State* L);
+static int sdk_hand_dyn_u32_len(lua_State* L);
+static int sdk_hand_dyn_u32_new_index(lua_State* L);
+static int sdk_hand_dyn_u32_push_back(lua_State* L);
+static int sdk_hand_dyn_u32_clear(lua_State* L);
+static int sdk_hand_dyn_u32_as_memoryview(lua_State* L);
 
-LH_BIND(sdk_hand_dyn_u32arr_size)
+static int dyn_u32_index_impl(lua_State* L, const char* name) {
     auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
 
     if (arr == nullptr) {
-        lua_pushinteger(L, 0);
-        return 1;
-    }
-
-    lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
-    return 1;
-LH_BIND_END(L)
-
-LH_BIND(sdk_hand_dyn_u32arr_len)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr) {
-        lua_pushinteger(L, 0);
-        return 1;
-    }
-
-    lua_pushinteger(L, static_cast<lua_Integer>(arr->size()));
-    return 1;
-LH_BIND_END(L)
-
-LH_BIND(sdk_hand_dyn_u32arr_index)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr) {
-        return luaL_error(L, "dyn_u32arr is nil");
+        return luaL_error(L, "%s is nil", name);
     }
 
     if (!lh::is_index(L, 2)) {
-        return luaL_error(L, "dyn_u32arr is indexed by an integer");
+        return luaL_error(L, "%s is indexed by an integer", name);
     }
 
     const uint32_t i = lh::index_uint(L, 2);
@@ -2122,51 +1988,43 @@ LH_BIND(sdk_hand_dyn_u32arr_index)
     }
 
     return lh::put(L, (*arr)[i]);
-LH_BIND_END(L)
+}
 
-LH_BIND(sdk_hand_dyn_u32arr_new_index)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr || !lh::is_index(L, 2) || lh::is_none(L, 3)) {
-        return 0;
-    }
-
-    const uint32_t i = lh::index_uint(L, 2);
-
-    if (i >= arr->size()) {
-        return 0;
-    }
-
-    (*arr)[i] = lh::get<uint32_t>(L, 3);
-    return 0;
-LH_BIND_END(L)
-
-LH_BIND(sdk_hand_dyn_u32arr_push_back)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr || lh::is_none(L, 2)) {
-        return 0;
-    }
-
-    uint32_t value = lh::get<uint32_t>(L, 2);
-    arr->push_back(value);
-
-    return 0;
-LH_BIND_END(L)
-
-static int sdk_hand_dyn_mo_pairs(lua_State* L);
-
-LH_BIND(sdk_hand_dyn_u32arr_pairs)
+static int dyn_u32_pairs_impl(lua_State* L, lua_CFunction next_fn) {
     if (lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L) == nullptr) {
         lua_pushnil(L);
         return 1;
     }
 
-    lua_pushcfunction(L, &sdk_hand_dyn_u32arr_next);
+    lua_pushcfunction(L, next_fn);
     lua_pushvalue(L, 1);
     lua_pushnil(L);
 
     return 3;
+}
+
+LH_BIND(sdk_hand_dyn_u32arr_size)
+    return sdk_hand_dyn_u32_size(L);
+LH_BIND_END(L)
+
+LH_BIND(sdk_hand_dyn_u32arr_len)
+    return sdk_hand_dyn_u32_len(L);
+LH_BIND_END(L)
+
+LH_BIND(sdk_hand_dyn_u32arr_index)
+    return dyn_u32_index_impl(L, "dyn_u32arr");
+LH_BIND_END(L)
+
+LH_BIND(sdk_hand_dyn_u32arr_new_index)
+    return sdk_hand_dyn_u32_new_index(L);
+LH_BIND_END(L)
+
+LH_BIND(sdk_hand_dyn_u32arr_push_back)
+    return sdk_hand_dyn_u32_push_back(L);
+LH_BIND_END(L)
+
+LH_BIND(sdk_hand_dyn_u32arr_pairs)
+    return dyn_u32_pairs_impl(L, &sdk_hand_dyn_u32arr_next);
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32arr_next)
@@ -2191,25 +2049,11 @@ LH_BIND(sdk_hand_dyn_u32arr_next)
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32arr_clear)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr) {
-        return 0;
-    }
-
-    arr->clear(lh::opt_bool(L, 2, false));
-    return 0;
+    return sdk_hand_dyn_u32_clear(L);
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32arr_as_memoryview)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    return lh::put(L, api::sdk::MemoryView(reinterpret_cast<uint8_t*>(arr), sizeof(sdk::NativeArrayNoCapacity<uint32_t>)));
+    return sdk_hand_dyn_u32_as_memoryview(L);
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_tn_size)
@@ -2766,24 +2610,7 @@ LH_BIND(sdk_hand_dyn_u32_len)
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32_index)
-    auto arr = lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L);
-
-    if (arr == nullptr) {
-        return luaL_error(L, "dyn_u32 is nil");
-    }
-
-    if (!lh::is_index(L, 2)) {
-        return luaL_error(L, "dyn_u32 is indexed by an integer");
-    }
-
-    const uint32_t i = lh::index_uint(L, 2);
-
-    if (i >= arr->size()) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    return lh::put(L, (*arr)[i]);
+    return dyn_u32_index_impl(L, "dyn_u32");
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32_new_index)
@@ -2816,16 +2643,7 @@ LH_BIND(sdk_hand_dyn_u32_push_back)
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32_pairs)
-    if (lh::get_self<sdk::NativeArrayNoCapacity<uint32_t>>(L) == nullptr) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    lua_pushcfunction(L, &sdk_hand_dyn_u32_next);
-    lua_pushvalue(L, 1);
-    lua_pushnil(L);
-
-    return 3;
+    return dyn_u32_pairs_impl(L, &sdk_hand_dyn_u32_next);
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_dyn_u32_next)
@@ -3195,14 +3013,7 @@ LH_BIND_END(L)
 // The metatable __gc sol2 installed through a Lua snippet: drop the reference
 // this state added, without forcing a release the game did not ask for.
 LH_BIND(sdk_hand_managed_object_gc)
-    auto obj = lh::get_self<::REManagedObject>(L);
-
-    if (obj == nullptr) {
-        return 0;
-    }
-
-    ::api::re_managed_object::release(L, obj, false);
-    return 0;
+    return sdk_hand_managed_object_release(L);
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_managed_object_deserialize_native)
@@ -3556,7 +3367,6 @@ void bindings::open_sdk(ScriptState* s) {
     auto& lua = s->lua();
     lua_State* L = lua.lua_state();
 
-    //lua_stack::global_table(L, "_sol_lua_push_objects") = ...;
     lua.do_string(R"(
         _sol_lua_push_objects = setmetatable({}, { __mode = "v" })
         _sol_lua_push_usertypes = {}
