@@ -866,7 +866,7 @@ void end_update_primitive() {
 }
 
 void add_scene_view(void* scene_view) {
-    detail::get_add_scene_view()(scene_view);
+    ::detail::get_add_scene_view()(scene_view);
 }
 
 void remove_scene_view(void* scene_view) {
