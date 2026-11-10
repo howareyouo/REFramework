@@ -66,7 +66,7 @@ void sdk::SystemArray::set_element(int32_t index, ::REManagedObject* value) {
                 }
             }
 
-            if (elem_type == system_object) {
+            const auto store_ref_and_release_old = [&]() {
                 // Ref array: slot holds the pointer, so add_ref the new value
                 // (must outlive the caller's temp Lua ref) and release the old.
                 if (value != nullptr) {
@@ -78,6 +78,10 @@ void sdk::SystemArray::set_element(int32_t index, ::REManagedObject* value) {
                 if (old != nullptr) {
                     utility::re_managed_object::release(old);
                 }
+            };
+
+            if (elem_type == system_object) {
+                store_ref_and_release_old();
                 return;
             } else {
                 // Otherwise, need to pass an unboxed value.
@@ -89,15 +93,7 @@ void sdk::SystemArray::set_element(int32_t index, ::REManagedObject* value) {
                         return;
                     } else {
                         // Ref array by pointer: same ownership as above.
-                        if (value != nullptr) {
-                            utility::re_managed_object::add_ref(value);
-                        }
-
-                        auto old = get_element(index);
-                        set_method->call_safe<void>(sdk::get_thread_context(), this, index, value);
-                        if (old != nullptr) {
-                            utility::re_managed_object::release(old);
-                        }
+                        store_ref_and_release_old();
                         return;
                     }
                 } else {

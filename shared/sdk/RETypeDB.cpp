@@ -543,13 +543,7 @@ sdk::RETypeDefinition* REMethodDefinition::get_return_type() const {
         return nullptr;
     }
 
-    const auto return_typeid = p.type_id;
-
-    if (return_typeid == 0) {
-        return nullptr;
-    }
-
-    return tdb->get_type(return_typeid);
+    return tdb->get_type(p.type_id);
 }
 
 const char* REMethodDefinition::get_name() const {
@@ -859,8 +853,6 @@ void sdk::REMethodDefinition::invoke(void* object, const std::span<void*>& args,
         out.ptr = stack_frame.out_data;
         return;
     }
-
-    return;
 }
 
 uint32_t sdk::REMethodDefinition::get_index() const {

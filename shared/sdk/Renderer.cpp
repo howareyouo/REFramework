@@ -202,10 +202,6 @@ RenderLayer** RenderLayer::find_layer(::REType* layer_type) {
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
         const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
@@ -260,10 +256,6 @@ std::vector<RenderLayer*> RenderLayer::find_layers(::REType* layer_type) {
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
         const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
@@ -291,45 +283,6 @@ std::vector<layer::Scene*> RenderLayer::find_all_scene_layers() {
     return *(std::vector<layer::Scene*>*)&layers;
 }
 
-std::vector<layer::Scene*> RenderLayer::find_fully_rendered_scene_layers() {
-    auto layers = find_all_scene_layers();
-
-    if (layers.empty()) {
-        return {};
-    }
-
-    // get_view_id() is a reflected function call, so fetch it once per layer and sort on the
-    // cached ids, rather than once per comparison.
-    struct Entry {
-        uint32_t view_id;
-        layer::Scene* scene;
-    };
-
-    std::vector<Entry> entries;
-    entries.reserve(layers.size());
-
-    for (auto* scene : layers) {
-        if (scene->is_fully_rendered()) {
-            entries.push_back({scene->get_view_id(), scene});
-        }
-    }
-
-    // Sorted on the id alone, which is all the old comparator looked at, so layers sharing an
-    // id still come out in the same order.
-    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-        return a.view_id < b.view_id;
-    });
-
-    std::vector<layer::Scene*> out;
-    out.reserve(entries.size());
-
-    for (const auto& entry : entries) {
-        out.push_back(entry.scene);
-    }
-
-    return out;
-}
-
 void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& out) {
     out.clear();
 
@@ -341,14 +294,10 @@ void RenderLayer::find_fully_rendered_scene_layers(std::vector<layer::Scene*>& o
     }
 
     // Single pass straight into the caller's buffer: no intermediate vectors,
-    // no allocations, unlike the by-value overload above.
+    // no allocations.
     const auto& layers = get_layers();
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
         if (utility::re_managed_object::get_type(layer) == scene_type) {
             out.push_back((layer::Scene*)layer);
         }
@@ -469,38 +418,35 @@ void RenderLayer::clone_layers(RenderLayer* other, bool recursive) {
     return utility::re_managed_object::get_field<::sdk::renderer::TargetState*>(this, name);
 }
 
-void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_state) {
-    using Fn = void (*)(RenderContext*, sdk::renderer::PipelineState*);
-    static Fn set_pipeline_state_fn = []() -> Fn {
-        spdlog::info("[RenderContext::set_pipeline_state] Searching for RenderContext::set_pipeline_state");
+namespace detail {
+    // Shared resolve path for RenderContext members found behind a string ref:
+    // scan string -> displacement reference -> N calls forward -> resolve target.
+    inline void* find_render_context_fn(const char* name, const char* string_name, size_t num_calls) {
+        spdlog::info("[RenderContext::{}] Searching for RenderContext::{}", name, name);
 
         const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "UpdateDepthBlockerState");
+        const auto string_data = utility::scan_string(game, string_name);
 
         if (!string_data) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to find UpdateDepthBlockerState string");
+            spdlog::error("[RenderContext::{}] Failed to find {} string", name, string_name);
             return nullptr;
         }
 
         const auto string_ref = utility::scan_displacement_reference(game, *string_data);
 
         if (!string_ref) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to find UpdateDepthBlockerState reference");
+            spdlog::error("[RenderContext::{}] Failed to find {} reference", name, string_name);
             return nullptr;
         }
 
         std::optional<uintptr_t> current_function_call{};
         uintptr_t current_ip{*string_ref + 4};
 
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        for (size_t i = 0; i < 4; ++i) {
+        for (size_t i = 0; i < num_calls; ++i) {
             current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
 
             if (!current_function_call) {
-                spdlog::error("[RenderContext::set_pipeline_state] Failed to find next CALL instruction");
+                spdlog::error("[RenderContext::{}] Failed to find next CALL instruction", name);
                 return nullptr;
             }
 
@@ -510,14 +456,23 @@ void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_st
         const auto result = utility::resolve_displacement(*current_function_call);
 
         if (!result) {
-            spdlog::error("[RenderContext::set_pipeline_state] Failed to resolve displacement");
+            spdlog::error("[RenderContext::{}] Failed to resolve displacement", name);
             return nullptr;
         }
 
-        spdlog::info("[RenderContext::set_pipeline_state] Found RenderContext::set_pipeline_state at {:x}", *result);
+        spdlog::info("[RenderContext::{}] Found RenderContext::{} at {:x}", name, name, *result);
 
-        return (Fn)*result;
-    }();
+        return (void*)*result;
+    }
+}
+
+void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_state) {
+    using Fn = void (*)(RenderContext*, sdk::renderer::PipelineState*);
+    // First one is murmur hash calc function
+    // second: MasterMaterialResource::find
+    // third: RenderResource::add_ref
+    // fourth: RenderContext::set_pipeline_state
+    static Fn set_pipeline_state_fn = (Fn)detail::find_render_context_fn("set_pipeline_state", "UpdateDepthBlockerState", 4);
 
     if (set_pipeline_state_fn == nullptr) {
         return;
@@ -528,55 +483,13 @@ void RenderContext::set_pipeline_state(sdk::renderer::PipelineState* pipeline_st
 
 void RenderContext::dispatch_ray(uint32_t tgx, uint32_t tgy, uint32_t tgz, Fence& fence) {
     using Fn = void (*)(RenderContext*, uint32_t, uint32_t, uint32_t, Fence*);
-    static auto func = []() -> Fn {
-        spdlog::info("[RenderContext::dispatch_ray] Searching for RenderContext::dispatch_ray");
-
-        const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "PathSpaceRayTracing");
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to find PathSpaceRayTracing string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to find PathSpaceRayTracing reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        // fifth: RenderResource::release
-        // sixth: RenderContext::dispatch_ray
-        for (size_t i = 0; i < 6; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::dispatch_ray] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::dispatch_ray] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::dispatch_ray] Found RenderContext::dispatch_ray at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    // First one is murmur hash calc function
+    // second: MasterMaterialResource::find
+    // third: RenderResource::add_ref
+    // fourth: RenderContext::set_pipeline_state
+    // fifth: RenderResource::release
+    // sixth: RenderContext::dispatch_ray
+    static auto func = (Fn)detail::find_render_context_fn("dispatch_ray", "PathSpaceRayTracing", 6);
 
     if (func == nullptr) {
         return;
@@ -587,55 +500,13 @@ void RenderContext::dispatch_ray(uint32_t tgx, uint32_t tgy, uint32_t tgz, Fence
 
 void RenderContext::dispatch_32bit_constant(uint32_t tgx, uint32_t tgy, uint32_t tgz, uint32_t constant, bool disable_uav_barrier) {
     using Fn = void (*)(RenderContext*, uint32_t, uint32_t, uint32_t, uint32_t, bool);
-    static auto func = []() -> Fn {
-        spdlog::info("[RenderContext::dispatch_32bit_constant] Searching for RenderContext::dispatch_32bit_constant");
-
-        const auto game = utility::get_executable();
-        const auto string_data = utility::scan_string(game, "ClearDepthBlockerState");
-
-        if (!string_data) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find ClearDepthBlockerState string");
-            return nullptr;
-        }
-
-        const auto string_ref = utility::scan_displacement_reference(game, *string_data);
-
-        if (!string_ref) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find ClearDepthBlockerState reference");
-            return nullptr;
-        }
-
-        std::optional<uintptr_t> current_function_call{};
-        uintptr_t current_ip{*string_ref + 4};
-
-        // First one is murmur hash calc function
-        // second: MasterMaterialResource::find
-        // third: RenderResource::add_ref
-        // fourth: RenderContext::set_pipeline_state
-        // fifth: RenderResource::release
-        // sixth: RenderContext::dispatch_32bit_constant
-        for (size_t i = 0; i < 6; ++i) {
-            current_function_call = utility::scan_mnemonic(current_ip, 100, "CALL");
-
-            if (!current_function_call) {
-                spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to find next CALL instruction");
-                return nullptr;
-            }
-
-            current_ip = *current_function_call + 5;
-        }
-
-        const auto result = utility::resolve_displacement(*current_function_call);
-
-        if (!result) {
-            spdlog::error("[RenderContext::dispatch_32bit_constant] Failed to resolve displacement");
-            return nullptr;
-        }
-
-        spdlog::info("[RenderContext::dispatch_32bit_constant] Found RenderContext::dispatch_32bit_constant at {:x}", *result);
-
-        return (Fn)*result;
-    }();
+    // First one is murmur hash calc function
+    // second: MasterMaterialResource::find
+    // third: RenderResource::add_ref
+    // fourth: RenderContext::set_pipeline_state
+    // fifth: RenderResource::release
+    // sixth: RenderContext::dispatch_32bit_constant
+    static auto func = (Fn)detail::find_render_context_fn("dispatch_32bit_constant", "ClearDepthBlockerState", 6);
 
     if (func == nullptr) {
         return;
@@ -816,31 +687,6 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
     // Okay it was actually this simple in older games but it isn't anymore in DD2+
     // There's some extra garbage going on that I don't want to deal with right now
     // so will just call the function directly
-/*#if TDB_VER >= 73
-    static const auto copy_texture_typeid = sdk::get_enum_value<uint32_t>("via.render.command.TypeId", "CopyTexture");
-    auto new_command = (command::CopyTexture*)alloc(copy_texture_typeid, sizeof(command::CopyTexture));
-
-    if (new_command != nullptr) {
-        const auto protect_frame = get_protect_frame();
-
-        if (dest->m_render_frame != protect_frame) {
-            dest->m_render_frame = protect_frame;
-        }
-
-        if (src->m_render_frame != protect_frame) {
-            src->m_render_frame = protect_frame;
-        }
-
-        new_command->dst = dest;
-        new_command->src = src;
-        new_command->fence = fence;
-        new_command->dst_subresource = -1;
-        new_command->src_subresource = -1;
-    }
-    
-    return;
-#else*/
-
 #if TDB_VER < 82
     using CopyTexFn = void (*)(RenderContext*, Texture*, Texture*, Fence&);
     static auto func = []() -> CopyTexFn {
@@ -955,7 +801,6 @@ void RenderContext::copy_texture(Texture* dest, Texture* src, Fence& fence) {
     // src, src_subresource, dst, dst_subresource, fence
     func(this, src, -1, dest, -1, fence);
 #endif
-//#endif
 }
 
 std::optional<uint32_t> Renderer::get_render_frame() const {
@@ -1176,10 +1021,6 @@ RenderLayer* find_layer(::REType* layer_type) {
     const auto& layers = *(std::array<RenderLayer*, 256>*)((uintptr_t)renderer + layers_offset);
 
     for (auto& layer : layers) {
-        if (layer->info == nullptr || layer->info->classInfo == nullptr) {
-            continue;
-        }
-
         const auto t = utility::re_managed_object::get_type(layer);
 
         if (t == layer_type) {
@@ -1406,8 +1247,8 @@ TargetState* create_target_state(TargetState::Desc* desc) {
 
         const auto string_ref = utility::scan_displacement_reference(game, *string);
 
-            spdlog::error("Failed to find create_target_state (no string ref)");
         if (!string_ref) {
+            spdlog::error("Failed to find create_target_state (no string ref)");
             return nullptr;
         }
 
@@ -1615,6 +1456,69 @@ RenderTargetView* create_render_target_view(sdk::renderer::RenderResource* resou
     return fn(nullptr, resource, desc);
 }
 
+namespace detail {
+    // Walks an object's pointer fields looking for one whose vtable's get_typeinfo
+    // reports the expected engine type; returns the matching offset, if found.
+    inline std::optional<size_t> find_typeinfo_offset(uintptr_t base, size_t start, size_t end, std::string_view type_name, std::string_view log_prefix, std::string_view found_msg) {
+        static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
+
+        for (size_t offset = start; offset < end; offset += sizeof(void*)) try {
+            const auto ptr = *(uintptr_t*)(base + offset);
+
+            if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
+                continue;
+            }
+
+            const auto vtable = *(uintptr_t**)ptr;
+
+            if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
+                continue;
+            }
+
+            const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
+
+            if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
+                continue;
+            }
+
+            if (!utility::get_module_within(get_typeinfo_fn)) {
+                continue;
+            }
+
+            // Check if this is a mov rax, [rip+disp32] instruction
+            if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
+                spdlog::info("{}Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", log_prefix, offset);
+                continue;
+            }
+
+            using type_info_fn_t = sdk::RETypeCLR* (*)();
+            const auto type_info_fn = (type_info_fn_t)get_typeinfo_fn;
+            const auto type_info = type_info_fn();
+
+            if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
+                continue;
+            }
+
+            if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
+                continue;
+            }
+
+            const auto found_type_name = std::string_view{type_info->name};
+
+            if (found_type_name == type_name) {
+                spdlog::info("{}{} {:x}", log_prefix, found_msg, offset);
+                return offset;
+            }
+
+            spdlog::info("{}Checked offset {:x}, type name: {}", log_prefix, offset, found_type_name);
+        } catch(...) {
+            continue;
+        }
+
+        return std::nullopt;
+    }
+}
+
 ID3D12Resource* TargetState::get_native_resource_d3d12() const {
     const auto rtv = get_rtv(0);
 
@@ -1654,63 +1558,9 @@ DirectXResource<ID3D12Resource>* Texture::get_d3d12_resource_container() {
         return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
     }
 
-    static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
-
     spdlog::info("Searching for Texture D3D12Resource offset (via.render.RenderResource bruteforce)");
 
-    for (size_t i = 0x98; i < 0x200; i += sizeof(void*)) try {
-        const auto ptr = *(uintptr_t*)((uintptr_t)this + i);
-
-        if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
-            continue;
-        }
-
-        const auto vtable = *(uintptr_t**)ptr;
-
-        if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
-            continue;
-        }
-
-        const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
-
-        if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
-            continue;
-        }
-
-        if (!utility::get_module_within(get_typeinfo_fn)) {
-            continue;
-        }
-
-        // Check if this is a mov rax, [rip+disp32] instruction
-        if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
-            spdlog::info("[Texture] Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", i);
-            continue;
-        }
-
-        using type_info_fn_t = sdk::RETypeCLR* (*)();
-        const auto type_info_fn = (type_info_fn_t)get_typeinfo_fn;
-        const auto type_info = type_info_fn();
-
-        if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
-            continue;
-        }
-
-        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
-            continue;
-        }
-
-        const auto type_name = std::string_view{type_info->name};
-
-        if (type_name == "via.render.RenderResource") {
-            spdlog::info("[Texture] Found D3D12Resource container at offset {:x}", i);
-            offset = i;
-            return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
-        }
-
-        spdlog::info("[Texture] Checked offset {:x}, type name: {}", i, type_name);
-    } catch(...) {
-        continue;
-    }
+    offset = detail::find_typeinfo_offset((uintptr_t)this, 0x98, 0x200, "via.render.RenderResource", "[Texture] ", "Found D3D12Resource container at offset");
 
     if (offset) {
         return *(DirectXResource<ID3D12Resource>**)((uintptr_t)this + *offset);
@@ -2001,68 +1851,17 @@ sdk::renderer::SceneInfo* layer::Scene::get_z_prepass_scene_info() {
 }
 
 std::optional<size_t> layer::PrepareOutput::get_output_state_offset() {
-    static constexpr size_t GET_TYPEINFO_FN_INDEX = 3;
     static std::optional<size_t> s_output_state_offset = std::nullopt;
 
     if (s_output_state_offset) {
         return *s_output_state_offset;
     }
-    for (size_t offset = 0x10; offset < 0x500; offset += sizeof(void*)) try {
-        // Grab vtable.
-        const auto ptr = *(uintptr_t*)((uintptr_t)this + offset);
-        if (ptr == 0 || IsBadReadPtr((void*)ptr, sizeof(void*))) {
-            continue;
-        }
 
-        const auto vtable = *(uintptr_t**)ptr;
-        if (vtable == 0 || IsBadReadPtr((void*)vtable, sizeof(void*))) {
-            continue;
-        }
+    s_output_state_offset = detail::find_typeinfo_offset((uintptr_t)this, 0x10, 0x500, "via.render.TargetState", "[PrepareOutput] ", "Found output state offset:");
 
-        const auto get_typeinfo_fn = vtable[GET_TYPEINFO_FN_INDEX];
-
-        if (get_typeinfo_fn == 0 || IsBadReadPtr((void*)get_typeinfo_fn, sizeof(void*))) {
-            continue;
-        }
-
-        if (!utility::get_module_within(get_typeinfo_fn)) {
-            continue;
-        }
-
-        using type_info_fn_t = sdk::RETypeCLR* (*)();
-        
-        const auto type_info_fn = (type_info_fn_t)get_typeinfo_fn;
-        // if this is essentially a mov rax, return it.
-        if (((uint8_t*)get_typeinfo_fn)[0] != 0x48 || ((uint8_t*)get_typeinfo_fn)[1] != 0x8B || ((uint8_t*)get_typeinfo_fn)[2] != 0x05) {
-            spdlog::info("[PrepareOutput] Skipping offset {:x} because get_typeinfo_fn does not look like a mov rax", offset);
-            continue;
-        }
-
-        const auto type_info = type_info_fn();
-
-        if (type_info == nullptr || IsBadReadPtr(type_info, sizeof(void*))) {
-            continue;
-        }
-
-        if (type_info->name == nullptr || IsBadReadPtr(type_info->name, sizeof(void*))) {
-            continue;
-        }
-
-        const auto type_name = std::string_view{type_info->name};
-
-        if (type_name == "via.render.TargetState") {
-            s_output_state_offset = offset;
-            spdlog::info("[PrepareOutput] Found output state offset: {:x}", offset);
-            return *s_output_state_offset;
-            break;
-        }
-
-        spdlog::info("[PrepareOutput] Checked offset {:x}, type name: {}", offset, type_name);
-    } catch(...) {
-        continue;
+    if (!s_output_state_offset) {
+        spdlog::warn("[PrepareOutput] Failed to find output state offset, trying next time...");
     }
-
-    spdlog::warn("[PrepareOutput] Failed to find output state offset, trying next time...");
 
     return s_output_state_offset;
 }

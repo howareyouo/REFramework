@@ -44,7 +44,6 @@ size_t RETypeDefinition::MethodIterator::size() const {
 }
 
 sdk::REField* sdk::RETypeDefinition::FieldIterator::REFieldIterator::operator*() const {
-//#ifndef RE7
     if (m_parent->member_field == 0) {
         return nullptr;
     }
@@ -52,22 +51,6 @@ sdk::REField* sdk::RETypeDefinition::FieldIterator::REFieldIterator::operator*()
     auto tdb = RETypeDB::get();
 
     return &(*tdb->fields)[m_parent->member_field + m_index];
-/*#else
-    if (m_parent->member_field_start == 0) {
-        return nullptr;
-    }
-
-    auto tdb = RETypeDB::get();
-    const auto field_indices = tdb->get_data<uint32_t>(m_parent->member_field_start);
-
-    const auto index = field_indices[m_index];
-
-    if (index == 0) {
-        return nullptr;
-    }
-
-    return &(*tdb->fields)[index];
-#endif*/
 }
 
 size_t sdk::RETypeDefinition::FieldIterator::size() const {
@@ -128,30 +111,15 @@ const char* RETypeDefinition::get_name() const {
 static std::unordered_map<uint32_t, std::string> g_full_names{};
 static std::shared_mutex g_full_name_mtx{};
 
-std::string RETypeDefinition::get_full_name() const {
-    auto tdb = RETypeDB::get();
-
-    {
-        std::shared_lock _{ g_full_name_mtx };
-
-        if (auto it = g_full_names.find(this->get_index()); it != g_full_names.end()) {
-            return it->second;
-        }
-    }
-
+// Composes the namespace + declaring-type nesting names shared by
+// get_full_name and get_name_hierarchy.
+static std::deque<std::string> get_composed_names(const sdk::RETypeDefinition* self) {
     std::deque<std::string> names{};
-    std::string full_name{};
 
-    // because using normal find_type will loop back to this function and cause a deadlock
-    static const auto system_runtime_type = []() {
-        const auto tdb = sdk::RETypeDB::get();
-        return tdb != nullptr ? tdb->find_type_by_fqn(0x99ff88e6) : nullptr;
-    }();
-
-    if (this->declaring_typeid > 0 && this->declaring_typeid != this->get_index()) {
+    if (self->declaring_typeid > 0 && self->declaring_typeid != self->get_index()) {
         std::unordered_set<const sdk::RETypeDefinition*> seen_classes{};
 
-        for (auto owner = this; owner != nullptr; owner = owner->get_declaring_type()) {
+        for (auto owner = self; owner != nullptr; owner = owner->get_declaring_type()) {
             if (seen_classes.count(owner) > 0) {
                 break;
             }
@@ -163,7 +131,7 @@ std::string RETypeDefinition::get_full_name() const {
             }
 
             // uh.
-            if (owner->get_declaring_type() == this) {
+            if (owner->get_declaring_type() == self) {
                 break;
             }
 
@@ -171,13 +139,36 @@ std::string RETypeDefinition::get_full_name() const {
         }
     } else {
         // namespace
-        if (!std::string{this->get_namespace()}.empty()) {
-            names.push_front(this->get_namespace());
+        if (!std::string{self->get_namespace()}.empty()) {
+            names.push_front(self->get_namespace());
         }
 
         // actual class name
-        names.push_back(this->get_name());
+        names.push_back(self->get_name());
     }
+
+    return names;
+}
+
+std::string RETypeDefinition::get_full_name() const {
+    auto tdb = RETypeDB::get();
+
+    {
+        std::shared_lock _{ g_full_name_mtx };
+
+        if (auto it = g_full_names.find(this->get_index()); it != g_full_names.end()) {
+            return it->second;
+        }
+    }
+
+    const auto names = get_composed_names(this);
+    std::string full_name{};
+
+    // because using normal find_type will loop back to this function and cause a deadlock
+    static const auto system_runtime_type = []() {
+        const auto tdb = sdk::RETypeDB::get();
+        return tdb != nullptr ? tdb->find_type_by_fqn(0x99ff88e6) : nullptr;
+    }();
 
     for (auto f = 0; f < names.size(); ++f) {
         if (f > 0) {
@@ -232,8 +223,6 @@ std::string RETypeDefinition::get_full_name() const {
                 if (gtypeid > 0 && gtypeid < tdb->numTypes) {
                     auto& generic_type = *tdb->get_type(gtypeid);
                     full_name += generic_type.get_full_name();
-                } else {
-                    full_name += "";
                 }
 
                 if (generics->num > 1 && f < generics->num - 1) {
@@ -261,39 +250,7 @@ std::string RETypeDefinition::get_full_name() const {
 }
 
 std::vector<std::string> RETypeDefinition::get_name_hierarchy() const {
-    std::deque<std::string> names{};
-    std::string full_name{};
-
-    if (this->declaring_typeid > 0 && this->declaring_typeid != this->get_index()) {
-        std::unordered_set<const sdk::RETypeDefinition*> seen_classes{};
-
-        for (auto owner = this; owner != nullptr; owner = owner->get_declaring_type()) {
-            if (seen_classes.count(owner) > 0) {
-                break;
-            }
-
-            names.push_front(owner->get_name());
-
-            if (owner->get_declaring_type() == nullptr && !std::string{owner->get_namespace()}.empty()) {
-                names.push_front(owner->get_namespace());
-            }
-
-            // uh.
-            if (owner->get_declaring_type() == this) {
-                break;
-            }
-
-            seen_classes.insert(owner);
-        }
-    } else {
-        // namespace
-        if (!std::string{this->get_namespace()}.empty()) {
-            names.push_front(this->get_namespace());
-        }
-
-        // actual class name
-        names.push_back(this->get_name());
-    }
+    const auto names = get_composed_names(this);
     return std::vector<std::string>(names.begin(), names.end());
 }
 
@@ -686,143 +643,72 @@ bool RETypeDefinition::is_array() const {
     return get_vm_obj_type() == ::via::clr::VMObjType::Array;
 }
 
-static std::shared_mutex g_by_ref_mtx{};
-static std::unordered_map<const RETypeDefinition*, bool> g_by_ref_map{};
-
-bool RETypeDefinition::is_by_ref() const {
+// Resolves a runtime boolean property (IsByRef/IsPointer/IsPrimitive) on the
+// runtime type behind this definition, with a per-property cache. Each caller
+// keeps its own mutex + map so the caches stay independent.
+static bool resolve_runtime_bool(const RETypeDefinition* self, std::shared_mutex& mtx, std::unordered_map<const RETypeDefinition*, bool>& map, const char* primary, const char* fallback) {
     {
-        std::shared_lock _{g_by_ref_mtx};
+        std::shared_lock _{mtx};
 
-        if (auto it = g_by_ref_map.find(this); it != g_by_ref_map.end()) {
+        if (auto it = map.find(self); it != map.end()) {
             return it->second;
         }
     }
 
-    std::unique_lock _{g_by_ref_mtx};
+    std::unique_lock _{mtx};
 
-    auto runtime_type = this->get_runtime_type();
+    auto runtime_type = self->get_runtime_type();
 
     if (runtime_type == nullptr) {
-        g_by_ref_map[this] = false;
+        map[self] = false;
         return false;
     }
 
     auto runtime_typedef = utility::re_managed_object::get_type_definition(runtime_type);
 
     if (runtime_typedef == nullptr) {
-        g_by_ref_map[this] = false;
+        map[self] = false;
         return false;
     }
 
     // Deliberately not cached in a function-local static: the runtime type resolved for
     // this definition is not guaranteed to be the same one every call, and a stale
     // method pointer would then be invoked on a mismatched object.
-    auto by_ref_method = runtime_typedef->get_method("get_IsByRef");
+    auto method = runtime_typedef->get_method(primary);
 
-    if (by_ref_method == nullptr) {
-        by_ref_method = runtime_typedef->get_method("IsByRefImpl"); // MHWilds
+    if (method == nullptr) {
+        method = runtime_typedef->get_method(fallback); // MHWilds
     }
 
-    if (by_ref_method == nullptr) {
-        // well...
-        // We might need to fix this later for Wilds?
-        g_by_ref_map[this] = false;
+    if (method == nullptr) {
+        map[self] = false;
         return false;
     }
 
-    g_by_ref_map[this] = by_ref_method->call<bool>(sdk::get_thread_context(), runtime_type);
+    map[self] = method->call<bool>(sdk::get_thread_context(), runtime_type);
 
-    return g_by_ref_map[this];   
+    return map[self];
+}
+
+static std::shared_mutex g_by_ref_mtx{};
+static std::unordered_map<const RETypeDefinition*, bool> g_by_ref_map{};
+
+bool RETypeDefinition::is_by_ref() const {
+    return resolve_runtime_bool(this, g_by_ref_mtx, g_by_ref_map, "get_IsByRef", "IsByRefImpl");
 }
 
 static std::shared_mutex g_pointer_mtx{};
 static std::unordered_map<const RETypeDefinition*, bool> g_pointer_map{};
 
 bool RETypeDefinition::is_pointer() const {
-    {
-        std::shared_lock _{g_pointer_mtx};
-
-        if (auto it = g_pointer_map.find(this); it != g_pointer_map.end()) {
-            return it->second;
-        }
-    }
-
-    std::unique_lock _{g_pointer_mtx};
-
-    auto runtime_type = this->get_runtime_type();
-
-    if (runtime_type == nullptr) {
-        g_pointer_map[this] = false;
-        return false;
-    }
-
-    auto runtime_typedef = utility::re_managed_object::get_type_definition(runtime_type);
-
-    if (runtime_typedef == nullptr) {
-        g_pointer_map[this] = false;
-        return false;
-    }
-
-    auto pointer_method = runtime_typedef->get_method("get_IsPointer");
-
-    if (pointer_method == nullptr) {
-        pointer_method = runtime_typedef->get_method("IsPointerImpl"); // MHWilds
-    }
-
-    if (pointer_method == nullptr) {
-        g_pointer_map[this] = false;
-        return false;
-    }
-
-    g_pointer_map[this] = pointer_method->call<bool>(sdk::get_thread_context(), runtime_type);
-
-    return g_pointer_map[this];
+    return resolve_runtime_bool(this, g_pointer_mtx, g_pointer_map, "get_IsPointer", "IsPointerImpl");
 }
 
 static std::shared_mutex g_primitive_mtx{};
 static std::unordered_map<const RETypeDefinition*, bool> g_primitive_map{};
 
 bool RETypeDefinition::is_primitive() const {
-    {
-        std::shared_lock _{g_primitive_mtx};
-
-        if (auto it = g_primitive_map.find(this); it != g_primitive_map.end()) {
-            return it->second;
-        }
-    }
-
-    std::unique_lock _{g_primitive_mtx};
-
-    auto runtime_type = this->get_runtime_type();
-
-    if (runtime_type == nullptr) {
-        g_primitive_map[this] = false;
-        return false;
-    }
-
-    auto runtime_typedef = utility::re_managed_object::get_type_definition(runtime_type);
-
-    if (runtime_typedef == nullptr) {
-        g_primitive_map[this] = false;
-        return false;
-    }
-
-    auto primitive_method = runtime_typedef->get_method("get_IsPrimitive");
-
-    if (primitive_method == nullptr) {
-        primitive_method = runtime_typedef->get_method("IsPrimitiveImpl"); // MHWilds
-    }
-
-    // Previously this dereferenced the lookup result unconditionally, which crashed
-    // whenever the runtime type had been stripped down (see is_by_ref/is_pointer).
-    if (primitive_method == nullptr) {
-        g_primitive_map[this] = false;
-        return false;
-    }
-
-    g_primitive_map[this] = primitive_method->call<bool>(sdk::get_thread_context(), runtime_type);
-
-    return g_primitive_map[this];
+    return resolve_runtime_bool(this, g_primitive_mtx, g_primitive_map, "get_IsPrimitive", "IsPrimitiveImpl");
 }
 
 bool RETypeDefinition::is_generic_type_definition() const {

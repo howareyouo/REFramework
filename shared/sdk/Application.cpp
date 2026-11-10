@@ -31,81 +31,51 @@ Application::Function* Application::get_functions() {
         const auto mod_size = utility::get_module_size(mod);
         const auto mod_end = (uintptr_t)mod + *mod_size - 0x100;
 
-        // Fall back to full heuristic analysis on newer versions of the engine.
-        // For MHRise (game pass only? or TU4)
-        for (auto ref = utility::scan(mod, "89 81 ? ? ? ? 48 8B ? 48 81 C1 ? ? ? ?");
-            ref;
-            ref = utility::scan(*ref + 1, mod_end - (*ref + 1), "89 81 ? ? ? ? 48 8B ? 48 81 C1 ? ? ? ?")) 
-        {
-            if (!ref) {
-                spdlog::info("MHRise pattern not found, skipping...");
-                break;
-            }
+        const auto try_pattern = [&](const char* pattern, size_t disp_offset, int32_t disp_adjustment) -> std::optional<int32_t> {
+            for (auto ref = utility::scan(mod, pattern);
+                ref;
+                ref = utility::scan(*ref + 1, mod_end - (*ref + 1), pattern))
+            {
+                const auto candidate = *(int32_t*)(*ref + disp_offset) + disp_adjustment;
 
-            const auto candidate = *(int32_t*)(*ref + 12) - 8;
+                // If the offset is aligned to 8 bytes, it's a valid offset.
+                if (((uintptr_t)candidate & (sizeof(void*) - 1)) == 0 && candidate >= 0x400 && candidate < 0x5000) {
+                    try {
+                        const auto ptr = (Application::Function*)((uintptr_t)this + candidate);
 
-            // If the offset is aligned to 8 bytes, it's a valid offset.
-            if (((uintptr_t)candidate & (sizeof(void*) - 1)) == 0 && candidate >= 0x400 && candidate < 0x5000) {
-                try {
-                    const auto ptr = (Application::Function*)((uintptr_t)this + candidate);
+                        if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
+                            spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
+                            continue;
+                        }
 
-                    if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
+                        if (ptr->description == nullptr || !utility::is_readable(ptr->description, 32)) {
+                            spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
+                            continue;
+                        }
+                    } catch (...) {
                         spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
                         continue;
                     }
 
-                    if (ptr->description == nullptr || !utility::is_readable(ptr->description, 32)) {
-                        spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
-                        continue;
-                    }
-                } catch (...) {
-                    spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
-                    continue;
+                    spdlog::info("Application::functions offset: {:x}", candidate);
+                    return candidate;
                 }
 
-                spdlog::info("Application::functions offset: {:x}", candidate);
-                return candidate;
+                spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
             }
 
-            spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
+            return std::nullopt;
+        };
+
+        // Fall back to full heuristic analysis on newer versions of the engine.
+        // For MHRise (game pass only? or TU4)
+        if (auto offset = try_pattern("89 81 ? ? ? ? 48 8B ? 48 81 C1 ? ? ? ?", 12, -8)) {
+            return offset;
         }
 
         // For all the other RE Engine games in existence.
-        for (auto ref = utility::scan(mod, "44 8B ? ? ? 00 00 4C 8D ? ? ? ? 00 41");
-            ref;
-            ref = utility::scan(*ref + 1, mod_end - (*ref + 1), "44 8B ? ? ? 00 00 4C 8D ? ? ? ? 00 41")) 
-        {
-            if (!ref) {
-                spdlog::error("Cannot find Application::functions offset.");
-                return std::nullopt;
-            }
-
-            const auto candidate = *(int32_t*)(*ref + 10);
-
-            // If the offset is aligned to 8 bytes, it's a valid offset.
-            if (((uintptr_t)candidate & (sizeof(void*) - 1)) == 0 && candidate >= 0x400 && candidate < 0x5000) {
-                try {
-                    const auto ptr = (Application::Function*)((uintptr_t)this + candidate);
-
-                    if (ptr == nullptr || !utility::is_readable(ptr, sizeof(Application::Function) * 50)) {
-                        spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
-                        continue;
-                    }
-
-                    if (ptr->description == nullptr || !utility::is_readable(ptr->description, 32)) {
-                        spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
-                        continue;
-                    }
-                } catch (...) {
-                    spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
-                    continue;
-                }
-
-                spdlog::info("Application::functions offset: {:x}", candidate);
-                return candidate;
-            }
-
-            spdlog::info("Skipping invalid Application::functions offset: {:x}", candidate);
+        if (auto offset = try_pattern("44 8B ? ? ? 00 00 4C 8D ? ? ? ? 00 41", 10, 0)) {
+            return offset;
         }
 
         // Heuristic structure analyis.
@@ -235,15 +205,7 @@ Application::Function* Application::get_function(std::string_view name) {
         return nullptr;
     }
 
-    const auto module_entry_enum = sdk::find_type_definition("via.ModuleEntry");
-    /*const auto function_index = sdk::get_object_field<uint16_t>(nullptr, module_entry_enum, name, true);
-
-    if (function_index == nullptr) {
-        return nullptr;
-    }*/
-
     for (auto i = 0; i < 1024; ++i) {
-        //if (functions[i].priority == *function_index) {
         if (functions[i].description != nullptr && functions[i].description == name) {
             return &functions[i];
         }
@@ -254,10 +216,6 @@ Application::Function* Application::get_function(std::string_view name) {
 
 std::vector<Application::Function*> Application::generate_chain(std::string_view start_name, std::string_view end_name) {
     std::vector<Function*> chain{};
-    
-    const auto module_entry_enum = sdk::find_type_definition("via.ModuleEntry");
-    //const auto start_index = sdk::get_object_field<uint16_t>(nullptr, module_entry_enum, start_name, true);
-    //const auto end_index = sdk::get_object_field<uint16_t>(nullptr, module_entry_enum, end_name, true);
 
     const auto start_func = get_function(start_name);
     const auto end_func = get_function(end_name);
@@ -269,10 +227,6 @@ std::vector<Application::Function*> Application::generate_chain(std::string_view
 
     const auto start_index = start_func->priority;
     const auto end_index = end_func->priority;
-
-    /*if (start_index == nullptr || end_index == nullptr) {
-        return chain;
-    }*/
 
     for (auto i = start_index; i <= end_index; ++i) {
         const auto function = get_function(i);

@@ -62,10 +62,6 @@ namespace utility::re_string {
 
             raw_name = name_ptr;
         } else {
-            if (length <= 0) {
-                return L"";
-            }
-
             raw_name = (wchar_t*)&str;
         }
 

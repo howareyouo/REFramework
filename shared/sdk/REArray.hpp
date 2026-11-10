@@ -6,7 +6,6 @@ namespace utility::re_array {
 
     ::sdk::RETypeDefinition* get_contained_type(::REArrayBase* container);
     uint32_t get_element_size(::REArrayBase* container);
-    bool has_inline_elements(::REArrayBase* container);
 
     template<typename T> static T* get_inline_element(::REArrayBase* container, int idx);
     template<typename T> static T* get_ptr_element(::REArrayBase* container, int idx);

@@ -58,10 +58,6 @@ namespace sdk {
     uint8_t* VM::get_static_tbl_for_type(uint32_t type_index) {
         auto& tbls = get_static_tbl();
 
-        /*if (type_index >= tbls.size) {
-            return nullptr;
-        }*/
-
         return tbls.elements[type_index];
     }
 
@@ -359,16 +355,6 @@ namespace sdk {
                             if (utility::get_module_within(functions[i]).value_or(nullptr) != mod) {
                                 return utility::ExhaustionResult::CONTINUE;
                             }
-
-                            /*const auto ptr_fn_start = utility::find_function_start(functions[i]);
-
-                            if (!ptr_fn_start) {
-                                return utility::ExhaustionResult::CONTINUE;
-                            }
-
-                            if (*ptr_fn_start != functions[i]) {
-                                break;
-                            }*/
                         }
 
                         s_invoke_tbl = (sdk::InvokeMethod*)functions;
@@ -743,53 +729,6 @@ namespace sdk {
         const auto create_instance_method = sdk::find_method_definition("System.Array", "CreateInstance");
 
         if (create_instance_method == nullptr) {
-            // This can also be found as the first function call within System.RuntimeType.CreateInstanceForAnotherGenericParameter
-            /*using vm_create_managed_array = sdk::SystemArray* (*)(sdk::VMContext*, sdk::RETypeDefinition*, uint64_t length, uint32_t rank, bool global);
-            static auto alternative = []() -> vm_create_managed_array {
-                spdlog::info("[VM::create_managed_array] Searching for alternative method...");
-
-                const auto game = utility::get_executable();
-                // Initial search for and eax, 7FFFFh
-                auto start_pat = utility::find_landmark_sequence(game, "25 FF FF 07 00", 
-                {
-                    "? 00 00 00 1C", // and reg, 1C000000h
-                    "? ? 00 00 00 14", // cmp reg, 14000000h
-                    "49 ? ? 00 02 00 00" // cmp reg, 200h
-                }, false);
-
-                if (!start_pat) {
-                    start_pat = utility::find_landmark_sequence(game, "25 FF FF 07 00", 
-                    {
-                        "? 00 00 00 1C",
-                        "? 00 00 00 14", // Smaller cmp variant
-                        "49 ? ? 00 02 00 00"
-                    }, false);
-                }
-
-                if (!start_pat) {
-                    spdlog::error("[VM::create_managed_array] Unable to find start pattern.");
-                    return nullptr;
-                }
-
-                const auto start = utility::find_function_start_with_call(start_pat->addr);
-
-                if (!start) {
-                    spdlog::error("[VM::create_managed_array] Unable to find start.");
-                    return nullptr;
-                }
-
-                spdlog::info("[VM::create_managed_array] Found vm_create_managed_array at {:x}", *start);
-
-                return (vm_create_managed_array)*start;
-            }();
-
-            static auto runtime_type_t = sdk::find_type_definition("System.RuntimeType");
-            static auto get_TypeHandle = runtime_type_t->get_method("get_TypeHandle");
-            //auto type_handle = get_TypeHandle->call<::REManagedObject*>(sdk::get_thread_context(), runtime_type);
-            auto type_handle = (sdk::RETypeDefinition*)get_TypeHandle->invoke(runtime_type).ptr;
-
-            return alternative(sdk::get_thread_context(), type_handle, length, 1, false);*/
-
             using vm_create_managed_array_no_rank = sdk::SystemArray* (*)(sdk::VMContext*, sdk::RETypeDefinition*, uint64_t length, bool global);
             static auto alternative = []() -> vm_create_managed_array_no_rank {
                 spdlog::info("[VM::create_managed_array] Searching for alternative method...");

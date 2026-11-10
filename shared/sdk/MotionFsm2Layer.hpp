@@ -18,8 +18,6 @@ namespace sdk {
 class MotionFsm2Layer;
 
 namespace behaviortree {
-bool is_delayed();
-
 class TreeNodeData;
 class TreeNode;
 class TreeObject;
