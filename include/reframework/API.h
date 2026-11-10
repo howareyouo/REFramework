@@ -129,16 +129,6 @@ DECLARE_REFRAMEWORK_HANDLE(REFrameworkModuleHandle);
 #define REFRAMEWORK_VM_OBJ_TYPE_DELEGATE 4
 #define REFRAMEWORK_VM_OBJ_TYPE_VALTYPE 5
 
-/*
-struct StackFrame {
-    char pad_0000[8+8]; 0x0000
-    const sdk::REMethodDefinition* method;
-    char pad_0010[24]; 0x0018
-    void* in_data; 0x0030 can point to data
-    void* out_data; 0x0038 can be whatever, can be a dword, can point to data
-    void* object_ptr; 0x0040 aka "this" pointer
-};*/
-
 typedef unsigned int REFrameworkVMObjType;
 typedef void (*REFrameworkInvokeMethod)(void* stack_frame, void* context);
 typedef void* (*REFrameworkReflectionPropertyMethod)(REFrameworkReflectionPropertyHandle prop, REFrameworkManagedObjectHandle thisptr, void* out_data);
@@ -194,25 +184,6 @@ typedef struct {
     REFrameworkTypeInfoHandle (*get_type_info)(REFrameworkTypeDefinitionHandle);
     REFrameworkManagedObjectHandle (*get_runtime_type)(REFrameworkTypeDefinitionHandle);
 } REFrameworkTDBTypeDefinition;
-
-/*
-#pragma pack(push, 1)
-struct InvokeRet {
-    union {
-        std::array<uint8_t, 128> bytes{};
-        uint8_t byte;
-        uint16_t word;
-        uint32_t dword;
-        float f;
-        uint64_t qword;
-        double d;
-        void* ptr;
-    };
-
-    bool exception_thrown{false};
-};
-#pragma pack(pop)
-*/
 
 typedef struct {
     const char* name;

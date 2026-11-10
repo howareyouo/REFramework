@@ -170,41 +170,27 @@ public:
 
     std::vector<REFrameworkManagedSingleton> get_managed_singletons() const {
         static const auto fn = sdk()->functions->get_managed_singletons;
-
-        std::vector<REFrameworkManagedSingleton> out{};
-        out.resize(512);
-
-        uint32_t count{};
-
-        auto result = fn(&out[0], out.size() * sizeof(REFrameworkManagedSingleton), &count);
-
-#ifdef REFRAMEWORK_API_EXCEPTIONS
-        if (result != REFRAMEWORK_ERROR_NONE) {
-            throw std::runtime_error("get_managed_singletons failed");
-        }
-#else
-        if (result != REFRAMEWORK_ERROR_NONE) {
-            return {};
-        }
-#endif
-
-        out.resize(count);
-        return out;
+        return get_singletons<REFrameworkManagedSingleton>(fn, "get_managed_singletons failed");
     }
 
     std::vector<REFrameworkNativeSingleton> get_native_singletons() const {
         static const auto fn = sdk()->functions->get_native_singletons;
+        return get_singletons<REFrameworkNativeSingleton>(fn, "get_native_singletons failed");
+    }
 
-        std::vector<REFrameworkNativeSingleton> out{};
+private:
+    template <typename T, typename Fn>
+    std::vector<T> get_singletons(Fn fn, const char* error_message) const {
+        std::vector<T> out{};
         out.resize(512);
 
         uint32_t count{};
 
-        auto result = fn(&out[0], out.size() * sizeof(REFrameworkNativeSingleton), &count);
+        auto result = fn(&out[0], out.size() * sizeof(T), &count);
 
 #ifdef REFRAMEWORK_API_EXCEPTIONS
         if (result != REFRAMEWORK_ERROR_NONE) {
-            throw std::runtime_error("get_native_singletons failed");
+            throw std::runtime_error(error_message);
         }
 #else
         if (result != REFRAMEWORK_ERROR_NONE) {
@@ -620,22 +606,11 @@ public:
         }
 
         reframework::InvokeRet invoke(API::ManagedObject* obj, const std::vector<void*>& args) {
-            static const auto fn = API::s_instance->sdk()->method->invoke;
-            reframework::InvokeRet out{};
-            REFrameworkResult result;
-            if (args.size() == 0) {
-                result = fn(*this, obj, nullptr, 0, &out, sizeof(out));
-            } else {
-                result = fn(*this, obj, (void**)&args[0], args.size() * sizeof(void*), &out, sizeof(out));
+            if (args.empty()) {
+                return invoke(obj, std::span<void*>{});
             }
 
-#ifdef REFRAMEWORK_API_EXCEPTIONS
-            if (result != REFRAMEWORK_ERROR_NONE) {
-                throw std::runtime_error("Method invocation failed");
-            }
-#endif
-
-            return out;
+            return invoke(obj, std::span<void*>{const_cast<void**>(args.data()), args.size()});
         }
 
         reframework::InvokeRet invoke(API::ManagedObject* obj, const std::span<void*>& args) {
@@ -672,7 +647,7 @@ public:
 
         const char* get_name() const {
             static const auto fn = API::s_instance->sdk()->method->get_name;
-            return API::s_instance->sdk()->method->get_name(*this);
+            return fn(*this);
         }
 
         API::TypeDefinition* get_declaring_type() const {
@@ -1000,7 +975,7 @@ public:
 
         API::ReflectionProperty* get_reflection_property_descriptor(std::string_view name) {
             static const auto fn = API::s_instance->sdk()->type_info->get_reflection_property_descriptor;
-            return (API::ReflectionProperty*)API::s_instance->sdk()->type_info->get_reflection_property_descriptor(*this, name.data());
+            return (API::ReflectionProperty*)fn(*this, name.data());
         }
 
         API::ReflectionMethod* get_reflection_method_descriptor(std::string_view name) {

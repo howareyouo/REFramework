@@ -1,10 +1,11 @@
 // ScanSelf.hpp - self-contained x64 instruction-length decoder and code walker.
 //
-// Candidate replacement for kananlib's utility/Scan.hpp + bddisasm. It is the
-// decode kernel only: instruction lengths, branch kinds and the RIP-relative
-// displacement - the layer every kananlib scan primitive is built on. The
-// kananlib-facing API surface (utility::scan, find_function_start, ...) is not
-// ported yet; see docs/SELFMADE_SCANNER.md for the migration phases.
+// Shipped decode kernel: bdshim (shared/utility/bdshim) serves the bddisasm
+// API slice that kananlib and src/ link against on top of rfw::scan::decode()
+// here, and the bddisasm target in CMakeLists.txt is built from this file plus
+// the shim instead of fetching bddisasm. Swapping kananlib's own Scan.hpp
+// entry points for the rfw::scan primitives below is a remaining phase; see
+// docs/SELFMADE_SCANNER.md for the migration state.
 //
 // This is NOT a disassembler: it decodes lengths, branch kinds and the
 // RIP-relative displacement, and rejects encodings it does not know. Every

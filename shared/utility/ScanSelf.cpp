@@ -693,6 +693,18 @@ void walk(uintptr_t start, size_t max_insns, const std::function<WalkAction(cons
 
             const bool direct = insn.kind == Kind::Call || insn.kind == Kind::Jmp || insn.kind == Kind::Jcc;
 
+            const auto resolve_rip_slot = [](uintptr_t ip, const Insn& insn) -> uintptr_t {
+                const uintptr_t slot = insn.target;
+                uintptr_t dest = 0;
+                if (slot != 0 && slot != ip && readable(reinterpret_cast<const void*>(slot), sizeof(uintptr_t))) {
+                    dest = *reinterpret_cast<const uintptr_t*>(slot);
+                }
+                if (dest != 0 && dest != ip && readable(reinterpret_cast<const void*>(dest), sizeof(uintptr_t))) {
+                    return dest;
+                }
+                return 0;
+            };
+
             if (direct) {
                 if (insn.kind == Kind::Jmp) {
                     // Unconditional direct jump: fall through into the target
@@ -712,12 +724,8 @@ void walk(uintptr_t start, size_t max_insns, const std::function<WalkAction(cons
             } else if (insn.rip_operand && bytes[0] == 0xff && bytes[1] == 0x25) {
                 // jmp qword ptr [rip+x] - usually an import thunk: read the IAT
                 // slot and continue at its destination.
-                const uintptr_t slot = insn.target;
-                uintptr_t dest = 0;
-                if (slot != 0 && slot != ip && readable(reinterpret_cast<const void*>(slot), sizeof(uintptr_t))) {
-                    dest = *reinterpret_cast<const uintptr_t*>(slot);
-                }
-                if (dest != 0 && dest != ip && readable(reinterpret_cast<const void*>(dest), sizeof(uintptr_t))) {
+                const uintptr_t dest = resolve_rip_slot(ip, insn);
+                if (dest != 0) {
                     ip = dest;
                     branch_start = dest;
                     followed = true;
@@ -726,13 +734,8 @@ void walk(uintptr_t start, size_t max_insns, const std::function<WalkAction(cons
                 }
             } else if (insn.rip_operand && bytes[0] == 0xff && bytes[1] == 0x15) {
                 // call qword ptr [rip+x]
-                const uintptr_t slot = insn.target;
-                uintptr_t dest = 0;
-                if (slot != 0 && slot != ip && readable(reinterpret_cast<const void*>(slot), sizeof(uintptr_t))) {
-                    dest = *reinterpret_cast<const uintptr_t*>(slot);
-                }
-                if (dest != 0 && dest != ip && readable(reinterpret_cast<const void*>(dest), sizeof(uintptr_t)) &&
-                    action != WalkAction::StepOver) {
+                const uintptr_t dest = resolve_rip_slot(ip, insn);
+                if (dest != 0 && action != WalkAction::StepOver) {
                     queue.push_back(dest);
                 }
             } else if (insn.kind == Kind::IndJmp) {

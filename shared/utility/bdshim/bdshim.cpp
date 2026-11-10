@@ -420,18 +420,7 @@ extern "C" NDSTATUS NdDecodeEx(
                 ins_class = ND_INS_INT;
                 category = ND_CAT_INTERRUPT;
                 break;
-            case 0xfe:
-                if (group == 0) {
-                    mnemonic = "INC";
-                    ins_class = ND_INS_INC;
-                    category = ND_CAT_ARITH;
-                } else if (group == 1) {
-                    mnemonic = "DEC";
-                    ins_class = ND_INS_DEC;
-                    category = ND_CAT_ARITH;
-                }
-                break;
-            case 0xff:
+            case 0xfe: case 0xff:
                 if (group == 0) {
                     mnemonic = "INC";
                     ins_class = ND_INS_INC;
