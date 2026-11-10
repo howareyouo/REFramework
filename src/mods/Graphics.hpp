@@ -59,8 +59,6 @@ private:
     static void* rt_draw_impl_hook(void* rt_impl, void* draw_context, void* r8, void* r9, void* unk);
     static sdk::renderer::PipelineState* find_pipeline_state_hook(void* shader_resource, uint32_t murmur_hash, void* unk);
 
-    static std::string make_replacement_shader();
-
     enum ShaderDispatchMode {
         Dispatch,
         Dispatch32BitConstant,
@@ -103,7 +101,7 @@ private:
     bool is_intercepted(uint32_t hash);
     InterceptedShader* get_intercepted(uint32_t hash);
 
-    bool m_disable_path_space{false};
+    bool inventory_recently_open() const;
 
     std::unique_ptr<FunctionHook> m_rt_draw_hook{};
     std::unique_ptr<FunctionHook> m_rt_draw_impl_hook{};
@@ -154,17 +152,6 @@ private:
 
     const ModToggle::Ptr m_shader_playground { make_option<ModToggle>("ShaderPlayground", false) };
     const ModToggle::Ptr m_ray_tracing_tweaks { make_option<ModToggle>("RayTracingTweaks", false) };
-
-    /*enum class RayTraceType : uint8_t {
-        Disabled = 0,
-        AmbientOcclusion = 1,
-        Hybrid = 2,
-        Pure = 3,
-        PathSpaceFilter = 4,
-        ScreenSpacePhotonMapping = 5,
-        Debug = 6,
-        ASVGF = 7,
-    };*/
 
     // We will replace this dynamically with reflected data upon loading
     static inline std::vector<std::string> s_ray_trace_type {

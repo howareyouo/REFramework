@@ -145,12 +145,6 @@ std::shared_ptr<Graphics>& Graphics::get() {
     return mod;
 }
 
-std::string Graphics::make_replacement_shader() {
-    std::string result{};
-    result.resize(1024);
-    return result;
-}
-
 bool Graphics::is_intercepted(uint32_t hash) {
     for (const auto& shader : m_intercepted_shaders) {
         if (shader.hash == hash) {
@@ -455,7 +449,6 @@ void Graphics::on_draw_ui() {
         m_shader_playground->draw("Enable Shader Playground");
 
         if (m_shader_playground->value()) {  
-            //for (size_t i = 0; i < m_replacement_shaders.size(); ++i) {
             uint32_t j = 0;
             for (auto& intercepted : m_intercepted_shaders) {
                 uint32_t i = 0;
@@ -611,15 +604,14 @@ void Graphics::fix_ui_element(REComponent* gui_element) {
         return;
     }
 
-    const auto is_screen_view = get_view_type != nullptr && 
-                                get_view_type->call<int32_t>(sdk::get_thread_context(), view) == (int32_t)via::gui::ViewType::Screen;
+    const auto is_screen_view = get_view_type->call<int32_t>(sdk::get_thread_context(), view) == (int32_t)via::gui::ViewType::Screen;
 
     if (is_screen_view) {
         set_res_adjust_scale->call<void>(sdk::get_thread_context(), view, (int32_t)via::gui::ResolutionAdjustScale::FitSmallRatioAxis);
         set_res_adjust_anchor->call<void>(sdk::get_thread_context(), view, (int32_t)via::gui::ResolutionAdjustAnchor::CenterCenter);
         set_resolution_adjust->call<void>(sdk::get_thread_context(), view, true); // Causes the options to be applied/used
 
-        static const auto get_child = refl.view_get_child;
+        const auto get_child = refl.view_get_child;
 
         if (get_child != nullptr && m_ultrawide_constrain_child_ui->value()) {
             const auto child = get_child->call<::REManagedObject*>(sdk::get_thread_context(), view);
@@ -776,6 +768,10 @@ void Graphics::on_scene_layer_update(sdk::renderer::layer::Scene* layer, void* r
     do_scope_tweaks(layer);
 }
 
+bool Graphics::inventory_recently_open() const {
+    return std::chrono::steady_clock::now() - m_re4.last_inventory_open < std::chrono::milliseconds(100);
+}
+
 void Graphics::do_ultrawide_fix() {
     if (!m_ultrawide_fix->value()) {
         return;
@@ -786,8 +782,7 @@ void Graphics::do_ultrawide_fix() {
     {
         std::shared_lock _{m_re4.time_mtx};
 
-        const auto now = std::chrono::steady_clock::now();
-        if (now - m_re4.last_inventory_open < std::chrono::milliseconds(100)) {
+        if (inventory_recently_open()) {
             return;
         }
     }
@@ -810,8 +805,12 @@ void Graphics::do_ultrawide_fix() {
     if (set_display_type_method != nullptr) {
         auto display_type = via::DisplayType::Fit;
 
-        if (m_backbuffer_width.load(std::memory_order_relaxed) != 0 && m_backbuffer_height.load(std::memory_order_relaxed) != 0) {
-            const double ratio = static_cast<double>(m_backbuffer_width.load(std::memory_order_relaxed)) / static_cast<double>(m_backbuffer_height.load(std::memory_order_relaxed));
+        const auto bb_w = m_backbuffer_width.load(std::memory_order_relaxed);
+        const auto bb_h = m_backbuffer_height.load(std::memory_order_relaxed);
+
+        if (bb_w != 0 && bb_h != 0) {
+            const double ratio = static_cast<double>(bb_w) / static_cast<double>(bb_h);
+
             constexpr double epsilon = 0.01;
             constexpr double _4_3   = 4.0 / 3.0;
             constexpr double _16_9  = 16.0 / 9.0;
@@ -844,8 +843,7 @@ void Graphics::do_ultrawide_fov_restore(bool force) {
         return;
     }
 
-    const auto now = std::chrono::steady_clock::now();
-    if (now - m_re4.last_inventory_open < std::chrono::milliseconds(100)) {
+    if (inventory_recently_open()) {
         return;
     }
 
@@ -889,8 +887,7 @@ void Graphics::set_ultrawide_fov(bool use_vertical_fov) {
     bool allow_changing_fov = true;
     // Never scale the FOV if the inventory just opened, otherwise it could make the inventory appear much smaller than it should.
     // Unfortunately it doesn't scale right at 21:9 even in the unpatched game.
-    const auto now = std::chrono::steady_clock::now();
-    if (now - m_re4.last_inventory_open < std::chrono::milliseconds(100)) {
+    if (inventory_recently_open()) {
         allow_changing_fov = false;
         use_vertical_fov = false;
         // Clear the cached FOV values as they wouldn't be up to date anymore
@@ -1004,7 +1001,6 @@ void Graphics::setup_shader_interception_hook() {
 
     spdlog::info("[Graphics] Setting up shader interception hook");
 
-    // TESTING!!!
     if (sdk::renderer::ShaderResource::get_find_fn() != nullptr) {
         m_find_pipeline_state_hook = std::make_unique<FunctionHook>((uintptr_t)sdk::renderer::ShaderResource::get_find_fn(), (uintptr_t)find_pipeline_state_hook);
         if (!m_find_pipeline_state_hook->create()) {
@@ -1099,11 +1095,6 @@ void Graphics::setup_path_trace_hook() {
     const auto max_offset = std::max_element(offset_reference_counts.begin(), offset_reference_counts.end(), [](const auto& a, const auto& b) {
         return a.second < b.second;
     });
-
-    if (max_offset == offset_reference_counts.end()) {
-        spdlog::error("[Graphics] Failed to find most referenced RT type offset");
-        return;
-    }
 
     m_rt_type_offset = max_offset->first;
     spdlog::info("[Graphics] Found RT type offset @ {:x}", *m_rt_type_offset);
@@ -1317,9 +1308,7 @@ void* Graphics::rt_draw_hook(REComponent* rt, void* draw_context, void* r8, void
         }
     }
 
-    const auto result = og(rt, draw_context, r8, r9);
-
-    return result;
+    return og(rt, draw_context, r8, r9);
 }
 
 void* Graphics::rt_draw_impl_hook(void* rt_impl, void* draw_context, void* r8, void* r9, void* unk) {
@@ -1350,9 +1339,6 @@ void* Graphics::rt_draw_impl_hook(void* rt_impl, void* draw_context, void* r8, v
     }
 
     void* result = og(rt_impl, draw_context, r8, r9, unk);
-    /*if (!(ray_tracing_mode == 2 && graphics->m_pt_pipeline_resource != nullptr)) {
-        result = og(rt_impl, draw_context, r8, r9, unk);
-    }*/
 
     if (graphics->m_ray_tracing_tweaks->value() && graphics->m_ray_trace_clone_type_post->value() > 0) {
         ray_tracing_mode = graphics->m_ray_trace_clone_type_post->value() - 1;
@@ -1366,70 +1352,24 @@ void* Graphics::rt_draw_impl_hook(void* rt_impl, void* draw_context, void* r8, v
 }
 
 sdk::renderer::PipelineState* Graphics::find_pipeline_state_hook(void* shader_resource, uint32_t murmur_hash, void* unk) {
-    static const std::unordered_set<uint32_t> hashes {
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce0Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce0Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce0Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce1Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce1Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce1Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce2Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce2Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce2Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce3Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce3Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce3Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce7Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce7Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureNoLightSelectionBounce7Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce0Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce0Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce0Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce1Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce1Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce1Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce2Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce2Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce2Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce3Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce3Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce3Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce7Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce7Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("PureLightSelectionBounce7Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce0Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce0Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce0Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce1Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce1Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce1Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce2Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce2Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce2Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce3Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce3Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce3Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce7Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce7Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridNoLightSelectionBounce7Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce0Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce0Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce0Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce1Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce1Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce1Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce2Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce2Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce2Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce3Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce3Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce3Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce7Spp1"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce7Spp2"),
-        sdk::murmur_hash::calc32_as_utf8("HybridLightSelectionBounce7Spp4"),
-        sdk::murmur_hash::calc32_as_utf8("DXRDebug"),
-        sdk::murmur_hash::calc32_as_utf8("DXRAO"),
-    };
+    static const std::unordered_set<uint32_t> hashes = [] {
+        std::unordered_set<uint32_t> hashes{};
+
+        for (const char* prefix : {"Pure", "Hybrid"}) {
+            for (const char* light_selection : {"NoLightSelection", "LightSelection"}) {
+                for (const char* bounce : {"0", "1", "2", "3", "7"}) {
+                    for (const char* spp : {"1", "2", "4"}) {
+                        hashes.insert(sdk::murmur_hash::calc32_as_utf8(std::string{prefix} + light_selection + "Bounce" + bounce + "Spp" + spp));
+                    }
+                }
+            }
+        }
+
+        hashes.insert(sdk::murmur_hash::calc32_as_utf8("DXRDebug"));
+        hashes.insert(sdk::murmur_hash::calc32_as_utf8("DXRAO"));
+
+        return hashes;
+    }();
 
     auto& graphics = Graphics::get();
 

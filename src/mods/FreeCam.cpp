@@ -8,8 +8,6 @@
 
 using namespace utility;
 
-#define MOVEMENT_DISABLE_FEATURE
-
 void FreeCam::on_config_load(const Config& cfg) {
     config_load_options(cfg, m_options);
 }
@@ -70,13 +68,11 @@ enum class MoveDirection : uint8_t {
 
 void FreeCam::on_update_transform(RETransform* transform) {
     if (!m_enabled->value() && !m_first_time) {
-        m_was_disabled = false;
         return;
     }
 
     if (!update_pointers()) {
         spdlog::error("FreeCam: Failed to update pointers");
-        m_was_disabled = false;
         return;
     }
 

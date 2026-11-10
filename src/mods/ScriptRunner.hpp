@@ -281,8 +281,6 @@ public:
 
 private:
     lua_stack::reference get_hook_storage_internal(size_t thread_hash) {
-        //return m_current_hook_storage;
-
         auto it = m_hook_storage.find(thread_hash);
         if (it != m_hook_storage.end()) {
             if (!it->second.empty()) {
@@ -365,13 +363,6 @@ public:
     void on_config_load(const utility::Config& cfg) override;
     void on_config_save(utility::Config& cfg) override;
 
-    void hook_battle_rule();
-    void set_last_battle_type(uint8_t t) {
-        m_last_battle_type = t;
-    }
-    auto get_last_battle_type() {
-        return m_last_battle_type;
-    }
     void set_last_online_match_state() {
         m_last_online_match_state = true;
     }
@@ -464,7 +455,6 @@ private:
     bool m_has_any_transform_updates{false};
     bool m_needs_first_reset{true};
     bool m_last_online_match_state{false};
-    std::optional<uint8_t> m_last_battle_type{};
 
     // Lua RPC (docs/LUA_RPC.md): lets an external tool run Lua in this process.
     // On by default because it always listens on 127.0.0.1, never on an outside

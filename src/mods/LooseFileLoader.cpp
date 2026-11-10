@@ -40,10 +40,6 @@ void LooseFileLoader::on_frame() {
 
 void LooseFileLoader::on_config_load(const utility::Config& cfg) {
     config_load_options(cfg, m_options);
-
-    /*if (!m_attempted_hook && m_enabled->value()) {
-        hook();
-    }*/
 }
 
 void LooseFileLoader::on_config_save(utility::Config& cfg) {
@@ -314,21 +310,23 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
 
     ++m_files_encountered;
 
+    auto track_recent_file = [&](std::unordered_set<std::wstring>& all, std::deque<std::wstring>& recent) {
+        all.insert(path);
+
+        recent.push_front(path);
+
+        if (recent.size() > 100) {
+            recent.pop_back();
+        }
+    };
+
     if (m_show_recent_files) {
         std::unique_lock _{m_mutex};
 
-        m_all_accessed_files.insert(path);
-
-        m_recent_accessed_files.push_front(path);
-
-        if (m_recent_accessed_files.size() > 100) {
-            m_recent_accessed_files.pop_back();
-        }
+        track_recent_file(m_all_accessed_files, m_recent_accessed_files);
     }
 
     const auto enabled = m_enabled->value();
-
-    //spdlog::info("[LooseFileLoader] path_to_hash_hook called with path: {}", utility::narrow(path));
 
     if (enabled) {
         bool exists_in_cache{false};
@@ -396,12 +394,7 @@ bool LooseFileLoader::handle_path(const wchar_t* path, size_t hash) {
         if (m_show_recent_files && exists_on_disk) {
             std::unique_lock _{m_mutex};
 
-            m_all_loose_files.insert(path);
-            m_recent_loose_files.push_front(path);
-
-            if (m_recent_loose_files.size() > 100) {
-                m_recent_loose_files.pop_back();
-            }
+            track_recent_file(m_all_loose_files, m_recent_loose_files);
         }
 
         if (exists_on_disk) {

@@ -25,6 +25,8 @@ lua_State* reframework_create_script_state();
 void reframework_destroy_script_state(lua_State*);
 namespace reframework {
 extern REFrameworkRendererData g_renderer_data;
+
+void update_renderer_data();
 }
 
 class PluginLoader : public Mod {

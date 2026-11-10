@@ -252,15 +252,7 @@ void APIProxy::on_lua_state_destroyed(lua_State* state) {
 }
 
 void APIProxy::on_present() {
-    reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
-
-    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
-        auto& d3d12 = g_framework->get_d3d12_hook();
-
-        reframework::g_renderer_data.device = d3d12->get_device();
-        reframework::g_renderer_data.swapchain = d3d12->get_swap_chain();
-        reframework::g_renderer_data.command_queue = d3d12->get_command_queue();
-    }
+    reframework::update_renderer_data();
 
     invoke_cbs(m_api_cb_mtx, m_on_present_cbs, "on_present");
 }

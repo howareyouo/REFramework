@@ -98,8 +98,4 @@ private:
     static void* rtl_exit_user_process_hook(uint32_t code);
     static inline std::unique_ptr<FunctionHook> s_rtl_exit_user_process_hook{};
     static void pak_store_flags_hook(safetyhook::Context& context);
-
-    void disable_update_timers(std::string_view name) const;
-
-    std::vector<std::unique_ptr<Patch>> m_patches{};
 };

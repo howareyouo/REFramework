@@ -51,6 +51,18 @@ void log_info(const char* format, ...) {
 bool is_drawing_ui() {
     return g_framework->is_drawing_ui();
 }
+
+void update_renderer_data() {
+    g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
+
+    if (g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
+        auto& d3d12 = g_framework->get_d3d12_hook();
+
+        g_renderer_data.device = d3d12->get_device();
+        g_renderer_data.swapchain = d3d12->get_swap_chain();
+        g_renderer_data.command_queue = d3d12->get_command_queue();
+    }
+}
 }
 
 REFrameworkPluginFunctions g_plugin_functions {
@@ -690,15 +702,7 @@ void PluginLoader::on_frame() {
 }
 
 void PluginLoader::init_d3d_pointers() {
-    reframework::g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
-    
-    if (reframework::g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
-        auto& d3d12 = g_framework->get_d3d12_hook();
-
-        reframework::g_renderer_data.device = d3d12->get_device();
-        reframework::g_renderer_data.swapchain = d3d12->get_swap_chain();
-        reframework::g_renderer_data.command_queue = d3d12->get_command_queue();
-    }
+    reframework::update_renderer_data();
 }
 
 std::optional<std::string> PluginLoader::initialize_plugins() {
@@ -714,6 +718,12 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
     verify_sdk_pointers();
 
     g_plugin_initialize_param.reframework_module = g_framework->get_reframework_module();
+
+    auto reject = [&](std::map<std::string, HMODULE>::iterator it, const char* error) {
+        m_plugin_load_errors.emplace(it->first, error);
+        FreeLibrary(it->second);
+        return m_plugins.erase(it);
+    };
 
     for (auto it = m_plugins.begin(); it != m_plugins.end();) {
         auto name = it->first;
@@ -733,9 +743,7 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
             required_version_fn(&required_version);
         } catch(...) {
             spdlog::error("[PluginLoader] {} has an exception in reframework_plugin_required_version, skipping...", name);
-            m_plugin_load_errors.emplace(name, "Exception occurred in reframework_plugin_required_version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = reject(it, "Exception occurred in reframework_plugin_required_version");
             continue;
         }
 
@@ -744,17 +752,13 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
         if (required_version.major != g_plugin_version.major) {
             spdlog::error("[PluginLoader] Plugin {} requires a different major version", name);
-            m_plugin_load_errors.emplace(name, "Requires a different major version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = reject(it, "Requires a different major version");
             continue;
         }
 
         if (required_version.minor > g_plugin_version.minor) {
             spdlog::error("[PluginLoader] Plugin {} requires a newer minor version", name);
-            m_plugin_load_errors.emplace(name, "Requires a newer minor version");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = reject(it, "Requires a newer minor version");
             continue;
         }
 
@@ -765,9 +769,7 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
 
         if (required_version.game_name != nullptr && std::string_view{required_version.game_name} != g_plugin_version.game_name) {
             spdlog::error("[PluginLoader] Plugin {} is for a different game {}", name, required_version.game_name);
-            m_plugin_load_errors.emplace(name, "Is for a different game");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = reject(it, "Is for a different game");
             continue;
         }
 
@@ -789,16 +791,12 @@ std::optional<std::string> PluginLoader::initialize_plugins() {
         try {
             if (!init_fn(&g_plugin_initialize_param)) {
                 spdlog::error("[PluginLoader] Failed to initialize {}", name);
-                m_plugin_load_errors.emplace(name, "Failed to initialize");
-                FreeLibrary(mod);
-                it = m_plugins.erase(it);
+                it = reject(it, "Failed to initialize");
                 continue;
             }
         } catch(...) {
             spdlog::error("[PluginLoader] {} has an exception in reframework_plugin_initialize, skipping...", name);
-            m_plugin_load_errors.emplace(name, "Exception occurred in reframework_plugin_initialize");
-            FreeLibrary(mod);
-            it = m_plugins.erase(it);
+            it = reject(it, "Exception occurred in reframework_plugin_initialize");
             continue;
         }
 
@@ -885,32 +883,38 @@ bool reframework_on_present(REFOnPresentCb cb) {
     return APIProxy::get()->add_on_present(cb);
 }
 
-bool reframework_on_pre_application_entry(const char* name, REFOnPreApplicationEntryCb cb) {
+static std::optional<std::string> validate_entry_callback(const char* name, void* cb) {
     if (cb == nullptr || name == nullptr) {
-        return false;
+        return std::nullopt;
     }
 
     auto cppname = std::string{name};
 
     if (cppname.empty()) {
+        return std::nullopt;
+    }
+
+    return cppname;
+}
+
+bool reframework_on_pre_application_entry(const char* name, REFOnPreApplicationEntryCb cb) {
+    auto entry_name = validate_entry_callback(name, cb);
+
+    if (!entry_name.has_value()) {
         return false;
     }
 
-    return APIProxy::get()->add_on_pre_application_entry(cppname, cb);
+    return APIProxy::get()->add_on_pre_application_entry(*entry_name, cb);
 }
 
 bool reframework_on_post_application_entry(const char* name, REFOnPostApplicationEntryCb cb) {
-    if (cb == nullptr || name == nullptr) {
+    auto entry_name = validate_entry_callback(name, cb);
+
+    if (!entry_name.has_value()) {
         return false;
     }
 
-    auto cppname = std::string{name};
-
-    if (cppname.empty()) {
-        return false;
-    }
-
-    return APIProxy::get()->add_on_post_application_entry(cppname, cb);
+    return APIProxy::get()->add_on_post_application_entry(*entry_name, cb);
 }
 
 void reframework_lock_lua() {

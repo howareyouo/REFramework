@@ -223,16 +223,6 @@ std::optional<std::string> Hooks::hook_update_transform() {
     return std::nullopt;
 }
 
-std::optional<std::string> Hooks::hook_update_camera_controller() {
-
-    return std::nullopt;
-}
-
-std::optional<std::string> Hooks::hook_update_camera_controller2() {
-
-    return std::nullopt;
-}
-
 std::optional<std::string> Hooks::hook_gui_draw() {
     spdlog::info("[Hooks] Attempting to hook GUI functions...");
 
@@ -291,39 +281,6 @@ std::optional<std::string> Hooks::hook_gui_draw() {
     if (!m_gui_draw_hook->create()) {
         return "Failed to hook GUI::draw";
     }
-
-    return std::nullopt;
-}
-
-std::optional<std::string> Hooks::hook_application_entry(std::string name, std::unique_ptr<FunctionHook>& hook, void (*hook_fn)(void*)) {
-    auto application = sdk::Application::get();
-
-    if (application == nullptr) {
-        return "Failed to get via.Application";
-    }
-
-    auto entry = application->get_function(name);
-
-    if (entry == nullptr) {
-        return "Unable to find via::Application::" + name;
-    }
-
-    auto func = entry->func;
-
-    if (func == nullptr) {
-        return "via::Application::" + name + " is null";
-    }
-
-    spdlog::info("{} entry: {:x}", name, (uintptr_t)entry);
-    spdlog::info("{}: {:x}", name, (uintptr_t)func - g_framework->get_module());
-
-    hook = std::make_unique<FunctionHook>(func, hook_fn);
-
-    if (!hook->create()) {
-        return "Failed to hook via::Application::" + name;
-    }
-    
-    spdlog::info("Hooked via::Application::{}", name);
 
     return std::nullopt;
 }
@@ -421,11 +378,6 @@ std::optional<std::string> Hooks::hook_update_before_lock_scene() {
     if (!m_update_before_lock_scene_hook->create()) {
         return "Failed to hook via::render::EntityRenderer::updateBeforeLockScene";
     }
-
-    return std::nullopt;
-}
-
-std::optional<std::string> Hooks::hook_lightshaft_draw() {
 
     return std::nullopt;
 }
@@ -611,36 +563,6 @@ void* Hooks::update_transform_hook(RETransform* t, uint8_t a2, uint32_t a3) {
     return g_hook->update_transform_hook_internal(t, a2, a3);
 }
 
-void* Hooks::update_camera_controller_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
-    return dispatch_mods_value<void*>(
-        dispatch_to_pre_update_camera_controller(),
-        dispatch_to_update_camera_controller(),
-        nullptr,
-        [this, a1, camera_controller] { return m_update_camera_controller_hook->get_original<decltype(update_camera_controller_hook)>()(a1, camera_controller); },
-        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller(camera_controller); return true; },
-        [camera_controller](Mod& mod) { mod.on_update_camera_controller(camera_controller); }
-    );
-}
-
-void* Hooks::update_camera_controller_hook(void* a1, RopewayPlayerCameraController* camera_controller) {
-    return g_hook->update_camera_controller_hook_internal(a1, camera_controller);
-}
-
-void* Hooks::update_camera_controller2_hook_internal(void* a1, RopewayPlayerCameraController* camera_controller) {
-    return dispatch_mods_value<void*>(
-        dispatch_to_pre_update_camera_controller2(),
-        dispatch_to_update_camera_controller2(),
-        nullptr,
-        [this, a1, camera_controller] { return m_update_camera_controller2_hook->get_original<decltype(update_camera_controller2_hook)>()(a1, camera_controller); },
-        [camera_controller](Mod& mod) { mod.on_pre_update_camera_controller2(camera_controller); return true; },
-        [camera_controller](Mod& mod) { mod.on_update_camera_controller2(camera_controller); }
-    );
-}
-
-void* Hooks::update_camera_controller2_hook(void* a1, RopewayPlayerCameraController* camera_controller) {
-    return g_hook->update_camera_controller2_hook_internal(a1, camera_controller);
-}
-
 void* Hooks::gui_draw_hook_internal(REComponent* gui_element, void* primitive_context) {
     return dispatch_mods_value<void*>(
         dispatch_to_pre_gui_draw_element(),
@@ -668,20 +590,6 @@ void Hooks::update_before_lock_scene_hook_internal(void* ctx) {
 
 void Hooks::update_before_lock_scene_hook(void* ctx) {
     g_hook->update_before_lock_scene_hook_internal(ctx);
-}
-
-void Hooks::lightshaft_draw_hook_internal(void* shaft, void* render_context) {
-    dispatch_mods(
-        dispatch_to_pre_lightshaft_draw(),
-        dispatch_to_lightshaft_draw(),
-        [this, shaft, render_context] { m_lightshaft_draw_hook->get_original<decltype(lightshaft_draw_hook)>()(shaft, render_context); },
-        [shaft, render_context](Mod& mod) { mod.on_pre_lightshaft_draw(shaft, render_context); return true; },
-        [shaft, render_context](Mod& mod) { mod.on_lightshaft_draw(shaft, render_context); }
-    );
-}
-
-void Hooks::lightshaft_draw_hook(void* shaft, void* render_context) {
-    g_hook->lightshaft_draw_hook_internal(shaft, render_context);
 }
 
 // Unlike the other game callbacks, this one fires through a pointer table that
