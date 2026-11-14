@@ -62,6 +62,7 @@ game's filesystem.
 | `07_re_log_thread.lua` | `re`/`log`/`thread` members, `CallbackNextAction`, the `os`/`debug` removals, registration shapes |
 | `08_dispatch.lua` | the dispatch half of `re.on_frame`: probe 07's counter has to have grown |
 | `09_sdk_values.lua` | sdk lookup refusals and their error texts, json round-trip, fs, the scratch types |
+| `10_value_type.lua` | the owned-value layout behind `ValueType(def)`: field reads, independent buffers, and `__gc` across two collections |
 
 Probes 02-04 need the player context, so the game has to be in a loaded save
 for them to do more than report SKIP.

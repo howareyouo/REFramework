@@ -513,7 +513,7 @@ inline void* value_block_target(void* slot) {
 
 // The __gc of a value-form metatable: dereference the block's own slot and run
 // the destructor. This is what sol2's usertype_alloc_destruct did, and what
-// install(owns_gc) parked on the unique metatable.
+// install(owns_gc) parks on the value metatable.
 template <typename T>
 inline int value_gc(lua_State* L) {
     static_assert(std::is_destructible_v<T>, "a value metatable can only carry a destructor for a destructible type");
@@ -521,20 +521,6 @@ inline int value_gc(lua_State* L) {
     void* memory = align_pointer_slot(lua_touserdata(L, 1));
     T* data = *static_cast<T**>(memory);
     data->~T();
-    return 0;
-}
-
-// The __gc for a value sitting in place in its block, which is the shape
-// construct_value makes. The destructor runs on the block itself, with no
-// slot in front of it. An installer that hands the unique metatable to
-// constructor-made values points __gc here; sol2's make_destructor pointed at
-// the slot-deref form instead, which is a mismatch this header keeps
-// separate so the migration can choose (see SOL2_REMOVAL.md).
-template <typename T>
-inline int unique_value_gc(lua_State* L) {
-    static_assert(std::is_destructible_v<T>, "a value metatable can only carry a destructor for a destructible type");
-
-    static_cast<T*>(lua_touserdata(L, 1))->~T();
     return 0;
 }
 
@@ -896,29 +882,6 @@ inline int push_pointer(lua_State* L, T* obj) {
     } else {
         return push_pointer_plain(L, obj);
     }
-}
-
-// Builds a value the state owns the way a constructor does: the value in place
-// in the userdata block, under the owned-value metatable the installer gave a
-// __gc. This is the shape the hand-written constructors already produce; it
-// differs from push_value's block, which is why the two carry different
-// metatable names (see SOL2_REMOVAL.md for the layout note).
-template <typename T, typename... Args>
-inline int construct_value(lua_State* L, Args&&... args) {
-    void* storage = lua_newuserdatauv(L, sizeof(T), 0);
-    new (storage) T(std::forward<Args>(args)...);
-
-    // The installer owns this metatable and the __gc on it; it is only created
-    // here when a constructor ran without one, so the value is never left
-    // metatable-less.
-    if (luaL_getmetatable(L, unique_metatable<T>().c_str()) == LUA_TNIL) {
-        lua_pop(L, 1);
-        luaL_newmetatable(L, unique_metatable<T>().c_str());
-    }
-
-    lua_setmetatable(L, -2);
-
-    return 1;
 }
 
 // A registry reference. The ref is LUA_NOREF when there is nothing behind it

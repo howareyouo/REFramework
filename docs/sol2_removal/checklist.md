@@ -8,4 +8,7 @@
 - [x] `tools/lua_conformance/run.py` 九个探针全部跑完（269 行报告）
 - [x] `diff.py sol2 基线 新报告` 只剩 3 条已记录差异：
       `mat4 index write out of range`、`ValueType construct`、`ValueType get_type_definition`
+- [x] flag 4 修复：构造路径改走 `put`，`install(owns_gc)` 的 `__gc` 挂到 value 元表，
+      `unique_value_gc`/`construct_value`/`constructor_thunk`/`lh::ctor` 已删除；
+      `10_value_type.lua` 覆盖字段读、双缓冲区与两轮 GC
 - [x] `dinput8.dll` 体积低于改动前（4,040,192 → 3,615,744 字节）

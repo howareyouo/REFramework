@@ -25,8 +25,7 @@ The counts are token occurrences (`grep -o`), measured on the tree at commit
 | `lua_stack::push_value<T>(L, v)` | `stack::push<T>` for a registered value | `[T*][T]` block + value metatable |
 | `lua_stack::push_pointer<T>(L, p)` | `stack::push<as_pointer_tag<T>>` | `[T*]` block + pointer metatable |
 | `lua_stack::push_borrowed<T>(L, p)` | `lh::push_borrowed` | same, cached per address in a registry-owned weak table |
-| `lua_stack::construct_value<T>(L, args...)` | the hand-written constructor bodies | `[T in place]` + unique metatable |
-| `lua_stack::value_gc<T>` / `unique_value_gc<T>` | `sol::detail::make_destructor<T>` | `__gc` thunks, see the layout note |
+| `lua_stack::value_gc<T>` | `sol::detail::make_destructor<T>` | `__gc` thunk; dereferences the block's pointer slot |
 | `lua_stack::object` / `reference` | `sol::object` / `sol::reference` | `lua_State*` + registry ref, RAII unref |
 | `lua_stack::make_object<T>(L, v)` | `sol::make_object<T>` | push + ref + pop |
 | `lua_stack::protected_function` | `sol::protected_function` | registry ref, `lua_pcall` under the `"sol.🔔"` handler |
@@ -57,7 +56,7 @@ The counts are token occurrences (`grep -o`), measured on the tree at commit
 | `sol::this_state` / `this_main_state` / `this_environment` | 4/2/2 | plain `lua_State*` — `slot_count` specializes on raw `lua_State*` instead |
 | `sol::weak_derive<First>::value` | 2 | deleted — `check_userdata` consults `class_check` whenever the metatable carries it (see flags) |
 | `sol::nil_t` | 1 | `lua_stack::nil_t` (the `put(L, nil_t)` overload) |
-| `sol::detail::make_destructor<T>()` | 1 | `value_gc<T>` for a 1:1 swap; `unique_value_gc<T>` if the layout is fixed (flag 4) |
+| `sol::detail::make_destructor<T>()` | 1 | `value_gc<T>`, parked on the value metatable by `install(owns_gc)` |
 | `sol::detail::as_pointer_tag<T>` | 1 | `push_pointer<T>` |
 
 ### Sdk.cpp — 428 occurrences
@@ -74,7 +73,7 @@ The counts are token occurrences (`grep -o`), measured on the tree at commit
 | `sol::stack::get<sol::object>` | 2 | `lua_stack::make_object(L, -backpedal)` or `get<object>` |
 | `sol::stack::push(l, sol::nil)` | 2 | `lua_stack::put(L, lua_stack::lua_nil)` |
 | `sol::usertype_traits<C*>::metatable()` | 8 | `pointer_metatable<C>()` — the `install_managed_gc` keys |
-| `sol::usertype_traits<unique_usertype<ValueType>>::metatable()` | 1 | `unique_metatable<ValueType>()` |
+| `sol::usertype_traits<unique_usertype<ValueType>>::metatable()` | 1 | deleted — the `ValueType` constructor goes through `put`, so the value metatable carries the destructor |
 | `sol::state_view` (9 sites) | 9 | `lua_getfield(L, LUA_REGISTRYINDEX, "state")` + `lua_touserdata` for the `ScriptState*`; the `"_sol_lua_push_*"` globals read with `lua_getglobal` |
 | `sol::protected_function` | 9 | `lua_stack::protected_function` |
 | `sol::lua_table` | 9 | raw `lua_getglobal`/`lua_setfield` table ops — not a `lua_stack` type, see flag 2 |
@@ -233,21 +232,16 @@ string functions build the forms: `value_metatable<T>()` = `"sol." + name`,
    the two answer identically in practice, but the reasoning differs. If a
    future installer stores a `class_check` without marking bases, sol2 would
    refuse where this header accepts.
-4. **Two owned-value layouts.** sol2's own constructor and `stack::push<T>`
-   both produced a `[T*][T]` block under the value metatable; the
-   hand-written constructors (and `lua_stack::construct_value`) produce a
-   `[T in place]` block under the unique metatable. A `[T in place]` block
-   read through `get_ref`/`get_pointer` dereferences its first eight bytes as
-   a pointer, and sol2's `make_destructor` (still what `install(owns_gc)`
-   writes) dereferences the same way — for `ValueType` that reads
-   `std::vector`'s internal pointer. This mismatch is pre-existing (it shipped
-   with the phase-1 rewrite and the ValueType probes pass because they only
-   `tostring` the object), and this header reproduces it rather than
-   silently changing it: `value_gc<T>` is the byte-exact slot-deref form,
-   `unique_value_gc<T>` is the in-place form a fixing installer would want on
-   the unique metatable. Wiring owns that decision. The ValueType probes pass
-   today because they only `tostring` the object; a probe that reads a
-   constructed ValueType's fields would surface the hazard.
+4. **Two owned-value layouts — resolved.** sol2's constructor and
+   `stack::push<T>` both produced a `[T*][T]` block under the value metatable;
+   the phase-1 hand-written constructors produced a `[T in place]` block under
+   the unique metatable instead, which `get_ref`/`get_pointer` read as a
+   pointer. `sdk_hand_value_type_construct` now goes through `put`, so every
+   owned value is a `[T*][T]` block, and `install(owns_gc)` parks the
+   destructor on the value metatable — the table `push_value` actually uses.
+   The unique metatable is still created for the name inventory, but nothing is
+   pushed under it. Probe `10_value_type.lua` constructs a value, reads a field
+   and forces two collections, so both halves of this stay covered.
 5. **The const and `.user` key spellings are unmeasured.** Nothing pushes a
    `const T` userdata and nothing outside the installer reads those keys, so
    the `"X const"` / `"X const *"` forms only have to be self-consistent

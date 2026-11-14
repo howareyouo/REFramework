@@ -1900,16 +1900,13 @@ LH_BIND_END(L)
 
 // The __call of ValueType: `ValueType(retype)` builds a value the state owns,
 // which is what constructors<ValueType(RETypeDefinition*)> did under sol2.
+// It goes through put() so the result carries the same [T*][T] block every
+// other pushed value does; get_pointer reads the pointer slot, and the value
+// metatable owns the destructor.
 LH_BIND(sdk_hand_value_type_construct)
     auto type = lh::get<::sdk::RETypeDefinition*>(L, 1);
 
-    void* storage = lua_newuserdatauv(L, sizeof(api::sdk::ValueType), 0);
-    new (storage) api::sdk::ValueType(type);
-
-    luaL_getmetatable(L, lua_stack::unique_metatable<api::sdk::ValueType>().c_str());
-    lua_setmetatable(L, -2);
-
-    return 1;
+    return lh::put(L, api::sdk::ValueType(type));
 LH_BIND_END(L)
 
 LH_BIND(sdk_hand_value_type_call)
@@ -3638,14 +3635,8 @@ void bindings::open_sdk(ScriptState* s) {
 
     // ValueType owns a std::vector, so the value it is pushed as has to be
     // destructed by the state. construct is the __call sol2 built from
-    // constructors<ValueType(RETypeDefinition*)>. The three overloads take
-    // (RETypeDefinition*), (RETypeDefinition*, void*) and (const void*, size_t),
-    // so naming the pointer type is what picks the one sol2 exposed.
-    // MSVC will not take the address of an overloaded constructor inside a
-    // template argument, so the call goes through a function that names the
-    // overload with a plain cast.
-    using value_type_ctor = api::sdk::ValueType (api::sdk::ValueType::*)(::sdk::RETypeDefinition*);
-
+    // constructors<ValueType(RETypeDefinition*)>; the hand-written layer names
+    // the one C++ constructor directly, so no overload cast is involved.
     lh::install<api::sdk::ValueType>(L, "ValueType", value_type, nullptr, &sdk_hand_value_type_construct, true);
 
     lh::methods memory_view(L);

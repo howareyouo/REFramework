@@ -430,35 +430,6 @@ struct member_reader {
 template <auto M>
 inline constexpr lua_CFunction member = &member_reader<M>::call;
 
-// A constructor is reached through the type table, so `Type(args)` builds a value
-// the state owns. sol2 made these the __call of the metatable and handed back
-// the userdata carrying the unique_usertype metatable, which is where the
-// destructor lives.
-template <auto Ctor>
-struct constructor_thunk {
-    static int call(lua_State* L) {
-        using traits = callable_traits<decltype(Ctor)>;
-        using args = typename traits::args;
-        using cls = typename traits::cls;
-
-        static_assert(std::tuple_size_v<args> == 1, "a constructor is called with exactly one argument");
-
-        return guarded(L, [&] {
-            void* storage = lua_newuserdatauv(L, sizeof(cls), 0);
-
-            new (storage) cls(get_param<std::tuple_element_t<0, args>>(L, 1));
-
-            luaL_getmetatable(L, lua_stack::unique_metatable<cls>().c_str());
-            lua_setmetatable(L, -2);
-
-            return 1;
-        });
-    }
-};
-
-template <auto Ctor>
-inline constexpr lua_CFunction ctor = &constructor_thunk<Ctor>::call;
-
 // The member table shared by every metatable of one usertype. It is left on the
 // stack at a fixed index until install() consumes it. Metamethods live in a
 // side list so that a caller can override __index or __newindex on a type whose
@@ -875,13 +846,18 @@ inline void install(lua_State* L, const char* name, const methods& m, lua_CFunct
 
     make_metatable(lua_stack::const_pointer_metatable<T>());
 
-    // A value pushed through this metatable is owned by the state, so a type
-    // that holds memory gets the destructor sol2 would have installed.
+    // The unique metatable stays because it is part of the name inventory sol2
+    // published ("sol.sol::detail::unique_usertype<T>"); nothing is pushed
+    // under it, so it carries no destructor.
     const std::string& unique_key = lua_stack::unique_metatable<T>();
     make_metatable(unique_key);
 
+    // push_value allocates the [T*][T] block under the value metatable, so that
+    // is the table the destructor has to sit on. ensure_metatable only writes a
+    // __gc when it creates a metatable, and install() has already created this
+    // one, so a value form that owns memory would otherwise never be freed.
     if (owns_gc) {
-        luaL_getmetatable(L, unique_key.c_str());
+        luaL_getmetatable(L, lua_stack::value_metatable<T>().c_str());
         lua_pushcfunction(L, &lua_stack::value_gc<T>);
         lua_setfield(L, -2, "__gc");
         lua_pop(L, 1);

@@ -3,23 +3,26 @@
 ## 1. 目标
 
 把 sol2 从 REFramework 的 Lua 绑定中彻底移除（头文件依赖、链接体积、运行期编组），
-同时让 `tools/lua_conformance` 探针对比结果保持不变——只允许已记录的 3 条故意差异：
+同时让 `tools/lua_conformance` 探针对比结果保持不变——迁移验收时只允许 3 条故意差异：
 
 1. `mat4 index write out of range`：`nil` vs `ERR: matrix index out of range`
 2. `ValueType construct`
 3. `ValueType get_type_definition`
 
 基线/手写版验证已完成（`%TEMP%\sol2_new.txt` vs `%TEMP%\hand_new.txt`，`diff.py` 仅上述 3 条）。
-分支 `novr_re4_lua_hand_ut`，基线提交 `e74d7fd9`。
+分支 `novr_re4_lua_hand_ut`，基线提交 `e74d7fd9`。第 3 条来自 flag 4 的构造路径布局错配：
+基线拒绝 `ValueType(...)` 所以它报 ERR，手写层修复前把 vector 的内部指针读成 `ValueType*`。
+修复后差异仍在（基线照旧拒绝），但手写侧返回的是确定的 `RETypeDefinition*`；`construct`
+那一条的手写侧类型名同时从 unique 元表名变成 value 元表名。
 
 ## 2. 现状与约束
 
 - `src/mods/bindings/LuaStack.hpp` 已存在（约 1443 行，`lua_stack` 命名空间），是 sol2-free 的
   编组层，已读全文。提供 `check/get/get_pointer/get_ref/put/push_value/push_pointer/
-  push_borrowed/construct_value/object/reference/protected_function/protected_function_result/
+  push_borrowed/object/reference/protected_function/protected_function_result/
   variadic_args/stack_proxy/script_default_on_error/value_metatable/pointer_metatable/
   unique_metatable/user_metatable/const_*_metatable/qualified_name/container_qualified_name/
-  value_gc/unique_value_gc`。
+  value_gc`。（迁移时的 `construct_value`/`unique_value_gc` 已随 flag 4 删除。）
 - `tools/lua_conformance/SOL2_REMOVAL.md` 是逐 token 迁移图（已存在，未提交）。
 - 无本地 MSVC：只能推分支走 CI 取 `RE4` artifact 的 `dinput8.dll`（`AGENTS.md` 命令）。
 - 四个文件含 `sol::` token：`LuaHand.hpp`(50)、`Sdk.cpp`(428)、`ScriptRunner.cpp`(58)、
@@ -198,8 +201,9 @@ not recognized as a container`；`sol: <status> error: <lua message>`；
 
 ### D5. 已知保留项（不改变行为）
 
-- `lh::install(owns_gc=true)` 的 `__gc` 仍绑 `value_gc<T>`（当前两版一致；`unique_value_gc`
-  留给后续单独修复，避免本迁移引入未验证的行为变化）。
+- `lh::install(owns_gc=true)` 的 `__gc` 挂在 `value_metatable<T>()` 上（flag 4 修复前挂在
+  unique 元表，而 `push_value` 用的是 value 元表，导致 `ValueType` 的 vector 泄漏）。
+  `sdk_hand_value_type_construct` 现在走 `lh::put`，与 `get_pointer` 的 `[T*][T]` 布局一致。
 - `lh::push_borrowed` 继续用 `_sol_lua_push_usertypes` 全局弱表，键为 value 元表名
   （与基线一致）。
 - 只删 sol2 的使用，不改任何 Lua 可见 API 名称、参数顺序或错误文本。
