@@ -10,9 +10,9 @@
 -- only the skip line is reported; on the hand-written layer the block below
 -- runs. Every write goes to the probe's own buffer, never to game memory.
 --
--- `v.data` is deliberately not read: ValueType's __index treats every name as
--- an engine field first and hands back the member-table function when the
--- field is missing, so the property form is not usable from Lua.
+-- `v.data` and `v.type` are properties, as they were under sol2: the read
+-- yields the value. The hand-written layer used to put the getter itself in
+-- the member table, so `v.data` came back as a function.
 
 local ty = sdk.find_type_definition("System.Int32")
 local v
@@ -32,6 +32,14 @@ else
     rep("owned initial dword", v:read_dword(0))
     v:write_dword(0, 1234)
     rep("owned written dword", v:read_dword(0))
+
+    -- The property form sol2 exposed. System.Int32 is four bytes, so the dword
+    -- appears as its little-endian bytes: 1234 is 0xD2 0x04 0x00 0x00.
+    local bytes = v.data
+    rep("owned data kind", type(bytes))
+    rep("owned data length", #bytes)
+    rep("owned data bytes", table.concat({ bytes[1], bytes[2], bytes[3], bytes[4] }, " "))
+    rep("owned property type", v.type:get_full_name())
 
     -- A second value must not share the first one's buffer. Under the broken
     -- layout both reads came off the same vector pointer, so this line is what

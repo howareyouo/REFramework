@@ -533,6 +533,7 @@ def methods_of(clean, var):
 
     out, i = [], decl.end()
     has_fallback = False
+    has_props = False
 
     while True:
         m = step.match(clean, i)
@@ -553,6 +554,8 @@ def methods_of(clean, var):
         if m.group(3) == "fallback_index":
             has_fallback = True
         else:
+            if m.group(3) == "prop":
+                has_props = True
             args = split_top(clean[open_paren + 1:end - 1])
             if args:
                 name = string_value(args[0])
@@ -561,9 +564,9 @@ def methods_of(clean, var):
 
         i = end
 
-    # install() puts a dispatcher in __index whenever a fallback is given, so the
-    # metatable carries one even though the chain never names it.
-    if has_fallback:
+    # install() puts a dispatcher in __index whenever a fallback or a property is
+    # given, so the metatable carries one even though the chain never names it.
+    if has_fallback or has_props:
         out.append("__index")
 
     return out

@@ -293,6 +293,23 @@ string functions build the forms: `value_metatable<T>()` = `"sol." + name`,
     setup is rewritten, it must push `lua_stack::default_traceback_error_handler`
     under that global (or accept pcall without a handler, which changes the
     traceback text the error path spews).
+12. **Data members are properties again, for reads.** sol2 registered a
+    `"name", &T::member` argument as a property, so `v.data` read the field.
+    The first hand-written pass put the same getter in the member table, where
+    `__index` returned the function instead of its value. `methods::prop` now
+    keeps getters in a second table that `__index` calls with the instance, so
+    the ten names involved (`ValueType.data`/`type`, `TreeNodeData`'s seven
+    fields, `TreeNode.id`) read the way they did under sol2 — `v.data` is the
+    flat sequence table `lh::put` produces for a `std::vector<uint8_t>`.
+    Three limits remain, none of them exercised today:
+    - No setter. Writing a property on a type without its own `__newindex`
+      still raises the `new_index` error, where sol2's property accepted the
+      write. `ValueType` is unaffected: its `__newindex` owns writes and
+      rejected these names under sol2 as well.
+    - `__pairs` iterates the member table only, so a property name no longer
+      appears in `pairs(instance)`.
+    - `set_bases` copies the member table only, so a derived type does not
+      inherit its base's properties. No type with properties has bases today.
 
 ## Probes to run when wiring
 

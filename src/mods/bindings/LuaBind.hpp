@@ -408,9 +408,10 @@ template <auto F>
 inline constexpr lua_CFunction fthunk = &function_thunk<F>::call;
 
 // A public data member read as a value. sol2 registered these as properties,
-// so `view.size` yields a copy and never a writable reference.
+// so `view.size` yields a copy and never a writable reference -- which is why
+// the entry is a getter given to methods::prop, not a method.
 template <auto M>
-struct member_reader {
+struct property_getter {
     static int call(lua_State* L) {
         using traits = callable_traits<decltype(M)>;
         using cls = typename traits::cls;
@@ -419,7 +420,7 @@ struct member_reader {
             cls* self = get_self<cls>(L);
 
             if (self == nullptr) {
-                return luaL_error(L, "attempt to call a method on a nil usertype object");
+                return luaL_error(L, "attempt to read a property on a nil usertype object");
             }
 
             return lh::put(L, self->*M);
@@ -428,12 +429,16 @@ struct member_reader {
 };
 
 template <auto M>
-inline constexpr lua_CFunction member = &member_reader<M>::call;
+inline constexpr lua_CFunction prop = &property_getter<M>::call;
 
 // The member table shared by every metatable of one usertype. It is left on the
 // stack at a fixed index until install() consumes it. Metamethods live in a
 // side list so that a caller can override __index or __newindex on a type whose
 // instances are addressed differently from its members.
+//
+// Properties live in a second table, created only when one is registered: a
+// type without properties keeps its member table as __index itself, which is
+// the lookup the VM serves without calling into C.
 class methods {
 public:
     explicit methods(lua_State* L) : m_L{L} {
@@ -447,6 +452,22 @@ public:
     methods& add(const char* name, lua_CFunction fn) {
         lua_pushcfunction(m_L, fn);
         lua_setfield(m_L, m_index, name);
+        return *this;
+    }
+
+    // A public data member exposed the way sol2 exposed it: reading the name
+    // yields the value, so the getter is invoked by __index instead of being
+    // returned. A derived type does not inherit these -- no type with
+    // properties has bases today, and the member table is the only thing
+    // set_bases copies.
+    methods& prop(const char* name, lua_CFunction getter) {
+        if (m_props == 0) {
+            lua_createtable(m_L, 0, 4);
+            m_props = lua_gettop(m_L);
+        }
+
+        lua_pushcfunction(m_L, getter);
+        lua_setfield(m_L, m_props, name);
         return *this;
     }
 
@@ -464,6 +485,9 @@ public:
     }
 
     lua_CFunction fallback_index() const { return m_fallback_index; }
+
+    // 0 when no property was registered, which is what keeps __index a table.
+    int props() const { return m_props; }
 
     bool has_meta(const char* name) const {
         for (const auto& [registered, fn] : m_meta) {
@@ -495,6 +519,7 @@ public:
 private:
     lua_State* m_L;
     int m_index = 0;
+    int m_props = 0;
     lua_CFunction m_fallback_index = nullptr;
     std::vector<std::pair<const char*, lua_CFunction>> m_meta;
 };
@@ -518,10 +543,16 @@ inline void set_new_index(lua_State* L, const methods& m) {
 }
 
 // The __index dispatcher sol2 generated: the member table is consulted first,
-// and only a miss reaches the type's own index function. Types such as
-// REManagedObject address fields through the type database, but their methods
-// still live in the member table, so the two have to coexist.
-inline int index_with_fallback(lua_State* L) {
+// then the property getters, and only a miss reaches the type's own index
+// function. Types such as REManagedObject address fields through the type
+// database, but their methods still live in the member table, so the two have
+// to coexist.
+//
+// A function cannot carry a value, so a property hit is called with the
+// instance instead of being returned -- that is what makes `v.data` read the
+// field the way sol2's property did. Upvalue 2 is nil for a type with no
+// properties and upvalue 3 is nil for a type with no fallback.
+inline int index_dispatch(lua_State* L) {
     lua_settop(L, 2);
 
     // The key is nil only for a metatable-less read; lua_rawget would accept it,
@@ -536,9 +567,28 @@ inline int index_with_fallback(lua_State* L) {
         }
 
         lua_pop(L, 2);
+
+        if (!lua_isnil(L, lua_upvalueindex(2))) {
+            lua_pushvalue(L, lua_upvalueindex(2));
+            lua_pushvalue(L, 2);
+            lua_rawget(L, -2);
+
+            if (!lua_isnil(L, -1)) {
+                lua_pushvalue(L, 1);
+                lua_call(L, 1, 1);
+                return 1;
+            }
+
+            lua_pop(L, 2);
+        }
     }
 
-    lua_pushvalue(L, lua_upvalueindex(2));
+    if (lua_isnil(L, lua_upvalueindex(3))) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_pushvalue(L, lua_upvalueindex(3));
     lua_pushvalue(L, 1);
     lua_pushvalue(L, 2);
     lua_call(L, 2, 1);
@@ -613,21 +663,34 @@ inline int absolute_index(lua_State* L, int index) {
     return lua_stack::absolute_index(L, index);
 }
 
-// Sets __index on the metatable at `index`. Without a fallback the member table
-// is the __index itself, which is what sol2 did for a plain usertype; with one,
-// a closure takes over and keeps the table reachable as an upvalue.
-inline void set_index(lua_State* L, int index, int member_table, lua_CFunction fallback) {
+// Sets __index on the metatable at `index`. Without properties or a fallback
+// the member table is the __index itself, which is what sol2 did for a plain
+// usertype; otherwise a closure takes over and keeps both tables reachable as
+// upvalues.
+inline void set_index(lua_State* L, int index, int member_table, int prop_table, lua_CFunction fallback) {
     index = absolute_index(L, index);
 
-    if (fallback == nullptr) {
+    if (prop_table == 0 && fallback == nullptr) {
         lua_pushvalue(L, member_table);
         lua_setfield(L, index, "__index");
         return;
     }
 
     lua_pushvalue(L, member_table);
-    lua_pushcfunction(L, fallback);
-    lua_pushcclosure(L, &index_with_fallback, 2);
+
+    if (prop_table == 0) {
+        lua_pushnil(L);
+    } else {
+        lua_pushvalue(L, prop_table);
+    }
+
+    if (fallback == nullptr) {
+        lua_pushnil(L);
+    } else {
+        lua_pushcfunction(L, fallback);
+    }
+
+    lua_pushcclosure(L, &index_dispatch, 3);
     lua_setfield(L, index, "__index");
 }
 
@@ -787,7 +850,7 @@ inline void install(lua_State* L, const char* name, const methods& m, lua_CFunct
 
         set_name(L, -1, key);
 
-        set_index(L, -1, m.index(), m.fallback_index());
+        set_index(L, -1, m.index(), m.props(), m.fallback_index());
 
         set_bases<T, Bases...>(L, -1, m.index());
 
@@ -819,7 +882,7 @@ inline void install(lua_State* L, const char* name, const methods& m, lua_CFunct
 
         set_name(L, -1, key);
 
-        set_index(L, -1, m.index(), m.fallback_index());
+        set_index(L, -1, m.index(), m.props(), m.fallback_index());
 
         set_bases<T, Bases...>(L, -1, m.index());
 
@@ -872,7 +935,7 @@ inline void install(lua_State* L, const char* name, const methods& m, lua_CFunct
     set_name(L, -1, user_key);
 
     lua_createtable(L, 0, 2);
-    set_index(L, -1, m.index(), m.fallback_index());
+    set_index(L, -1, m.index(), m.props(), m.fallback_index());
     lua_pushcfunction(L, &new_index_error);
     lua_setfield(L, -2, "__newindex");
     set_pairs(L, -1, m);
@@ -894,6 +957,11 @@ inline void install(lua_State* L, const char* name, const methods& m, lua_CFunct
     }
 
     lua_remove(L, m.index());
+
+    // A property table, when one was registered, sits directly above it.
+    if (m.props() != 0) {
+        lua_pop(L, 1);
+    }
 }
 
 // A pointer to memory the Lua state does not own -- a view of a live game array
@@ -974,7 +1042,7 @@ inline void install_borrowed(lua_State* L, const char* name, const methods& m) {
 
     set_name(L, -1, pointer_key);
 
-    set_index(L, -1, m.index(), m.fallback_index());
+    set_index(L, -1, m.index(), m.props(), m.fallback_index());
 
     m.apply_meta();
 
@@ -990,7 +1058,7 @@ inline void install_borrowed(lua_State* L, const char* name, const methods& m) {
     set_name(L, -1, user_key);
 
     lua_createtable(L, 0, 2);
-    set_index(L, -1, m.index(), m.fallback_index());
+    set_index(L, -1, m.index(), m.props(), m.fallback_index());
     lua_pushcfunction(L, &new_index_error);
     lua_setfield(L, -2, "__newindex");
     set_pairs(L, -1, m);
@@ -999,6 +1067,11 @@ inline void install_borrowed(lua_State* L, const char* name, const methods& m) {
     lua_setglobal(L, name);
 
     lua_remove(L, m.index());
+
+    // A property table, when one was registered, sits directly above it.
+    if (m.props() != 0) {
+        lua_pop(L, 1);
+    }
 }
 } // namespace lh
 

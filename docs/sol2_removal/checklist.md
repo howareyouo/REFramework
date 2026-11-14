@@ -11,4 +11,7 @@
 - [x] flag 4 修复：构造路径改走 `put`，`install(owns_gc)` 的 `__gc` 挂到 value 元表，
       `unique_value_gc`/`construct_value`/`constructor_thunk`/`lh::ctor` 已删除；
       `10_value_type.lua` 覆盖字段读、双缓冲区与两轮 GC
+- [x] 数据成员恢复 property 语义：`methods::prop` + 三段 `__index` 派发，
+      `ValueType.data/type`、`TreeNodeData` 七个字段、`TreeNode.id` 读取得值；
+      `10_value_type.lua` 断言 `v.data` 的字节表和 `v.type:get_full_name()`
 - [x] `dinput8.dll` 体积低于改动前（4,040,192 → 3,615,744 字节）

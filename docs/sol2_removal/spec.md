@@ -206,6 +206,9 @@ not recognized as a container`；`sol: <status> error: <lua message>`；
   `sdk_hand_value_type_construct` 现在走 `lh::put`，与 `get_pointer` 的 `[T*][T]` 布局一致。
 - `lh::push_borrowed` 继续用 `_sol_lua_push_usertypes` 全局弱表，键为 value 元表名
   （与基线一致）。
+- 数据成员按 sol2 的 property 语义读取：`lh::methods::prop` 把 getter 放进独立的属性表，
+  `__index` 命中时带实例调用，所以 `v.data` / `node.id` 读出的是值而不是函数。属性不参与
+  `__pairs` 迭代，派生类型也不继承基类的属性（当前没有同时具备两者的类型）。
 - 只删 sol2 的使用，不改任何 Lua 可见 API 名称、参数顺序或错误文本。
 
 ## 4. 验证步骤（决策完整）
