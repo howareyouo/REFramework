@@ -8,34 +8,37 @@
 --
 -- The baseline refuses ValueType(...) altogether, so `v` stays nil there and
 -- only the skip line is reported; on the hand-written layer the block below
--- runs. Every write is to the probe's own buffer, never to game memory.
+-- runs. Every write goes to the probe's own buffer, never to game memory.
+--
+-- `v.data` is deliberately not read: ValueType's __index treats every name as
+-- an engine field first and hands back the member-table function when the
+-- field is missing, so the property form is not usable from Lua.
 
 local ty = sdk.find_type_definition("System.Int32")
 local v
 
-try("ValueType construct", function()
+try("owned construct", function()
     v = ValueType(ty)
     return typename(v)
 end)
 
 if v == nil then
-    rep("ValueType owned value", "SKIP (constructor refused)")
+    rep("owned value", "SKIP (constructor refused)")
 else
-    rep("ValueType metatable", typename(v))
-    rep("ValueType type definition", typename(v:get_type_definition()))
-    rep("ValueType type full name", v:get_type_definition():get_full_name())
-    rep("ValueType data size", #v.data)
-    rep("ValueType initial dword", v:read_dword(0))
+    rep("owned metatable", typename(v))
+    rep("owned type definition", typename(v:get_type_definition()))
+    rep("owned type full name", v:get_type_definition():get_full_name())
 
+    rep("owned initial dword", v:read_dword(0))
     v:write_dword(0, 1234)
-    rep("ValueType written dword", v:read_dword(0))
+    rep("owned written dword", v:read_dword(0))
 
     -- A second value must not share the first one's buffer. Under the broken
     -- layout both reads came off the same vector pointer, so this line is what
     -- separates "the write landed" from "the read went somewhere else".
     local other = ValueType(ty)
-    rep("ValueType second dword", other:read_dword(0))
-    rep("ValueType buffers differ", tostring(v:address() ~= other:address()))
+    rep("owned second dword", other:read_dword(0))
+    rep("owned buffers differ", tostring(v:address() ~= other:address()))
 
     -- Two full collections: the first queues the userdata, the second runs
     -- __gc. A destructor pointed at the wrong address crashes here.
@@ -45,7 +48,7 @@ else
     collectgarbage()
 
     local again = ValueType(ty)
-    rep("ValueType after collection", again:read_dword(0))
+    rep("owned after collection", again:read_dword(0))
     again = nil
     collectgarbage()
     collectgarbage()
