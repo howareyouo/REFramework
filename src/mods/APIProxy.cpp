@@ -1,5 +1,4 @@
 #include <cstring>
-#include <exception>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -125,19 +124,17 @@ bool should_report(std::string_view event, std::string_view module) {
     return count <= 5 || count % 1000 == 0;
 }
 
-void log_cb_exception(std::string_view event, const void* cb = nullptr, const char* name = nullptr, const char* what = nullptr) {
+void log_cb_exception(std::string_view event, const void* cb = nullptr, const char* name = nullptr) {
     const auto module = callback_module(cb);
 
     if (!should_report(event, module)) {
         return;
     }
 
-    const std::string_view reason = what != nullptr && what[0] != '\0' ? what : "no message";
-
     if (name != nullptr) {
-        spdlog::error("[APIProxy] Exception occurred in {} callback ({} from {}): {}; the plugin has an error.", event, name, module, reason);
+        spdlog::error("[APIProxy] Exception occurred in {} callback ({} from {}); the plugin has an error.", event, name, module);
     } else {
-        spdlog::error("[APIProxy] Exception occurred in {} callback (from {}): {}; the plugin has an error.", event, module, reason);
+        spdlog::error("[APIProxy] Exception occurred in {} callback (from {}); the plugin has an error.", event, module);
     }
 }
 
@@ -171,8 +168,6 @@ bool invoke_cbs(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::string_
             } else if (!cb(std::forward<Args>(args)...)) {
                 ok = false;
             }
-        } catch (const std::exception& e) {
-            log_cb_exception(event, reinterpret_cast<const void*>(cb), nullptr, e.what());
         } catch (...) {
             log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
@@ -191,8 +186,6 @@ bool invoke_cbs_until(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::s
             if (!cb(std::forward<Args>(args)...)) {
                 return false;
             }
-        } catch (const std::exception& e) {
-            log_cb_exception(event, reinterpret_cast<const void*>(cb), nullptr, e.what());
         } catch (...) {
             log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
@@ -210,8 +203,6 @@ void invoke_app_entry(std::shared_mutex& mtx, const std::unordered_map<size_t, s
         for (auto cb : it->second) {
             try {
                 cb();
-            } catch (const std::exception& e) {
-                log_cb_exception(event, reinterpret_cast<const void*>(cb), name, e.what());
             } catch (...) {
                 log_cb_exception(event, reinterpret_cast<const void*>(cb), name);
             }
@@ -241,8 +232,6 @@ void invoke_imgui(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::strin
 
         try {
             cb(&data);
-        } catch (const std::exception& e) {
-            log_cb_exception(event, reinterpret_cast<const void*>(cb), nullptr, e.what());
         } catch (...) {
             log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
