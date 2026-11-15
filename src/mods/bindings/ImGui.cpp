@@ -335,7 +335,7 @@ static int input_text_callback(ImGuiInputTextCallbackData* data) {
 }
 
 LH_BIND(l_input_text) {
-    const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 3) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
+    const auto flags = (ImGuiInputTextFlags)(lh::opt_int(L, 3, 0) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
 
     g_input_text_buffer = lh::str(L, 2);
 
@@ -352,7 +352,7 @@ LH_BIND(l_input_text) {
 LH_BIND_END(L)
 
 LH_BIND(l_input_text_multiline) {
-    const auto flags = (ImGuiInputTextFlags)(lh::num_int(L, 4) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
+    const auto flags = (ImGuiInputTextFlags)(lh::opt_int(L, 4, 0) | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways);
 
     g_input_text_buffer = lh::str(L, 2);
 
@@ -859,13 +859,13 @@ LH_BIND(l_is_mouse_double_clicked) {
 LH_BIND_END(L)
 
 LH_BIND(l_indent) {
-    ImGui::Indent(lh::num_float(L, 1));
+    ImGui::Indent(lh::opt_num(L, 1, 0.0f));
     return 0;
 }
 LH_BIND_END(L)
 
 LH_BIND(l_unindent) {
-    ImGui::Unindent(lh::num_float(L, 1));
+    ImGui::Unindent(lh::opt_num(L, 1, 0.0f));
     return 0;
 }
 LH_BIND_END(L)
