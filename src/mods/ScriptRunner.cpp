@@ -8,6 +8,7 @@
 #include <iterator>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include "sdk/REContext.hpp"
 #include "sdk/REManagedObject.hpp"
@@ -17,7 +18,6 @@
 #include "sdk/REMath.hpp"
 
 #include "utility/String.hpp"
-#include <utility/ImGuiWindowStack.hpp>
 #include <utility/ScopeGuard.hpp>
 
 #include "Mods.hpp"
@@ -1557,16 +1557,21 @@ void ScriptState::on_frame() {
 }
 
 void ScriptState::on_draw_ui() {
-    // A callback that raises between Begin() and End() would otherwise leave the
-    // window stack misaligned, and every script drawn after this one would be
-    // submitted into the window that was left open instead of its own.
-    utility::ImGuiWindowStackGuard window_stack;
+    // A callback that raises between Begin() and End() leaves ImGui's window stack
+    // misaligned. Asserts are compiled out in this build, so the mismatch goes
+    // unnoticed: every script drawn after this one lands in the window that was
+    // left open instead of its own. Remember the stack sizes and close whatever the
+    // callbacks leave open, which is the same recovery EndFrame() performs.
+    ImGuiErrorRecoveryState stack_sizes{};
+    ImGui::ErrorRecoveryStoreState(&stack_sizes);
 
     run_guarded(m_execution_mutex, "Unknown error in on_draw_ui", [this] {
         m_on_draw_ui_fns.dispatch([this](lua_stack::protected_function& fn) {
             return should_remove_hook(handle_protected_result(fn()));
         });
     });
+
+    ImGui::ErrorRecoveryTryToRecoverState(&stack_sizes);
 
     api::imgui::cleanup();
     api::imnodes::cleanup();
