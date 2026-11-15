@@ -1553,6 +1553,9 @@ void ScriptState::on_frame() {
 
     run_guarded(m_execution_mutex, "Unknown error in on_frame", [this] {
         m_on_frame_fns.dispatch([this](lua_stack::protected_function& fn) {
+            // Per callback, not per state: one script leaking its window must not
+            // route the other scripts in the same state into that window.
+            utility::ImGuiWindowStackGuard window_stack{"lua on_frame callback"};
             return should_remove_hook(handle_protected_result(fn()));
         });
     });
@@ -1570,6 +1573,9 @@ void ScriptState::on_draw_ui() {
 
     run_guarded(m_execution_mutex, "Unknown error in on_draw_ui", [this] {
         m_on_draw_ui_fns.dispatch([this](lua_stack::protected_function& fn) {
+            // Per callback, not per state: the window a script leaves open must
+            // not swallow the UI of the other scripts registered in this state.
+            utility::ImGuiWindowStackGuard window_stack{"lua on_draw_ui callback"};
             return should_remove_hook(handle_protected_result(fn()));
         });
     });

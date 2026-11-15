@@ -46,7 +46,13 @@ public:
         const int delta = ctx->CurrentWindowStack.Size - m_state.SizeOfWindowStack;
 
         if (delta != 0) {
-            report(delta);
+            // The innermost window is the one the callback left open, so its name
+            // names the culprit even when many scripts share a single state.
+            const char* innermost = ctx->CurrentWindow != nullptr && ctx->CurrentWindow->Name != nullptr
+                ? ctx->CurrentWindow->Name
+                : "?";
+
+            report(delta, innermost);
         }
 
         // Only closes windows; a callback that closed one too many cannot be
@@ -58,7 +64,7 @@ public:
     ImGuiWindowStackGuard& operator=(const ImGuiWindowStackGuard&) = delete;
 
 private:
-    void report(int delta) const {
+    void report(int delta, const char* innermost) const {
         // A callback that leaks every frame would otherwise bury the log.
         static int reports = 0;
         static constexpr int report_limit = 16;
@@ -75,11 +81,11 @@ private:
         }
 
         if (delta > 0) {
-            spdlog::error("[ui] '{}' left {} ImGui window(s) open ({} -> {}); closing them so the rest of the frame draws separately",
-                m_owner, delta, m_state.SizeOfWindowStack, m_state.SizeOfWindowStack + delta);
+            spdlog::error("[ui] '{}' left {} ImGui window(s) open ({} -> {}), innermost '{}'; closing them so the rest of the frame draws separately",
+                m_owner, delta, m_state.SizeOfWindowStack, m_state.SizeOfWindowStack + delta, innermost);
         } else {
-            spdlog::error("[ui] '{}' closed {} ImGui window(s) it did not open ({} -> {})",
-                m_owner, -delta, m_state.SizeOfWindowStack, m_state.SizeOfWindowStack + delta);
+            spdlog::error("[ui] '{}' closed {} ImGui window(s) it did not open ({} -> {}), innermost '{}'",
+                m_owner, -delta, m_state.SizeOfWindowStack, m_state.SizeOfWindowStack + delta, innermost);
         }
     }
 
