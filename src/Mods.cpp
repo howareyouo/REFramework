@@ -18,6 +18,8 @@
 
 #include "Mods.hpp"
 
+#include <utility/ImGuiWindowStack.hpp>
+
 Mods::Mods() {
     // Order is load-bearing: BackBufferRenderer must be first to intercept the
     // frame, REFrameworkConfig gates the UI the other mods draw into, and the
@@ -196,6 +198,9 @@ void Mods::on_pre_imgui_frame() const {
 
 void Mods::on_frame() const {
     for (auto& mod : m_mods) {
+        // Keeps a mod that opens a window and returns early from dragging the
+        // rest of the frame, mods and scripts alike, into that window.
+        utility::ImGuiWindowStackGuard window_stack{mod->get_name()};
         mod->on_frame();
     }
 }
@@ -218,6 +223,7 @@ void Mods::on_post_frame() const {
 
 void Mods::on_draw_ui() const {
     for (auto& mod : m_mods) {
+        utility::ImGuiWindowStackGuard window_stack{mod->get_name()};
         mod->on_draw_ui();
     }
 }

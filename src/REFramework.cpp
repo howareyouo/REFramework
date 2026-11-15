@@ -12,6 +12,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ImGuizmo.h>
 #include <imnodes.h>
 #include "re2-imgui/imgui_impl_dx12.h"
@@ -666,6 +667,41 @@ REFramework::~REFramework() {
     }
 }
 
+// Names the windows a mod or script left open this frame. EndFrame's error
+// recovery closes them silently, which is why nothing else reports the leak.
+static void log_unbalanced_window_stack() {
+    auto* ctx = ImGui::GetCurrentContext();
+
+    if (ctx == nullptr || ctx->CurrentWindowStack.Size <= 1) {
+        return;
+    }
+
+    static int reports = 0;
+
+    if (reports > 16) {
+        return;
+    }
+
+    ++reports;
+
+    if (reports == 17) {
+        spdlog::error("[ui] further unbalanced window stacks suppressed");
+        return;
+    }
+
+    std::string windows;
+
+    for (int i = 0; i < ctx->CurrentWindowStack.Size; ++i) {
+        if (i > 0) {
+            windows += " / ";
+        }
+
+        windows += ctx->CurrentWindowStack[i]->Name;
+    }
+
+    spdlog::error("[ui] {} window(s) still open at EndFrame: {}", ctx->CurrentWindowStack.Size, windows);
+}
+
 void REFramework::run_imgui_frame(bool from_present) {
     std::scoped_lock _{ m_imgui_mtx };
 
@@ -699,6 +735,8 @@ void REFramework::run_imgui_frame(bool from_present) {
     m_last_draw_ui = m_draw_ui;
 
     IMGUIZMO_NAMESPACE::BeginFrame();
+
+    log_unbalanced_window_stack();
 
     ImGui::EndFrame();
     ImGui::Render();

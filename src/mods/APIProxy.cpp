@@ -1,4 +1,7 @@
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
@@ -78,11 +81,60 @@ static REFImGuiFrameCbData get_cached_imgui_cb_data() {
 
 namespace {
 
-void log_cb_exception(std::string_view event, const char* name = nullptr) {
+// Name the module that owns a plugin callback. Plugins register bare function
+// pointers, so without this the log can only say "one of the plugins".
+std::string_view callback_module(const void* cb) {
+    static thread_local char file_name[MAX_PATH]{};
+
+    if (cb == nullptr) {
+        return "unknown module";
+    }
+
+    HMODULE module = nullptr;
+
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCWSTR>(cb), &module) || module == nullptr) {
+        return "unknown module";
+    }
+
+    if (GetModuleFileNameA(module, file_name, MAX_PATH) == 0) {
+        return "unknown module";
+    }
+
+    if (char* last_sep = std::strrchr(file_name, '\\'); last_sep != nullptr) {
+        return std::string_view{last_sep + 1};
+    }
+
+    return std::string_view{file_name};
+}
+
+// A callback that fails every frame would bury the rest of the log, so report
+// its first few occurrences and then every thousandth.
+bool should_report(std::string_view event, std::string_view module) {
+    static std::mutex mtx;
+    static std::unordered_map<std::string, int> counts;
+
+    std::scoped_lock _{mtx};
+
+    std::string key{event};
+    key += '/';
+    key += module;
+
+    const int count = ++counts[key];
+    return count <= 5 || count % 1000 == 0;
+}
+
+void log_cb_exception(std::string_view event, const void* cb = nullptr, const char* name = nullptr) {
+    const auto module = callback_module(cb);
+
+    if (!should_report(event, module)) {
+        return;
+    }
+
     if (name != nullptr) {
-        spdlog::error("[APIProxy] Exception occurred in {} callback ({}); one of the plugins has an error.", event, name);
+        spdlog::error("[APIProxy] Exception occurred in {} callback ({} from {}); the plugin has an error.", event, name, module);
     } else {
-        spdlog::error("[APIProxy] Exception occurred in {} callback; one of the plugins has an error.", event);
+        spdlog::error("[APIProxy] Exception occurred in {} callback (from {}); the plugin has an error.", event, module);
     }
 }
 
@@ -117,7 +169,7 @@ bool invoke_cbs(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::string_
                 ok = false;
             }
         } catch (...) {
-            log_cb_exception(event);
+            log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
     }
 
@@ -135,7 +187,7 @@ bool invoke_cbs_until(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::s
                 return false;
             }
         } catch (...) {
-            log_cb_exception(event);
+            log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
     }
 
@@ -152,7 +204,7 @@ void invoke_app_entry(std::shared_mutex& mtx, const std::unordered_map<size_t, s
             try {
                 cb();
             } catch (...) {
-                log_cb_exception(event, name);
+                log_cb_exception(event, reinterpret_cast<const void*>(cb), name);
             }
         }
     }
@@ -171,15 +223,17 @@ void invoke_imgui(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::strin
     auto data = get_cached_imgui_cb_data();
 
     for (auto cb : cbs) {
-        // A callback that raises between Begin() and End() would otherwise leave
-        // ImGui's window stack misaligned, and every callback drawn after this one
-        // would be submitted into the window it left open.
-        utility::ImGuiWindowStackGuard window_stack;
+        const auto module = callback_module(reinterpret_cast<const void*>(cb));
+
+        // A callback that returns or raises between Begin() and End() would
+        // otherwise leave ImGui's window stack misaligned, and everything drawn
+        // after this callback would be submitted into the window it left open.
+        utility::ImGuiWindowStackGuard window_stack{module};
 
         try {
             cb(&data);
         } catch (...) {
-            log_cb_exception(event);
+            log_cb_exception(event, reinterpret_cast<const void*>(cb));
         }
     }
 }

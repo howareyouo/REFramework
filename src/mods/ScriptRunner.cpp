@@ -1546,6 +1546,11 @@ void run_guarded(std::recursive_mutex& mux, const char* what, Body&& body) {
 }
 
 void ScriptState::on_frame() {
+    // A script that opens a window in on_frame and returns early would leave it
+    // open for the rest of the frame, so the menu and every script drawn after
+    // it would be submitted into that window.
+    utility::ImGuiWindowStackGuard window_stack{m_is_main_state ? "main lua state (on_frame)" : "plugin lua state (on_frame)"};
+
     run_guarded(m_execution_mutex, "Unknown error in on_frame", [this] {
         m_on_frame_fns.dispatch([this](lua_stack::protected_function& fn) {
             return should_remove_hook(handle_protected_result(fn()));
@@ -1557,10 +1562,11 @@ void ScriptState::on_frame() {
 }
 
 void ScriptState::on_draw_ui() {
-    // A callback that raises between Begin() and End() would otherwise leave the
-    // window stack misaligned, and every script drawn after this one would be
-    // submitted into the window that was left open instead of its own.
-    utility::ImGuiWindowStackGuard window_stack;
+    // A callback that returns or raises between Begin() and End() would
+    // otherwise leave the window stack misaligned, and every script drawn after
+    // this one would be submitted into the window that was left open instead of
+    // its own.
+    utility::ImGuiWindowStackGuard window_stack{m_is_main_state ? "main lua state" : "plugin lua state"};
 
     run_guarded(m_execution_mutex, "Unknown error in on_draw_ui", [this] {
         m_on_draw_ui_fns.dispatch([this](lua_stack::protected_function& fn) {
