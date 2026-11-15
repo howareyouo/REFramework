@@ -696,7 +696,7 @@ static void log_unbalanced_window_stack() {
             windows += " / ";
         }
 
-        windows += ctx->CurrentWindowStack[i]->Name;
+        windows += ctx->CurrentWindowStack[i].Window->Name;
     }
 
     spdlog::error("[ui] {} window(s) still open at EndFrame: {}", ctx->CurrentWindowStack.Size, windows);
