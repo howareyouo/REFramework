@@ -9,6 +9,7 @@
 
 #include "utility/FunctionHook.hpp"
 #include "utility/String.hpp"
+#include <utility/ImGuiWindowStack.hpp>
 
 #include "ScriptRunner.hpp"
 
@@ -170,6 +171,11 @@ void invoke_imgui(std::shared_mutex& mtx, const std::vector<Fn>& cbs, std::strin
     auto data = get_cached_imgui_cb_data();
 
     for (auto cb : cbs) {
+        // A callback that raises between Begin() and End() would otherwise leave
+        // ImGui's window stack misaligned, and every callback drawn after this one
+        // would be submitted into the window it left open.
+        utility::ImGuiWindowStackGuard window_stack;
+
         try {
             cb(&data);
         } catch (...) {
