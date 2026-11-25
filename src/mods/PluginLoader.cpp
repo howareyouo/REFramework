@@ -53,15 +53,18 @@ bool is_drawing_ui() {
 }
 
 void update_renderer_data() {
-    g_renderer_data.renderer_type = (int)g_framework->get_renderer_type();
+    auto& d3d12 = g_framework->get_d3d12_hook();
 
-    if (g_renderer_data.renderer_type == REFRAMEWORK_RENDERER_D3D12) {
-        auto& d3d12 = g_framework->get_d3d12_hook();
-
-        g_renderer_data.device = d3d12->get_device();
-        g_renderer_data.swapchain = d3d12->get_swap_chain();
-        g_renderer_data.command_queue = d3d12->get_command_queue();
+    if (g_framework->get_renderer_type() != REFramework::RendererType::D3D12 || d3d12 == nullptr) {
+        return;
     }
+
+    // Published to plugins: use the public REFRAMEWORK_RENDERER_* values, not the
+    // internal RendererType enum, whose numeric values are not part of the ABI.
+    g_renderer_data.renderer_type = REFRAMEWORK_RENDERER_D3D12;
+    g_renderer_data.device = d3d12->get_device();
+    g_renderer_data.swapchain = d3d12->get_swap_chain();
+    g_renderer_data.command_queue = d3d12->get_command_queue();
 }
 }
 
